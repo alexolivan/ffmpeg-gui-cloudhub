@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -e
+
+# Resolve repository root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+cd "${PROJECT_ROOT}"
+
+# Activate virtualenv if present
+PYTHON_BIN="python3"
+if [ -d "${PROJECT_ROOT}/venv" ] && [ -x "${PROJECT_ROOT}/venv/bin/python3" ]; then
+    PYTHON_BIN="${PROJECT_ROOT}/venv/bin/python3"
+fi
+
+export PYTHONPATH="${PROJECT_ROOT}"
+
+exec "${PYTHON_BIN}" -m backend.cli "$@"
