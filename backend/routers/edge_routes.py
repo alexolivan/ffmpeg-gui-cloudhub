@@ -5,14 +5,15 @@ import secrets
 import logging
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Header, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Header, Request, WebSocket, WebSocketDisconnect, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from backend.database.db import get_db
+from backend.database.db import get_db, SessionLocal
 from backend.database.models import EnrollmentToken, EnrolledNode, AuditLog
 from backend.core.auth_manager import AuthManager
 from backend.core.telemetry_collector import telemetry_collector
+from backend.core.tunnel_server import tunnel_server
 
 logger = logging.getLogger("cloudhub.api.edge")
 router = APIRouter(prefix="/api/edge", tags=["edge"])
@@ -169,3 +170,54 @@ def edge_heartbeat(
         "status": "ok",
         "vitality": vitality,
     }
+
+
+@router.websocket("/tunnel")
+async def edge_reverse_tunnel_websocket(websocket: WebSocket):
+    """
+    Multiplexed reverse tunnel endpoint called by edge appliances.
+    Authenticates node via handshake headers or query parameters, registers tunnel, and pumps frames.
+    """
+    await websocket.accept()
+
+    # Extract auth headers or query params
+    node_id = websocket.headers.get("x-node-id") or websocket.query_params.get("node_id")
+    timestamp = websocket.headers.get("x-tunnel-timestamp") or websocket.query_params.get("timestamp")
+    signature = websocket.headers.get("x-tunnel-signature") or websocket.query_params.get("signature")
+
+    if not node_id or not timestamp or not signature:
+        await websocket.close(code=4001, reason="Missing tunnel authentication credentials")
+        return
+
+    with SessionLocal() as db:
+        node = db.query(EnrolledNode).filter(EnrolledNode.node_id == node_id).first()
+        if not node:
+            await websocket.close(code=4004, reason="Node not enrolled or revoked")
+            return
+
+        valid = AuthManager.verify_edge_handshake(
+            node_id=node_id,
+            timestamp=timestamp,
+            signature=signature,
+            tunnel_secret=node.tunnel_secret,
+            window_seconds=60,
+        )
+        if not valid:
+            await websocket.close(code=4003, reason="Invalid tunnel handshake signature or timestamp skew")
+            return
+
+    # Register active tunnel
+    tunnel = await tunnel_server.register_tunnel(node_id, websocket)
+    telemetry_collector.record_heartbeat(node_id, {"status": "connected"})
+
+    try:
+        while True:
+            message_text = await websocket.receive_text()
+            await tunnel_server.handle_tunnel_message(node_id, message_text)
+    except WebSocketDisconnect:
+        pass
+    except Exception as err:
+        logger.error("Error in tunnel stream for node '%s': %s", node_id, err)
+    finally:
+        await tunnel_server.unregister_tunnel(node_id)
+

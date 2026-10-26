@@ -12,6 +12,7 @@ from backend.version import __version__
 from backend.database.version import DB_SCHEMA_VERSION
 from backend.database.db import init_db
 from backend.routers import auth_routes, tenant_routes, edge_routes, settings_routes
+from backend.core import reverse_proxy
 
 logging.basicConfig(
     level=logging.INFO,
@@ -54,6 +55,7 @@ app.include_router(auth_routes.router)
 app.include_router(tenant_routes.router)
 app.include_router(edge_routes.router)
 app.include_router(settings_routes.router)
+app.include_router(reverse_proxy.router)
 
 
 @app.get("/api/health")
