@@ -1,0 +1,87 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller / Binaries
+*.manifest
+*.spec
+
+# Python Virtual Environments
+.env
+.env.*
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Node & Frontend Build Assets
+node_modules/
+frontend/dist/
+frontend/node_modules/
+.package_lock_hash
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Databases & Runtime State
+*.db
+*.sqlite
+*.sqlite3
+data/
+*.sock
+*.pid
+
+# SSL Certificates & Secrets
+certs/
+*.pem
+*.key
+*.crt
+*.pfx
+
+# Application runtime configuration
+ffmpeg-gui-cloudhub.conf
+
+# Log files
+*.log
+logs/
+
+# IDE and OS artifacts
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Internal documentation and agent scratchpads
+.agent/
+.agents/
+docs/scratch/
+docs/superpowers/
