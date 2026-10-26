@@ -1,0 +1,272 @@
+"""Integration tests for Multi-Tenant REST API, Enrollment, and Telemetry."""
+
+import time
+import hmac
+import hashlib
+import unittest
+from datetime import datetime, timedelta, timezone
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from backend.database.models import (
+    Base,
+    User,
+    Organization,
+    NodeGroup,
+    EnrolledNode,
+    EnrollmentToken,
+)
+from backend.database.db import get_db
+from backend.core.auth_manager import AuthManager
+from backend.core.telemetry_collector import telemetry_collector
+from backend.main import app
+
+
+class TestHubApiAndEnrollment(unittest.TestCase):
+    def setUp(self):
+        self.engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        Base.metadata.create_all(bind=self.engine)
+        self.SessionFactory = sessionmaker(bind=self.engine)
+
+        def override_get_db():
+            db = self.SessionFactory()
+            try:
+                yield db
+            finally:
+                db.close()
+
+        app.dependency_overrides[get_db] = override_get_db
+        self.client = TestClient(app)
+
+        # Seed superadmin
+        with self.SessionFactory() as db:
+            self.superadmin = User(
+                username="superadmin",
+                password_hash=AuthManager.hash_password("SuperSecret123!"),
+                role="superadmin",
+            )
+            db.add(self.superadmin)
+            db.commit()
+            db.refresh(self.superadmin)
+            self.superadmin_id = self.superadmin.id
+            self.superadmin_hash = self.superadmin.password_hash
+
+        # Superadmin session token
+        self.superadmin_token = AuthManager.create_session(
+            self.superadmin_id, self.superadmin_hash
+        )
+
+    def tearDown(self):
+        app.dependency_overrides.clear()
+        self.engine.dispose()
+
+    def test_health_endpoint(self):
+        resp = self.client.get("/api/health")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["status"], "healthy")
+        self.assertEqual(data["version"], "1.0.0")
+
+    def test_create_organization_atomic_admin(self):
+        # 1. Superadmin creates organization
+        headers = {"Authorization": f"Bearer {self.superadmin_token}"}
+        payload = {
+            "name": "Radio Delta",
+            "slug": "radio-delta",
+            "admin_username": "admin_delta",
+            "admin_password": "DeltaPassword123!",
+        }
+        resp = self.client.post("/api/hub/orgs", json=payload, headers=headers)
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["organization"]["slug"], "radio-delta")
+        self.assertEqual(data["admin_user"]["username"], "admin_delta")
+
+        # 2. Login with newly created org_admin
+        login_resp = self.client.post(
+            "/api/hub/auth/login",
+            json={"username": "admin_delta", "password": "DeltaPassword123!"},
+        )
+        self.assertEqual(login_resp.status_code, 200)
+        login_data = login_resp.json()
+        self.assertEqual(login_data["user"]["role"], "org_admin")
+        self.assertEqual(login_data["user"]["org_id"], data["organization"]["id"])
+
+    def test_strict_tenant_isolation(self):
+        # Setup Radio A and Radio B
+        headers_root = {"Authorization": f"Bearer {self.superadmin_token}"}
+        resp_a = self.client.post(
+            "/api/hub/orgs",
+            json={"name": "Radio A", "slug": "radio-a", "admin_password": "PasswordA123!"},
+            headers=headers_root,
+        )
+        org_a_id = resp_a.json()["organization"]["id"]
+
+        resp_b = self.client.post(
+            "/api/hub/orgs",
+            json={"name": "Radio B", "slug": "radio-b", "admin_password": "PasswordB123!"},
+            headers=headers_root,
+        )
+        org_b_id = resp_b.json()["organization"]["id"]
+
+        # Login as Admin A
+        login_a = self.client.post(
+            "/api/hub/auth/login",
+            json={"username": "admin_radio-a", "password": "PasswordA123!"},
+        )
+        token_a = login_a.json()["token"]
+        headers_a = {"Authorization": f"Bearer {token_a}"}
+
+        # Admin A tries to create a group in Radio B -> 403 Forbidden!
+        bad_group_resp = self.client.post(
+            f"/api/hub/orgs/{org_b_id}/groups",
+            json={"name": "Hacked Group"},
+            headers=headers_a,
+        )
+        self.assertEqual(bad_group_resp.status_code, 403)
+
+        # Admin A creates group in Radio A -> 200 OK
+        good_group_resp = self.client.post(
+            f"/api/hub/orgs/{org_a_id}/groups",
+            json={"name": "Main Studio"},
+            headers=headers_a,
+        )
+        self.assertEqual(good_group_resp.status_code, 200)
+
+    def test_enrollment_ceremony_and_single_use_token(self):
+        headers_root = {"Authorization": f"Bearer {self.superadmin_token}"}
+        resp_org = self.client.post(
+            "/api/hub/orgs",
+            json={"name": "Tenant One", "slug": "tenant-one", "admin_password": "Password123!"},
+            headers=headers_root,
+        )
+        org_id = resp_org.json()["organization"]["id"]
+
+        # Generate enrollment token
+        token_resp = self.client.post(
+            "/api/hub/enrollment-tokens",
+            json={"org_id": org_id, "validity_hours": 2},
+            headers=headers_root,
+        )
+        self.assertEqual(token_resp.status_code, 200)
+        token_str = token_resp.json()["token"]
+
+        # 1. Edge calls enroll -> 200 OK
+        enroll_payload = {
+            "token": token_str,
+            "name": "Edge Playout Node 1",
+            "current_version": "2.50.0",
+        }
+        enroll_resp = self.client.post("/api/edge/enroll", json=enroll_payload)
+        self.assertEqual(enroll_resp.status_code, 200)
+        enroll_data = enroll_resp.json()
+        self.assertTrue(enroll_data["node_id"].startswith("ch_node_"))
+        self.assertIn("tunnel_secret", enroll_data)
+
+        # 2. Second attempt with same token -> 409 Conflict
+        second_resp = self.client.post("/api/edge/enroll", json=enroll_payload)
+        self.assertEqual(second_resp.status_code, 409)
+
+        # 3. Test expired token
+        with self.SessionFactory() as db:
+            exp_token = EnrollmentToken(
+                token="ch_enr_expired_test",
+                org_id=org_id,
+                expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
+                used=False,
+            )
+            db.add(exp_token)
+            db.commit()
+
+        exp_resp = self.client.post(
+            "/api/edge/enroll",
+            json={"token": "ch_enr_expired_test", "name": "Expired Node"},
+        )
+        self.assertEqual(exp_resp.status_code, 401)
+
+    def test_telemetry_collector_and_vitality_states(self):
+        # Direct TelemetryCollector checks
+        node_id = "ch_node_test_vitality"
+
+        # 1. Online: Normal CPU, 0 errors, <30s ago
+        heartbeat_payload = {
+            "current_version": "2.50.0",
+            "system": {"cpu_percent": 15.2, "memory_percent": 42.0},
+            "workload": {"total_services": 3, "services_running": 3, "services_error": 0},
+        }
+        v_online = telemetry_collector.record_heartbeat(node_id, heartbeat_payload)
+        self.assertEqual(v_online["status"], "online")
+
+        # 2. Degraded: 1 service in error
+        heartbeat_payload["workload"]["services_error"] = 1
+        v_deg = telemetry_collector.record_heartbeat(node_id, heartbeat_payload)
+        self.assertEqual(v_deg["status"], "degraded")
+
+        # 3. Degraded: CPU > 90%
+        heartbeat_payload["workload"]["services_error"] = 0
+        heartbeat_payload["system"]["cpu_percent"] = 94.5
+        v_deg_cpu = telemetry_collector.record_heartbeat(node_id, heartbeat_payload)
+        self.assertEqual(v_deg_cpu["status"], "degraded")
+
+        # 4. Offline: explicitly marked disconnected
+        telemetry_collector.mark_disconnected(node_id)
+        v_off = telemetry_collector.get_node_vitality(node_id)
+        self.assertEqual(v_off["status"], "offline")
+
+    def test_edge_heartbeat_api_and_handshake(self):
+        # Create enrolled node in DB
+        with self.SessionFactory() as db:
+            org = Organization(name="Org Heartbeat", slug="org-hb")
+            db.add(org)
+            db.flush()
+            node = EnrolledNode(
+                node_id="ch_node_hb_1",
+                name="Node HB 1",
+                org_id=org.id,
+                tunnel_secret="secret_hb_key_12345",
+            )
+            db.add(node)
+            db.commit()
+
+        # Send valid heartbeat
+        now_ts = str(int(time.time()))
+        sig = hmac.new(
+            b"secret_hb_key_12345",
+            f"ch_node_hb_1:{now_ts}".encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+
+        hb_headers = {
+            "X-Node-ID": "ch_node_hb_1",
+            "X-Timestamp": now_ts,
+            "X-Signature": sig,
+        }
+        hb_body = {
+            "current_version": "2.50.0",
+            "system": {"cpu_percent": 25.0, "memory_percent": 50.0},
+            "workload": {"services_error": 0},
+        }
+
+        resp = self.client.post("/api/edge/heartbeat", json=hb_body, headers=hb_headers)
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["vitality"]["status"], "online")
+
+        # Replay / bad signature fails
+        bad_headers = {
+            "X-Node-ID": "ch_node_hb_1",
+            "X-Timestamp": now_ts,
+            "X-Signature": "bad_sig_12345",
+        }
+        resp_bad = self.client.post("/api/edge/heartbeat", json=hb_body, headers=bad_headers)
+        self.assertEqual(resp_bad.status_code, 401)
+
+
+if __name__ == "__main__":
+    unittest.main()
