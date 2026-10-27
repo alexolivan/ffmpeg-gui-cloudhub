@@ -12,6 +12,9 @@ class TunnelMessageType:
     WS_CLOSE = "ws_close"
     PING = "ping"
     PONG = "pong"
+    HEARTBEAT = "heartbeat"
+    AUDIT_EVENT = "audit_event"
+
 
 
 def encode_body(data: Optional[bytes]) -> Optional[str]:

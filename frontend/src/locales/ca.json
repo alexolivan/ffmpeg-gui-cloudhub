@@ -113,6 +113,11 @@
     "title": "Registres d'Auditoria",
     "subtitle": "Historial d'accions administratives i esdeveniments de seguretat",
     "timestamp": "Data i Hora",
+    "node": "Node / Origen",
+    "channel": "Canal",
+    "all_nodes": "Tots els nodes i Hub",
+    "hub_central": "CloudHub Central",
+    "filter_node": "Filtrar per Node",
     "user": "Usuari",
     "action": "Acció",
     "target": "Objectiu",
@@ -120,6 +125,7 @@
     "details": "Detalls",
     "no_logs": "No hi ha registres d'auditoria disponibles."
   },
+
   "settings": {
     "title": "Configuració de CloudHub",
     "subtitle": "Estat del proxy invers, domini i certificats SSL",

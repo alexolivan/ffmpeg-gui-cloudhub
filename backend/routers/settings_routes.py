@@ -91,13 +91,16 @@ def get_ssl_status(
 @router.get("/audit-logs")
 def list_audit_logs(
     limit: int = 100,
+    node_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Query audit logs filtered by organization permissions."""
+    """Query audit logs filtered by organization permissions and optional edge node."""
     query = db.query(AuditLog)
     if current_user.role != "superadmin":
         query = query.filter(AuditLog.org_id == current_user.org_id)
+    if node_id:
+        query = query.filter(AuditLog.node_id == node_id)
 
     logs = query.order_by(AuditLog.timestamp.desc()).limit(min(limit, 500)).all()
     return [
@@ -105,6 +108,8 @@ def list_audit_logs(
             "id": l.id,
             "timestamp": l.timestamp.isoformat() if l.timestamp else None,
             "org_id": l.org_id,
+            "node_id": l.node_id,
+            "channel": getattr(l, "channel", "cloudhub"),
             "username": l.username,
             "action": l.action,
             "target_type": l.target_type,
@@ -114,3 +119,4 @@ def list_audit_logs(
         }
         for l in logs
     ]
+

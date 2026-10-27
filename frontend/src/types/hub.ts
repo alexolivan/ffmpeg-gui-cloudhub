@@ -69,6 +69,8 @@ export interface AuditLogEntry {
   id: number;
   timestamp: string;
   org_id?: number | null;
+  node_id?: string | null;
+  channel?: string | null;
   username: string;
   action: string;
   target_type: string;
@@ -76,6 +78,7 @@ export interface AuditLogEntry {
   ip_address?: string | null;
   details?: string | null;
 }
+
 
 export interface SslStatus {
   status: 'valid' | 'warning' | 'critical' | 'expired' | 'missing' | 'disabled' | 'error';

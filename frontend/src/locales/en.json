@@ -113,6 +113,11 @@
     "title": "Audit Logs",
     "subtitle": "Track administrative actions and security events",
     "timestamp": "Timestamp",
+    "node": "Node / Origin",
+    "channel": "Channel",
+    "all_nodes": "All Nodes & Hub",
+    "hub_central": "CloudHub Central",
+    "filter_node": "Filter by Node",
     "user": "User",
     "action": "Action",
     "target": "Target",
@@ -120,6 +125,7 @@
     "details": "Details",
     "no_logs": "No audit records found."
   },
+
   "settings": {
     "title": "CloudHub Configuration",
     "subtitle": "Global reverse proxy, domain and SSL certificate status",

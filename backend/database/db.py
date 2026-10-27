@@ -48,7 +48,22 @@ def init_db(db_engine=None) -> None:
     target_engine = db_engine or engine
     Base.metadata.create_all(bind=target_engine)
 
+    # Lightweight schema migrations for existing databases
+    with target_engine.connect() as conn:
+        from sqlalchemy import text
+        try:
+            conn.execute(text("ALTER TABLE audit_logs ADD COLUMN node_id VARCHAR(100)"))
+            conn.commit()
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE audit_logs ADD COLUMN channel VARCHAR(50) DEFAULT 'cloudhub'"))
+            conn.commit()
+        except Exception:
+            pass
+
     session_factory = sessionmaker(autocommit=False, autoflush=False, bind=target_engine)
+
     with session_factory() as session:
         existing_superadmin = (
             session.query(User).filter(User.role == "superadmin").first()
