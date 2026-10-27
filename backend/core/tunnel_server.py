@@ -180,8 +180,68 @@ class TunnelServer:
             elif msg_type == TunnelMessageType.PING:
                 await tunnel.send_json({"type": TunnelMessageType.PONG, "timestamp": int(time.time())})
 
+            elif msg_type == TunnelMessageType.HEARTBEAT:
+                telemetry_collector.record_heartbeat(node_id, msg)
+
+            elif msg_type == TunnelMessageType.AUDIT_EVENT:
+                event_payload = msg.get("event") or {}
+                self._persist_edge_audit_event(node_id, event_payload)
+
         except Exception as err:
             logger.error("Error processing tunnel frame from node '%s': %s", node_id, err)
+
+    def _persist_edge_audit_event(self, node_id: str, event: Dict[str, Any]) -> None:
+        """Persist an audit log event received from an edge node."""
+        from backend.database.db import SessionLocal
+        from backend.database.models import AuditLog, EnrolledNode
+        import datetime
+
+        try:
+            with SessionLocal() as db:
+                node = db.query(EnrolledNode).filter(EnrolledNode.node_id == node_id).first()
+                org_id = node.org_id if node else None
+
+                ts_raw = event.get("timestamp")
+                ts = None
+                if ts_raw:
+                    try:
+                        ts = datetime.datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
+                    except Exception:
+                        pass
+                if not ts:
+                    ts = datetime.datetime.now(datetime.timezone.utc)
+
+                action = event.get("action", "UNKNOWN")
+                target_type = event.get("target_type", "service")
+                target_id = event.get("target_id")
+                channel = event.get("channel", "cloudhub")
+                username = event.get("username", "admin")
+                ip_addr = event.get("ip_address")
+                changes = event.get("changes")
+                details = event.get("details")
+
+                details_text = changes or details
+                if changes and details and changes != details:
+                    details_text = f"{details} | {changes}"
+
+                entry = AuditLog(
+                    timestamp=ts,
+                    org_id=org_id,
+                    node_id=node_id,
+                    channel=channel,
+                    username=username,
+                    action=action,
+                    target_type=target_type,
+                    target_id=str(target_id) if target_id is not None else None,
+                    ip_address=ip_addr,
+                    details=details_text,
+                )
+                db.add(entry)
+                db.commit()
+                logger.info("Persisted audit event '%s' from edge node '%s' by '%s'", action, node_id, username)
+        except Exception as e:
+            logger.error("Failed to persist edge audit event for node '%s': %s", node_id, e)
+
 
     async def bridge_websocket(
         self,

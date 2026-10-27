@@ -159,12 +159,15 @@ class AuditLog(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     timestamp = Column(DateTime, default=utcnow, index=True, nullable=False)
     org_id = Column(Integer, nullable=True, index=True)
+    node_id = Column(String(100), nullable=True, index=True)
+    channel = Column(String(50), default="cloudhub", nullable=False)
     username = Column(String(100), nullable=False, index=True)
     action = Column(String(100), nullable=False)
     target_type = Column(String(50), nullable=False)
     target_id = Column(String(100), nullable=True)
     ip_address = Column(String(64), nullable=True)
     details = Column(Text, nullable=True)
+
 
 
 class SystemSettings(Base):

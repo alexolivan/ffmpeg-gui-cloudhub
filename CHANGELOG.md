@@ -5,7 +5,21 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-10-27
+
+### Added
+- **Edge Node Audit Event Tunnel Relay:**
+  - Multiplexed tunnel frame support for `TunnelMessageType.AUDIT_EVENT`.
+  - Automatic ingestion and persistence of edge appliance operational audit events into CloudHub's central `audit_logs` database table.
+  - Multi-tenant edge node attribution via `node_id` and origin channel classification (`cloudhub`, `local_gui`, `cli`).
+- **Audit Logs View Enhancements:**
+  - Added edge node selector filter (`All Nodes & Hub`, `CloudHub Central`, or specific edge node).
+  - Added Node / Origin badge column and Channel pill indicators (`☁️ CloudHub`, `🖥️ Local GUI`, `⌨️ CLI`).
+- **Database Resilience:**
+  - Dynamic backward-compatible schema migration in `init_db()` auto-adding `node_id` and `channel` columns to existing SQLite tables.
+
 ## [1.0.0] - 2026-10-27
+
 
 ### Added
 - **Multi-Tenant Hierarchy & RBAC:**

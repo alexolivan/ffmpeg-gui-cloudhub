@@ -113,6 +113,11 @@
     "title": "Registros de Auditoría",
     "subtitle": "Historial de acciones administrativas y eventos de seguridad",
     "timestamp": "Fecha y Hora",
+    "node": "Nodo / Origen",
+    "channel": "Canal",
+    "all_nodes": "Todos los nodos y Hub",
+    "hub_central": "CloudHub Central",
+    "filter_node": "Filtrar por Nodo",
     "user": "Usuario",
     "action": "Acción",
     "target": "Objetivo",
@@ -120,6 +125,7 @@
     "details": "Detalles",
     "no_logs": "No hay registros de auditoría disponibles."
   },
+
   "settings": {
     "title": "Configuración de CloudHub",
     "subtitle": "Estado del proxy inverso, dominio y certificados SSL",
