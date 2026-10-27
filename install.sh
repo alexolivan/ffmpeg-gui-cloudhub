@@ -59,8 +59,37 @@ npm run build
 cd "${PROJ_DIR}"
 
 # 4. Initialize Database & Seed Superadmin
-echo "[3/4] Initializing Database & Permissions..."
+echo "[3/4] Initializing Database & Administrator Account..."
 "${PROJ_DIR}/bin/ffmpeg-gui-cloudhub-admin" init-db
+
+ADMIN_PASS="${CLOUDHUB_ADMIN_PASSWORD:-}"
+if [ -z "$ADMIN_PASS" ]; then
+    if [ "$ASSUME_YES" = true ]; then
+        # Generate random password in non-interactive mode
+        ADMIN_PASS=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16)
+        echo "[*] Non-interactive install: Generated random admin password: ${ADMIN_PASS}"
+    else
+        while true; do
+            read -r -s -p "Enter initial CloudHub 'admin' password (min 6 chars): " p1
+            echo
+            if [ ${#p1} -lt 6 ]; then
+                echo "[-] Error: Password must be at least 6 characters."
+                continue
+            fi
+            read -r -s -p "Confirm 'admin' password: " p2
+            echo
+            if [ "$p1" != "$p2" ]; then
+                echo "[-] Error: Passwords do not match. Try again."
+                continue
+            fi
+            ADMIN_PASS="$p1"
+            break
+        done
+    fi
+fi
+
+"${PROJ_DIR}/bin/ffmpeg-gui-cloudhub-admin" reset-admin-password --user admin --password "$ADMIN_PASS" 2>/dev/null || \
+"${PROJ_DIR}/bin/ffmpeg-gui-cloudhub-admin" create-superadmin --user admin --password "$ADMIN_PASS"
 
 # 5. Optional Systemd Unit Installation
 echo "[4/4] Configuring Systemd Service..."
@@ -76,6 +105,7 @@ After=network.target
 Type=simple
 User=${CURRENT_USER}
 WorkingDirectory=${PROJ_DIR}
+Environment=CLOUDHUB_PORT=9000
 ExecStart=${PROJ_DIR}/venv/bin/python3 -m backend.run_server
 ExecReload=/bin/kill -HUP \$MAINPID
 Restart=always
@@ -102,8 +132,13 @@ else
 fi
 
 echo "================================================================="
-echo " Installation Complete!"
+echo " FFMPEG-GUI CLOUDHUB INSTALLATION COMPLETE"
+echo "================================================================="
 echo " Start CloudHub manually: ${PROJ_DIR}/venv/bin/python3 -m backend.run_server"
 echo " Or via systemd: sudo systemctl start ffmpeg-gui-cloudhub"
-echo " Web UI: http://localhost:8000"
+echo " Initial Web UI: http://<server-ip>:9000"
+echo " Default Owner : admin"
+echo "-----------------------------------------------------------------"
+echo " NOTE: Once logged in, configure Let's Encrypt in Settings to    "
+echo "       enable HTTPS (:443)."
 echo "================================================================="

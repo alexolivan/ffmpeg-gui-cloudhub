@@ -21,8 +21,8 @@ def main():
     parser.add_argument(
         "--port",
         type=int,
-        default=int(os.environ.get("CLOUDHUB_PORT", "8000")),
-        help="Port to bind (default: 8000)",
+        default=int(os.environ.get("CLOUDHUB_PORT", "9000")),
+        help="Port to bind (default: 9000)",
     )
     parser.add_argument(
         "--ssl-cert",

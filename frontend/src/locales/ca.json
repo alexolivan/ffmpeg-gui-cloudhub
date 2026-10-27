@@ -36,7 +36,9 @@
     "language": "Idioma",
     "role_superadmin": "Superadministrador",
     "role_org_admin": "Admin d'Organització",
-    "role_group_operator": "Operador"
+    "role_group_operator": "Operador",
+    "sslPendingWarning": "SSL / Let's Encrypt no està configurat. Operant en mode HTTP.",
+    "configureSslLink": "Configurar a Paràmetres →"
   },
   "auth": {
     "login_title": "FFmpeg GUI CloudHub",

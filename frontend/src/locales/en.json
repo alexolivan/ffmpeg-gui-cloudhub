@@ -36,7 +36,9 @@
     "language": "Language",
     "role_superadmin": "Superadmin",
     "role_org_admin": "Org Admin",
-    "role_group_operator": "Operator"
+    "role_group_operator": "Operator",
+    "sslPendingWarning": "SSL / Let's Encrypt is not configured yet. Operating in HTTP mode.",
+    "configureSslLink": "Configure in Settings →"
   },
   "auth": {
     "login_title": "FFmpeg GUI CloudHub",

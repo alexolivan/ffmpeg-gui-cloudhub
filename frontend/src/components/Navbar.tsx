@@ -20,6 +20,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   onThemeChange,
 }) => {
   const { t, i18n } = useTranslation();
+  const [sslStatus, setSslStatus] = React.useState<{ valid?: boolean; mode?: string } | null>(null);
+
+  React.useEffect(() => {
+    fetch('/api/settings/ssl/status')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setSslStatus(d))
+      .catch(() => {});
+  }, []);
 
   const themes = [
     { id: 'studio-dark', label: 'Studio Dark' },
@@ -53,6 +61,23 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="sticky top-0 z-40 w-full backdrop-blur-md border-b border-[var(--glass-border)] bg-[var(--bg-card)]">
+      {sslStatus && (!sslStatus.valid || sslStatus.mode === 'disabled') && isSuperadmin && (
+        <div className="w-full bg-amber-500/10 border-b border-amber-500/30 px-4 py-1.5 text-xs text-amber-400">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span>⚠️</span>
+              <span>{t('nav.sslPendingWarning', "SSL / Let's Encrypt is not configured yet. Operating in HTTP mode.")}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => onSelectTab('settings')}
+              className="underline hover:text-amber-300 font-semibold cursor-pointer"
+            >
+              {t('nav.configureSslLink', 'Configure in Settings →')}
+            </button>
+          </div>
+        </div>
+      )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Left: Brand and Navigation */}
         <div className="flex items-center gap-8">

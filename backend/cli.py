@@ -56,6 +56,67 @@ def create_superadmin(db: Session, username: str, password: str) -> bool:
     return True
 
 
+def create_enrollment_token(
+    db: Session,
+    org_name: str = None,
+    group_name: str = None,
+    hours: int = 24,
+    raw: bool = False,
+) -> str:
+    """Generate a single-use edge appliance enrollment token."""
+    import secrets
+    from datetime import datetime, timezone, timedelta
+    from backend.database.models import Organization, NodeGroup, EnrollmentToken
+
+    # Find or create default organization
+    org = None
+    if org_name:
+        org = db.query(Organization).filter(Organization.name == org_name.strip()).first()
+    if not org:
+        org = db.query(Organization).first()
+    if not org:
+        target_name = org_name.strip() if org_name else "Default"
+        slug = target_name.lower().replace(" ", "-")
+        org = Organization(name=target_name, slug=slug)
+        db.add(org)
+        db.commit()
+        db.refresh(org)
+
+    # Find or create node group
+    group = None
+    if group_name:
+        group = (
+            db.query(NodeGroup)
+            .filter(NodeGroup.org_id == org.id, NodeGroup.name == group_name.strip())
+            .first()
+        )
+        if not group:
+            group = NodeGroup(org_id=org.id, name=group_name.strip())
+            db.add(group)
+            db.commit()
+            db.refresh(group)
+
+    token_str = f"ch_enr_{secrets.token_hex(24)}"
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(hours=hours)
+
+    token = EnrollmentToken(
+        token=token_str,
+        org_id=org.id,
+        group_id=group.id if group else None,
+        expires_at=expires_at,
+    )
+    db.add(token)
+    db.commit()
+
+    if raw:
+        print(token_str)
+    else:
+        print(f"[+] Enrollment Token Created for Org '{org.name}' (expires in {hours}h):")
+        print(f"    {token_str}")
+    return token_str
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Administrative CLI for ffmpeg-gui-cloudhub"
@@ -82,6 +143,21 @@ def main():
     admin_parser.add_argument("--user", required=True, help="Username")
     admin_parser.add_argument("--password", required=True, help="Password")
 
+    # create-token
+    token_parser = subparsers.add_parser(
+        "create-token", help="Generate a one-time edge node enrollment token"
+    )
+    token_parser.add_argument(
+        "--org", default=None, help="Organization name (defaults to 'Default')"
+    )
+    token_parser.add_argument("--group", default=None, help="Node group name (optional)")
+    token_parser.add_argument(
+        "--hours", type=int, default=24, help="Validity duration in hours (default: 24)"
+    )
+    token_parser.add_argument(
+        "--raw", action="store_true", help="Print raw token string only (for scripting)"
+    )
+
     args = parser.parse_args()
 
     if args.command == "show-version":
@@ -101,6 +177,15 @@ def main():
         elif args.command == "create-superadmin":
             ok = create_superadmin(db, args.user, args.password)
             sys.exit(0 if ok else 1)
+        elif args.command == "create-token":
+            tok = create_enrollment_token(
+                db,
+                org_name=args.org,
+                group_name=args.group,
+                hours=args.hours,
+                raw=args.raw,
+            )
+            sys.exit(0 if tok else 1)
 
 
 if __name__ == "__main__":
