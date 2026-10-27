@@ -120,12 +120,15 @@ if [ "$EUID" -eq 0 ]; then
     cp /tmp/ffmpeg-gui-cloudhub.service "${SERVICE_FILE}"
     systemctl daemon-reload
     systemctl enable ffmpeg-gui-cloudhub.service
-    echo "[+] Installed systemd unit at ${SERVICE_FILE}"
+    systemctl restart ffmpeg-gui-cloudhub.service
+    echo "[+] Installed and started systemd unit at ${SERVICE_FILE}"
 elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
     sudo cp /tmp/ffmpeg-gui-cloudhub.service "${SERVICE_FILE}"
     sudo systemctl daemon-reload
     sudo systemctl enable ffmpeg-gui-cloudhub.service
-    echo "[+] Installed systemd unit via sudo at ${SERVICE_FILE}"
+    sudo systemctl restart ffmpeg-gui-cloudhub.service
+    echo "[+] Installed and started systemd unit via sudo at ${SERVICE_FILE}"
+
 else
     echo "[*] Systemd unit created at /tmp/ffmpeg-gui-cloudhub.service"
     echo "    To install manually: sudo cp /tmp/ffmpeg-gui-cloudhub.service ${SERVICE_FILE} && sudo systemctl daemon-reload"
