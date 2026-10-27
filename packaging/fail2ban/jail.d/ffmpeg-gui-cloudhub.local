@@ -1,0 +1,12 @@
+# Fail2ban jail configuration for ffmpeg-gui-cloudhub
+# Copy or symlink to /etc/fail2ban/jail.d/ffmpeg-gui-cloudhub.local
+
+[ffmpeg-gui-cloudhub]
+enabled = true
+port = 80,443,8000
+filter = ffmpeg-gui-cloudhub
+backend = systemd
+journalmatch = _SYSTEMD_UNIT=ffmpeg-gui-cloudhub.service
+maxretry = 5
+findtime = 300
+bantime = 900

@@ -104,6 +104,12 @@ def login(
     user = db.query(User).filter(User.username == req.username.strip()).first()
     if not user or not AuthManager.verify_password(req.password, user.password_hash):
         locked_now, rem = security_guard.record_failure(ip, req.username)
+        logger.warning(
+            "[security] Failed CloudHub login attempt for '%s' from %s (locked=%s)",
+            req.username,
+            ip,
+            locked_now,
+        )
         # Record failed audit log
         log = AuditLog(
             username=req.username,
