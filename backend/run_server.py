@@ -7,6 +7,7 @@ import logging
 import uvicorn
 
 from backend.services.cert_manager import cert_manager
+from backend.services.maintenance_scheduler import setup_cloudhub_logging
 
 logger = logging.getLogger("cloudhub.server")
 
@@ -41,6 +42,8 @@ def main():
     )
 
     args = parser.parse_args()
+
+    setup_cloudhub_logging()
 
     # Determine SSL paths
     ssl_cert = args.ssl_cert

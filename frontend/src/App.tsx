@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import type { User } from './types/hub';
-import { Navbar } from './components/Navbar';
+import type { User, Organization } from './types/hub';
+import { Sidebar } from './components/Sidebar';
+import { Header } from './components/Header';
 import { LoginView } from './components/views/LoginView';
-import { FleetDirectoryView } from './components/views/FleetDirectoryView';
-import { TenantsAndGroupsView } from './components/views/TenantsAndGroupsView';
-import { UsersAndAccessView } from './components/views/UsersAndAccessView';
+import { FleetView } from './components/views/FleetView';
 import { AuditLogsView } from './components/views/AuditLogsView';
-import { HubSettingsView } from './components/views/HubSettingsView';
+import { SettingsView } from './components/views/SettingsView';
 
 export const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState<string>('directory');
+  const [activeView, setActiveView] = useState<string>('fleet');
+  const [selectedOrgId, setSelectedOrgId] = useState<number | null>(null);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [hubSettings, setHubSettings] = useState<Record<string, any>>({});
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+
   const [theme, setTheme] = useState<string>(() => {
     return localStorage.getItem('cloudhub_theme') || 'studio-dark';
   });
@@ -37,9 +40,38 @@ export const App: React.FC = () => {
     }
   };
 
+  const fetchAppData = async () => {
+    try {
+      const orgsRes = await fetch('/api/hub/orgs', { credentials: 'include' });
+      if (orgsRes.ok) {
+        setOrganizations(await orgsRes.json());
+      }
+    } catch {
+      // Non-blocking
+    }
+
+    try {
+      const setRes = await fetch('/api/hub/settings', { credentials: 'include' });
+      if (setRes.ok) {
+        setHubSettings(await setRes.json());
+      }
+    } catch {
+      // Non-blocking
+    }
+  };
+
   useEffect(() => {
     checkAuth();
   }, []);
+
+  useEffect(() => {
+    if (currentUser) {
+      fetchAppData();
+      if (currentUser.org_id) {
+        setSelectedOrgId(currentUser.org_id);
+      }
+    }
+  }, [currentUser]);
 
   const handleLogout = async () => {
     try {
@@ -47,13 +79,14 @@ export const App: React.FC = () => {
     } finally {
       localStorage.removeItem('cloudhub_token');
       setCurrentUser(null);
-      setActiveTab('directory');
+      setActiveView('fleet');
+      setSelectedOrgId(null);
     }
   };
 
   if (isLoadingAuth) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-xs text-[var(--text-secondary)] font-mono">
+      <div className="min-h-screen flex items-center justify-center text-xs text-[var(--text-secondary)] font-mono bg-[var(--bg-dark)]">
         Loading CloudHub...
       </div>
     );
@@ -64,7 +97,7 @@ export const App: React.FC = () => {
       <LoginView
         onLoginSuccess={(user) => {
           setCurrentUser(user);
-          setActiveTab('directory');
+          setActiveView('fleet');
         }}
         currentTheme={theme}
         onThemeChange={setTheme}
@@ -73,23 +106,54 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--bg-dark)] text-[var(--text-primary)]">
-      <Navbar
+    <div className="flex h-screen overflow-hidden bg-[var(--bg-dark)] text-[var(--text-primary)] transition-colors duration-300">
+      {/* ── Left Lateral Sidebar ── */}
+      <Sidebar
+        activeView={activeView}
+        onViewChange={(v) => {
+          if (v === 'settings' && (currentUser.role === 'operator' || currentUser.role === 'group_operator')) {
+            setActiveView('fleet');
+          } else {
+            setActiveView(v);
+          }
+        }}
         currentUser={currentUser}
-        activeTab={activeTab}
-        onSelectTab={setActiveTab}
         onLogout={handleLogout}
-        currentTheme={theme}
-        onThemeChange={setTheme}
+        logoText={hubSettings?.login_logo_text || 'CH'}
+        logoPath={hubSettings?.login_logo_url || undefined}
       />
 
-      <main className="flex-1">
-        {activeTab === 'directory' && <FleetDirectoryView currentUser={currentUser} />}
-        {activeTab === 'tenants' && <TenantsAndGroupsView currentUser={currentUser} />}
-        {activeTab === 'users' && <UsersAndAccessView currentUser={currentUser} />}
-        {activeTab === 'audit' && <AuditLogsView />}
-        {activeTab === 'settings' && <HubSettingsView />}
-      </main>
+      {/* ── Main Canvas with Header and Scrollable View ── */}
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+        <Header
+          activeView={activeView}
+          currentUser={currentUser}
+          organizations={organizations}
+          selectedOrgId={selectedOrgId}
+          onSelectOrg={setSelectedOrgId}
+          currentTheme={theme}
+          onThemeChange={setTheme}
+        />
+
+        <main className="flex-1 overflow-y-auto">
+          {activeView === 'fleet' && (
+            <FleetView currentUser={currentUser} selectedOrgId={selectedOrgId} />
+          )}
+
+          {activeView === 'audit' && (
+            <AuditLogsView currentUser={currentUser} selectedOrgId={selectedOrgId} />
+          )}
+
+          {activeView === 'settings' &&
+            (currentUser.role === 'superadmin' ||
+              currentUser.role === 'org_admin' ||
+              currentUser.role === 'tenant_admin') && (
+              <SettingsView currentUser={currentUser} selectedOrgId={selectedOrgId} />
+            )}
+        </main>
+      </div>
     </div>
   );
 };
+
+export default App;

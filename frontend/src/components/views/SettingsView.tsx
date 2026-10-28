@@ -1,0 +1,73 @@
+import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { User } from '../../types/hub';
+import { GeneralSettingsTab } from './settings/GeneralSettingsTab';
+import { NetworkSslTab } from './settings/NetworkSslTab';
+import { TenantsTab } from './settings/TenantsTab';
+import { GroupsTab } from './settings/GroupsTab';
+import { UsersTab } from './settings/UsersTab';
+import { GearIcon, ShieldIcon, LayersIcon, UsersIcon } from '../Icons';
+
+interface SettingsViewProps {
+  currentUser: User;
+  selectedOrgId: number | null;
+}
+
+export const SettingsView: React.FC<SettingsViewProps> = ({ currentUser, selectedOrgId }) => {
+  const { t } = useTranslation();
+  const isSuperadmin = currentUser.role === 'superadmin';
+
+  const [activeTab, setActiveTab] = useState<string>(isSuperadmin ? 'general' : 'groups');
+
+  const tabs = [];
+  if (isSuperadmin) {
+    tabs.push(
+      { id: 'general', label: t('settings.tabs.general', 'General & Branding'), icon: <GearIcon size={16} /> },
+      { id: 'network_ssl', label: t('settings.tabs.network_ssl', 'Network & SSL/TLS'), icon: <ShieldIcon size={16} /> },
+      { id: 'tenants', label: t('settings.tabs.tenants', 'Tenants & Orgs'), icon: <span className="text-sm">🏢</span> }
+    );
+  }
+
+  tabs.push(
+    { id: 'groups', label: t('settings.tabs.groups', 'Appliance Groups'), icon: <LayersIcon size={16} /> },
+    { id: 'users', label: t('settings.tabs.users', 'Users & RBAC'), icon: <UsersIcon size={16} /> }
+  );
+
+  return (
+    <div className="p-6 lg:p-10 max-w-7xl mx-auto space-y-6">
+      {/* ── Subtitle and Tab Bar ── */}
+      <div className="border-b border-[var(--glass-border)] pb-4">
+        <div className="flex items-center gap-2 overflow-x-auto">
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer whitespace-nowrap ${
+                  isActive
+                    ? 'bg-brand-lime/10 text-brand-lime border border-brand-lime/30 shadow-xs'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/5 border border-transparent'
+                }`}
+              >
+                <span>{tab.icon}</span>
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Tab Content ── */}
+      <div>
+        {activeTab === 'general' && isSuperadmin && <GeneralSettingsTab />}
+        {activeTab === 'network_ssl' && isSuperadmin && <NetworkSslTab />}
+        {activeTab === 'tenants' && isSuperadmin && <TenantsTab />}
+        {activeTab === 'groups' && <GroupsTab currentUser={currentUser} selectedOrgId={selectedOrgId} />}
+        {activeTab === 'users' && <UsersTab currentUser={currentUser} selectedOrgId={selectedOrgId} />}
+      </div>
+    </div>
+  );
+};
+
+export default SettingsView;

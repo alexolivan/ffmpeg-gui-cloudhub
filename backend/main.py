@@ -13,11 +13,9 @@ from backend.database.version import DB_SCHEMA_VERSION
 from backend.database.db import init_db
 from backend.routers import auth_routes, tenant_routes, edge_routes, settings_routes
 from backend.core import reverse_proxy
+from backend.services.maintenance_scheduler import setup_cloudhub_logging, maintenance_scheduler
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
+setup_cloudhub_logging()
 logger = logging.getLogger("cloudhub.main")
 
 FRONTEND_DIST_DIR = os.path.abspath(
@@ -27,10 +25,12 @@ FRONTEND_DIST_DIR = os.path.abspath(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifecycle manager running schema creation on startup."""
+    """Lifecycle manager running schema creation on startup and starting maintenance."""
     logger.info("Initializing ffmpeg-gui-cloudhub v%s (DB v%s)...", __version__, DB_SCHEMA_VERSION)
     init_db()
+    maintenance_scheduler.start()
     yield
+    maintenance_scheduler.stop()
     logger.info("CloudHub server shutting down.")
 
 

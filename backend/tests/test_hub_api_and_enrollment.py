@@ -67,11 +67,12 @@ class TestHubApiAndEnrollment(unittest.TestCase):
         self.engine.dispose()
 
     def test_health_endpoint(self):
+        from backend.version import __version__
         resp = self.client.get("/api/health")
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertEqual(data["status"], "healthy")
-        self.assertEqual(data["version"], "1.0.0")
+        self.assertEqual(data["version"], __version__)
 
     def test_create_organization_atomic_admin(self):
         # 1. Superadmin creates organization

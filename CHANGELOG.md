@@ -5,6 +5,23 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-10-28
+
+### Added
+- **UI/UX Parity with ffmpeg-gui Appliance:**
+  - Modern lateral Sidebar navigation (`w-20 lg:w-64`) with brand logo, Fleet, Audit Log, and role-gated Settings, plus user profile indicator and clean logout.
+  - Top Header with active view title, Owner Tenant Context Switcher (with tenant badge, name, and node counter), static tenant badge for operators, theme picker (5 themes), and language selector (`en`, `es`, `ca`).
+  - Consolidated `FleetView` with top 4 KPI cards (Total Appliances, Online, Offline/Degraded, Active Groups), free-text/status filter bar, and collapsible `GroupAccordionSection` with quick-enroll modal.
+  - Sticky-header `AuditLogsView` with business filter bar (Tenant, Node, Origin, Category, free-text search, limit) and modal JSON payload inspector.
+  - Tabbed `SettingsView` with RBAC gating: General Branding & Maintenance, Network & SSL, Tenants (Owner only), Appliance Groups, and User Accounts.
+- **Autonomous Let's Encrypt ACME Engine & Custom SSL:**
+  - Pure-Python ACME v2 HTTP-01 challenge engine with temporary TCP port 80 listener.
+  - Custom certificate upload endpoints supporting standard PEM certificate chain and private key.
+  - Live certificate health monitoring with remaining days countdown, issuer inspection, and warning badges.
+- **Background Maintenance & Gzipped Log Rotation:**
+  - `GzippedRotatingFileHandler` compressing rotated server logs (`.1.gz` ... `.5.gz`) automatically.
+  - `MaintenanceScheduler` background worker performing unattended ACME certificate auto-renewal (when `<= 30` days remain) and audit log retention pruning.
+
 ## [1.1.0] - 2026-10-27
 
 ### Added
