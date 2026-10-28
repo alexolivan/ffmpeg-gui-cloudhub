@@ -195,7 +195,12 @@
       "uploadTitle": "Upload Custom Certificate & Private Key",
       "certFile": "Fullchain Certificate (.crt / .pem)",
       "keyFile": "Private Key (.key / privkey.pem)",
-      "uploadBtn": "Upload & Validate Keypair"
+      "uploadBtn": "Upload & Validate Keypair",
+      "ipNoticeTitle": "Accessing via Numerical IP Address",
+      "ipNoticeDesc": "Your SSL/TLS certificate is 100% valid, but issued specifically to your domain name. Navigating via raw IP (e.g., https://212.x.x.x) causes browsers to display a 'Not Secure / Certificate Common Name Mismatch' warning. Click the button above to navigate via your secure domain.",
+      "domainActiveTitle": "Active Secure Domain URL",
+      "domainActiveDesc": "Your browser is connected via the verified domain name matching your SSL/TLS certificate with full cryptographic trust.",
+      "openSecureUrl": "Open Secure Domain"
     },
     "activeListener": "Current Service Listener",
     "portTlsActiveNotice": "Port {{port}} is running natively under TLS. Edge appliances and browsers connect via HTTPS/WSS on this port.",

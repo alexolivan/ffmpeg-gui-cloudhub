@@ -4,9 +4,13 @@ import os
 import json
 import ssl
 import datetime
-import subprocess
 import logging
 from typing import Dict, Any, Optional, Tuple
+
+from cryptography import x509
+from cryptography.x509.oid import NameOID, ExtensionOID
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 
 logger = logging.getLogger("cloudhub.cert_manager")
 
@@ -33,7 +37,7 @@ class CertificateManager:
         os.makedirs(self.certs_dir, mode=0o700, exist_ok=True)
 
     def get_cert_status(self) -> Dict[str, Any]:
-        """Evaluates active certificate status in self.certs_dir."""
+        """Evaluates active certificate status in self.certs_dir using cryptography.x509."""
         if not os.path.exists(self.fullchain_path) or not os.path.exists(self.privkey_path):
             return {
                 "status": "missing",
@@ -47,66 +51,33 @@ class CertificateManager:
             }
 
         try:
-            cmd = [
-                "openssl",
-                "x509",
-                "-in",
-                self.fullchain_path,
-                "-noout",
-                "-dates",
-                "-subject",
-                "-issuer",
-            ]
-            res = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            output = res.stdout
+            with open(self.fullchain_path, "rb") as f:
+                cert_bytes = f.read()
+            cert = x509.load_pem_x509_certificate(cert_bytes)
 
-            details = {}
-            for line in output.splitlines():
-                if "=" in line:
-                    k, v = line.split("=", 1)
-                    details[k.strip().lower()] = v.strip()
-
-            not_after_str = details.get("notafter")
-            subject_str = details.get("subject", "")
-            issuer_str = details.get("issuer", "")
-
+            # 1. Extract Domain Name (Common Name or Subject Alternative Names)
             domain = None
-            if "CN" in subject_str:
-                for part in subject_str.split("/"):
-                    if part.startswith("CN=") or part.startswith("CN ="):
-                        domain = part.split("=", 1)[1].strip()
-                        break
+            cns = cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
+            if cns:
+                domain = str(cns[0].value).strip()
 
-            expires_at_dt = None
-            if not_after_str:
+            if not domain:
                 try:
-                    expires_at_dt = datetime.datetime.strptime(
-                        not_after_str, "%b %d %H:%M:%S %Y GMT"
-                    ).replace(tzinfo=datetime.timezone.utc)
-                except ValueError:
+                    san_ext = cert.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
+                    dns_names = san_ext.value.get_values_for_type(x509.DNSName)
+                    if dns_names:
+                        domain = dns_names[0].strip()
+                except Exception:
                     pass
 
-            now_dt = datetime.datetime.now(datetime.timezone.utc)
-            if expires_at_dt:
-                days_remaining = (expires_at_dt - now_dt).days
-                expires_at_iso = expires_at_dt.isoformat()
+            # 2. Extract Issuer
+            issuer_cns = cert.issuer.get_attributes_for_oid(NameOID.COMMON_NAME)
+            if issuer_cns:
+                issuer_str = str(issuer_cns[0].value).strip()
             else:
-                days_remaining = 0
-                expires_at_iso = None
+                issuer_str = cert.issuer.rfc4514_string()
 
-            if days_remaining <= 0:
-                status_code = "expired"
-                is_valid = False
-            elif days_remaining < 15:
-                status_code = "critical"
-                is_valid = True
-            elif days_remaining <= 30:
-                status_code = "warning"
-                is_valid = True
-            else:
-                status_code = "valid"
-                is_valid = True
-
+            # 3. Check Metadata
             mode = "custom"
             is_staging_cert = False
             if os.path.exists(self.metadata_path):
@@ -114,11 +85,14 @@ class CertificateManager:
                     with open(self.metadata_path, "r", encoding="utf-8") as f:
                         meta = json.load(f)
                         mode = meta.get("mode", "custom")
+                        if not domain and meta.get("domain"):
+                            domain = meta.get("domain")
                         if meta.get("staging") is True:
                             is_staging_cert = True
                 except Exception:
                     pass
 
+            # 4. Check Staging / Dry-run indicators
             if "(staging)" in issuer_str.lower() or "fake le" in issuer_str.lower():
                 is_staging_cert = True
 
@@ -137,6 +111,25 @@ class CertificateManager:
                     "mode": "disabled",
                     "error": "No SSL certificate or private key found in storage.",
                 }
+
+            # 5. Expiration & Status calculation
+            expires_at_dt = cert.not_valid_after_utc
+            now_dt = datetime.datetime.now(datetime.timezone.utc)
+            days_remaining = (expires_at_dt - now_dt).days
+            expires_at_iso = expires_at_dt.isoformat()
+
+            if days_remaining <= 0:
+                status_code = "expired"
+                is_valid = False
+            elif days_remaining < 15:
+                status_code = "critical"
+                is_valid = True
+            elif days_remaining <= 30:
+                status_code = "warning"
+                is_valid = True
+            else:
+                status_code = "valid"
+                is_valid = True
 
             return {
                 "status": status_code,
@@ -160,6 +153,65 @@ class CertificateManager:
                 "mode": "disabled",
                 "error": str(err),
             }
+
+    def get_or_create_fallback_cert(self, host: str = "localhost") -> Tuple[str, str]:
+        """Returns paths (fullchain.pem, privkey.pem) for a persistent self-signed fallback certificate."""
+        fallback_dir = os.path.abspath(os.path.join(self.certs_dir, "../fallback"))
+        os.makedirs(fallback_dir, mode=0o700, exist_ok=True)
+        fb_cert = os.path.join(fallback_dir, "fullchain.pem")
+        fb_key = os.path.join(fallback_dir, "privkey.pem")
+
+        if os.path.exists(fb_cert) and os.path.exists(fb_key):
+            try:
+                with open(fb_cert, "rb") as f:
+                    c = x509.load_pem_x509_certificate(f.read())
+                now = datetime.datetime.now(datetime.timezone.utc)
+                if c.not_valid_after_utc > now:
+                    return fb_cert, fb_key
+            except Exception:
+                pass
+
+        import ipaddress
+
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        cn = host if host and host not in ("0.0.0.0", "::") else "localhost"
+        subject = issuer = x509.Name([
+            x509.NameAttribute(NameOID.COMMON_NAME, cn),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "ffmpeg-gui CloudHub Fallback"),
+        ])
+
+        san_list = [x509.DNSName("localhost")]
+        if cn != "localhost":
+            try:
+                ip = ipaddress.ip_address(cn)
+                san_list.append(x509.IPAddress(ip))
+            except ValueError:
+                san_list.append(x509.DNSName(cn))
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+        cert = (
+            x509.CertificateBuilder()
+            .subject_name(subject)
+            .issuer_name(issuer)
+            .public_key(key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(now - datetime.timedelta(days=1))
+            .not_valid_after(now + datetime.timedelta(days=3650))
+            .add_extension(x509.SubjectAlternativeName(san_list), critical=False)
+            .sign(key, hashes.SHA256())
+        )
+
+        with open(fb_cert, "wb") as f:
+            f.write(cert.public_bytes(serialization.Encoding.PEM))
+        with open(fb_key, "wb") as f:
+            f.write(key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.TraditionalOpenSSL,
+                encryption_algorithm=serialization.NoEncryption(),
+            ))
+        os.chmod(fb_cert, 0o644)
+        os.chmod(fb_key, 0o600)
+        return fb_cert, fb_key
 
     def save_custom_cert(
         self, cert_pem_bytes: bytes, key_pem_bytes: bytes, mode: str = "custom", extra_meta: Optional[Dict[str, Any]] = None

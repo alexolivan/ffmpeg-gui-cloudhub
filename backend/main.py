@@ -92,8 +92,25 @@ async def force_https_middleware(request: Request, call_next):
 
                 if ssl_enabled and force_redirect and cert_manager.get_cert_status().get("valid"):
                     hostname = request.url.hostname or "localhost"
+                    hub_domain = str(cfg.get("hub_domain") or "").strip()
+
+                    # Detect if request arrived via numerical IP or localhost
+                    is_ip = False
+                    try:
+                        import ipaddress
+                        ipaddress.ip_address(hostname)
+                        is_ip = True
+                    except ValueError:
+                        is_ip = False
+
+                    # If request used IP/localhost but a public FQDN domain is configured, redirect to the domain
+                    # so the browser validates the SSL/TLS certificate subject/SAN without ERR_CERT_COMMON_NAME_INVALID
+                    target_host = hostname
+                    if hub_domain and hub_domain != "localhost" and (is_ip or hostname == "localhost"):
+                        target_host = hub_domain
+
                     target_netloc = (
-                        hostname if https_port == 443 else f"{hostname}:{https_port}"
+                        target_host if https_port == 443 else f"{target_host}:{https_port}"
                     )
                     url = request.url.replace(scheme="https", netloc=target_netloc)
                     from fastapi.responses import RedirectResponse

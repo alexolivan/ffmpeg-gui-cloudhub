@@ -46,7 +46,7 @@ def _load_settings_dict(db: Session) -> Dict[str, Any]:
             out[r.key] = r.value
 
     cert_st = cert_manager.get_cert_status()
-    default_ssl_mode = cert_st.get("mode", "disabled") if cert_st.get("valid") else "disabled"
+    default_ssl_mode = out.get("ssl_mode") or (cert_st.get("mode") if cert_st.get("valid") else "acme")
 
     defaults = {
         "hub_name": "ffmpeg-gui CloudHub",
@@ -58,8 +58,8 @@ def _load_settings_dict(db: Session) -> Dict[str, Any]:
         "ssl_enabled": False,
         "force_https_redirect": bool(out.get("force_https", False)),
         "force_https": bool(out.get("force_https_redirect", out.get("force_https", False))),
-        "ssl_mode": default_ssl_mode,
-        "hub_domain": cert_st.get("domain") or "localhost",
+        "ssl_mode": default_ssl_mode or "acme",
+        "hub_domain": cert_st.get("domain") or out.get("hub_domain") or "localhost",
         "letsencrypt_email": "",
         "letsencrypt_staging": False,
         "session_timeout_days": 7,
@@ -243,15 +243,19 @@ def issue_acme_certificate(
     if not ok:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg)
 
-    # Persist ssl_mode='acme', domain, and email only when not dry-run (or persist domain/email for convenience)
-    if not staging:
-        for k, v in [("ssl_mode", "acme"), ("hub_domain", domain.strip()), ("letsencrypt_email", email.strip()), ("letsencrypt_staging", False)]:
-            rec = db.query(SystemSettings).filter(SystemSettings.key == k).first()
-            val_str = json.dumps(v) if not isinstance(v, str) else v
-            if not rec:
-                db.add(SystemSettings(key=k, value=val_str))
-            else:
-                rec.value = val_str
+    # Always persist ssl_mode='acme', hub_domain, and letsencrypt_email so user inputs are preserved
+    for k, v in [
+        ("ssl_mode", "acme"),
+        ("hub_domain", domain.strip()),
+        ("letsencrypt_email", email.strip()),
+        ("letsencrypt_staging", bool(staging)),
+    ]:
+        rec = db.query(SystemSettings).filter(SystemSettings.key == k).first()
+        val_str = json.dumps(v) if not isinstance(v, str) else v
+        if not rec:
+            db.add(SystemSettings(key=k, value=val_str))
+        else:
+            rec.value = val_str
 
     db.add(
         AuditLog(

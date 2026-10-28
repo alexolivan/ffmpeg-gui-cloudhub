@@ -46,16 +46,25 @@ export const NetworkSslTab: React.FC = () => {
       }
       if (cRes.ok) {
         const cfg = await cRes.json();
-        setSettings((prev) => ({
-          ...prev,
-          ...cfg,
-          bind_address: cfg.bind_address || '0.0.0.0',
-          http_port: Number(cfg.http_port || 9000),
-          https_port: Number(cfg.https_port || 9443),
-          ssl_enabled: Boolean(cfg.ssl_enabled),
-          force_https_redirect: Boolean(cfg.force_https_redirect ?? cfg.force_https ?? false),
-          ssl_mode: cfg.ssl_mode || 'acme',
-        }));
+        setSettings((prev) => {
+          const activeMode =
+            prev.ssl_mode === 'acme' || prev.ssl_mode === 'custom'
+              ? prev.ssl_mode
+              : cfg.ssl_mode && cfg.ssl_mode !== 'disabled'
+              ? cfg.ssl_mode
+              : 'acme';
+
+          return {
+            ...prev,
+            ...cfg,
+            bind_address: cfg.bind_address || '0.0.0.0',
+            http_port: Number(cfg.http_port || 9000),
+            https_port: Number(cfg.https_port || 9443),
+            ssl_enabled: Boolean(cfg.ssl_enabled),
+            force_https_redirect: Boolean(cfg.force_https_redirect ?? cfg.force_https ?? false),
+            ssl_mode: activeMode,
+          };
+        });
       }
     } catch (err) {
       console.error('Failed to load SSL status:', err);
@@ -213,7 +222,7 @@ export const NetworkSslTab: React.FC = () => {
       !window.confirm(
         t(
           'settings.confirmDeleteCert',
-          'Are you sure you want to delete the installed SSL certificate? HTTPS encryption will be disabled and the server will listen on HTTP only.'
+          'Are you sure you want to delete the installed SSL certificate? HTTPS encryption will be reverted and the server will listen on HTTP only.'
         )
       )
     ) {
@@ -227,6 +236,12 @@ export const NetworkSslTab: React.FC = () => {
       if (res.ok) {
         setAcmeMsg(null);
         setCustomMsg(null);
+        if (window.location.protocol === 'https:') {
+          const httpPort = settings.http_port || 9000;
+          const host = window.location.hostname;
+          window.location.href = `http://${host}:${httpPort}/settings`;
+          return;
+        }
         await fetchData();
       }
     } catch (err) {
@@ -246,6 +261,14 @@ export const NetworkSslTab: React.FC = () => {
   const sslEnabled = Boolean(settings.ssl_enabled && isCertValid);
   const forceHttpsRedirect = Boolean(settings.force_https_redirect && sslEnabled);
   const sslMode = settings.ssl_mode || 'acme';
+
+  const hostName = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+  const isVisitingViaIp =
+    /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(hostName) || hostName === 'localhost';
+  const secureDomain = sslStatus?.domain || settings.hub_domain || hostName;
+  const securePort =
+    Number(settings.https_port || 9443) === 443 ? '' : `:${settings.https_port || 9443}`;
+  const secureUrl = `https://${secureDomain}${securePort}/settings`;
 
   return (
     <div className="space-y-6 max-w-4xl animate-in fade-in duration-300">
@@ -478,6 +501,49 @@ export const NetworkSslTab: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Domain Access Guidance / Secure Link (Critical for Let's Encrypt domain validation) */}
+        {sslStatus?.valid && (
+          <div
+            className={`p-4 rounded-xl border text-xs space-y-2.5 ${
+              isVisitingViaIp
+                ? 'bg-amber-500/10 border-amber-500/30'
+                : 'bg-brand-lime/10 border-brand-lime/30'
+            }`}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 font-bold font-mono">
+                <span>{isVisitingViaIp ? '⚠️' : '🔒'}</span>
+                <span className={isVisitingViaIp ? 'text-amber-400' : 'text-brand-lime'}>
+                  {isVisitingViaIp
+                    ? t('settings.ssl.ipNoticeTitle', 'Accessing via Numerical IP Address')
+                    : t('settings.ssl.domainActiveTitle', 'Active Secure Domain URL')}
+                </span>
+              </div>
+              <a
+                href={secureUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-lime/20 hover:bg-brand-lime/30 text-brand-lime border border-brand-lime/40 rounded-lg font-mono font-bold text-xs transition-all cursor-pointer"
+              >
+                <span>{t('settings.ssl.openSecureUrl', 'Open Secure Domain')}</span>
+                <span>↗</span>
+              </a>
+            </div>
+
+            <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+              {isVisitingViaIp
+                ? t(
+                    'settings.ssl.ipNoticeDesc',
+                    'Your SSL/TLS certificate is 100% valid, but issued specifically to your domain name. Navigating via raw IP (e.g., https://212.x.x.x) causes browsers to display a "Not Secure / Certificate Common Name Mismatch" warning. Click the button above to navigate via your secure domain.'
+                  )
+                : t(
+                    'settings.ssl.domainActiveDesc',
+                    'Your browser is connected via the verified domain name matching your SSL/TLS certificate with full cryptographic trust.'
+                  )}
+            </p>
+          </div>
+        )}
 
         {/* Installed Production Certificate Details (Only shown when a valid cert is installed) */}
         {sslStatus?.valid && (

@@ -195,7 +195,12 @@
       "uploadTitle": "Pujar Certificat Personalitzat i Clau Privada",
       "certFile": "Certificat Fullchain (.crt / .pem)",
       "keyFile": "Clau Privada (.key / privkey.pem)",
-      "uploadBtn": "Pujar i Validar Parell de Claus"
+      "uploadBtn": "Pujar i Validar Parell de Claus",
+      "ipNoticeTitle": "Accedint mitjançant Adreça IP Numèrica",
+      "ipNoticeDesc": "El certificat SSL/TLS és 100% vàlid, però està emès específicament per al teu nom de domini. Accedir mitjançant IP directa (ex: https://212.x.x.x) fa que els navegadors mostrin l'avís 'No segur / El nom del certificat no coincideix'. Prem el botó superior per navegar mitjançant el teu domini segur.",
+      "domainActiveTitle": "URL de Domini Segur Activa",
+      "domainActiveDesc": "El teu navegador està connectat mitjançant el nom de domini verificat que coincideix amb el certificat SSL/TLS amb total confiança criptogràfica.",
+      "openSecureUrl": "Obrir Domini Segur"
     },
     "activeListener": "Servei d'Escolta Actiu",
     "portTlsActiveNotice": "El port {{port}} opera de manera nativa sota TLS. Els dispositius i navegadors es connecten mitjançant HTTPS/WSS en aquest port.",

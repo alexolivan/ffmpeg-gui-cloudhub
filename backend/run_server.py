@@ -155,9 +155,11 @@ def main():
                 )
             else:
                 logger.warning(
-                    "ssl_enabled=True in config, but no valid production SSL certificate was found in storage. Falling back to HTTP."
+                    "ssl_enabled=True in config, but no valid production SSL certificate was found in storage. "
+                    "Activating fallback self-signed certificate to keep HTTPS port %s accessible without administrative lockout.",
+                    https_port,
                 )
-                ssl_enabled = False
+                ssl_certfile, ssl_keyfile = cert_manager.get_or_create_fallback_cert(host=effective_host)
 
         active_servers = []
         if ssl_enabled and ssl_certfile and ssl_keyfile:

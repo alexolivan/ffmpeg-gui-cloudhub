@@ -25,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `GzippedRotatingFileHandler` compressing rotated server logs (`.1.gz` ... `.5.gz`) automatically.
   - `MaintenanceScheduler` background worker performing unattended ACME certificate auto-renewal (when `<= 30` days remain) and audit log retention pruning.
 
+### Fixed
+- **Let's Encrypt Staging UI Mode Preservation:** Prevented `ssl_mode` from resetting to `disabled` upon staging validation completion, keeping the ACME configuration card open with positive validation feedback.
+- **FQDN Redirect & SSL Certificate Domain Matching:** In `force_https_middleware`, requests arriving via raw IP or localhost are redirected to the configured `hub_domain`, preventing browser `ERR_CERT_COMMON_NAME_INVALID` warnings. Added explicit UI guidance and 1-click domain launcher.
+- **HTTPS Port Fallback Resilience:** Added persistent fallback self-signed certificate generation so the HTTPS listener remains alive on `https_port` during certificate updates or deletions, avoiding abrupt connection drops and browser `Failed to fetch` errors.
+
 ## [1.1.0] - 2026-10-27
 
 ### Added

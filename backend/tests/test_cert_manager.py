@@ -116,6 +116,17 @@ class TestCertificateManager(unittest.TestCase):
         self.assertEqual(status["status"], "missing")
         self.assertFalse(os.path.exists(self.mgr.fullchain_path))
 
+    def test_get_or_create_fallback_cert(self):
+        """Validates that a fallback self-signed certificate is generated and reusable."""
+        fb_cert, fb_key = self.mgr.get_or_create_fallback_cert(host="cloudhub.test.local")
+        self.assertTrue(os.path.exists(fb_cert))
+        self.assertTrue(os.path.exists(fb_key))
+
+        # Second call returns the exact same cached certificate
+        fb_cert2, fb_key2 = self.mgr.get_or_create_fallback_cert(host="cloudhub.test.local")
+        self.assertEqual(fb_cert, fb_cert2)
+        self.assertEqual(fb_key, fb_key2)
+
 
 class TestSslApiRoutes(unittest.TestCase):
     def setUp(self):

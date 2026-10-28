@@ -195,7 +195,12 @@
       "uploadTitle": "Subir Certificado Personalizado y Clave Privada",
       "certFile": "Certificado Fullchain (.crt / .pem)",
       "keyFile": "Clave Privada (.key / privkey.pem)",
-      "uploadBtn": "Subir y Validar Par de Claves"
+      "uploadBtn": "Subir y Validar Par de Claves",
+      "ipNoticeTitle": "Accediendo mediante Dirección IP Numérica",
+      "ipNoticeDesc": "El certificado SSL/TLS es 100% válido, pero está emitido específicamente para tu nombre de dominio. Acceder mediante IP directa (ej: https://212.x.x.x) hace que los navegadores muestren el aviso 'No seguro / El nombre del certificado no coincide'. Pulsa el botón superior para navegar mediante tu dominio seguro.",
+      "domainActiveTitle": "URL de Dominio Seguro Activa",
+      "domainActiveDesc": "Tu navegador está conectado mediante el nombre de dominio verificado que coincide con el certificado SSL/TLS con total confianza criptográfica.",
+      "openSecureUrl": "Abrir Dominio Seguro"
     },
     "activeListener": "Servicio de Escucha Activo",
     "portTlsActiveNotice": "El puerto {{port}} opera de forma nativa bajo TLS. Los dispositivos y navegadores se conectan mediante HTTPS/WSS en este puerto.",
