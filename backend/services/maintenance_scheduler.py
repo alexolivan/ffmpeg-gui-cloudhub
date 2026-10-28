@@ -60,32 +60,36 @@ class GzippedRotatingFileHandler(logging.handlers.RotatingFileHandler):
 
 
 def setup_cloudhub_logging(
-    log_dir: str = "data/logs",
+    log_dir: Optional[str] = None,
     max_bytes: int = 10 * 1024 * 1024,
     backup_count: int = 5,
     log_level: int = logging.INFO,
 ):
-    """Configures server logging with gzipped rotation."""
-    os.makedirs(log_dir, exist_ok=True)
-    main_log_path = os.path.join(log_dir, "cloudhub.log")
+    """Configures server logging with gzipped rotation and graceful read-only fallback."""
+    effective_log_dir = log_dir or os.environ.get("CLOUDHUB_LOG_DIR", "data/logs")
+    try:
+        os.makedirs(effective_log_dir, exist_ok=True)
+        main_log_path = os.path.join(effective_log_dir, "cloudhub.log")
 
-    formatter = logging.Formatter(
-        "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-    )
+        formatter = logging.Formatter(
+            "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+        )
 
-    handler = GzippedRotatingFileHandler(
-        main_log_path,
-        maxBytes=max_bytes,
-        backupCount=backup_count,
-        encoding="utf-8",
-    )
-    handler.setFormatter(formatter)
-    handler.setLevel(log_level)
+        handler = GzippedRotatingFileHandler(
+            main_log_path,
+            maxBytes=max_bytes,
+            backupCount=backup_count,
+            encoding="utf-8",
+        )
+        handler.setFormatter(formatter)
+        handler.setLevel(log_level)
 
-    root_logger = logging.getLogger()
-    # Avoid duplicate handlers
-    if not any(isinstance(h, GzippedRotatingFileHandler) for h in root_logger.handlers):
-        root_logger.addHandler(handler)
+        root_logger = logging.getLogger()
+        # Avoid duplicate handlers
+        if not any(isinstance(h, GzippedRotatingFileHandler) for h in root_logger.handlers):
+            root_logger.addHandler(handler)
+    except OSError:
+        pass
 
 
 class MaintenanceScheduler:

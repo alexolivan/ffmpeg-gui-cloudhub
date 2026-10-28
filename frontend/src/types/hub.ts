@@ -89,6 +89,10 @@ export interface SslStatus {
   expires_at: string | null;
   mode: string;
   error: string | null;
+  http_port?: number;
+  https_port?: number;
+  ssl_enabled?: boolean;
+  force_https_redirect?: boolean;
   listen_port?: number;
   listen_scheme?: string;
 }

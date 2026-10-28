@@ -10,8 +10,9 @@ from typing import Dict, Any, Optional, Tuple
 
 logger = logging.getLogger("cloudhub.cert_manager")
 
-DEFAULT_CERTS_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "../../data/certs/live")
+DEFAULT_CERTS_DIR = os.environ.get(
+    "CLOUDHUB_CERTS_DIR",
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data/certs/live")),
 )
 
 
@@ -19,11 +20,14 @@ class CertificateManager:
     """Manages active SSL certificates, renewal health, and ACME orchestration."""
 
     def __init__(self, certs_dir: Optional[str] = None):
-        self.certs_dir = certs_dir or DEFAULT_CERTS_DIR
+        self.certs_dir = certs_dir or os.environ.get("CLOUDHUB_CERTS_DIR") or DEFAULT_CERTS_DIR
         self.fullchain_path = os.path.join(self.certs_dir, "fullchain.pem")
         self.privkey_path = os.path.join(self.certs_dir, "privkey.pem")
         self.metadata_path = os.path.join(self.certs_dir, "metadata.json")
-        self._ensure_dir()
+        try:
+            self._ensure_dir()
+        except OSError:
+            pass
 
     def _ensure_dir(self):
         os.makedirs(self.certs_dir, mode=0o700, exist_ok=True)
@@ -104,13 +108,35 @@ class CertificateManager:
                 is_valid = True
 
             mode = "custom"
+            is_staging_cert = False
             if os.path.exists(self.metadata_path):
                 try:
                     with open(self.metadata_path, "r", encoding="utf-8") as f:
                         meta = json.load(f)
                         mode = meta.get("mode", "custom")
+                        if meta.get("staging") is True:
+                            is_staging_cert = True
                 except Exception:
                     pass
+
+            if "(staging)" in issuer_str.lower() or "fake le" in issuer_str.lower():
+                is_staging_cert = True
+
+            if is_staging_cert:
+                logger.warning(
+                    "Detected Let's Encrypt Staging (dry-run) certificate in live storage; purging so it is not used in production."
+                )
+                self.delete_cert()
+                return {
+                    "status": "missing",
+                    "valid": False,
+                    "days_remaining": 0,
+                    "domain": None,
+                    "issuer": None,
+                    "expires_at": None,
+                    "mode": "disabled",
+                    "error": "No SSL certificate or private key found in storage.",
+                }
 
             return {
                 "status": status_code,
@@ -329,19 +355,28 @@ class CertificateManager:
                 encryption_algorithm=serialization.NoEncryption(),
             )
 
-            # Save certificate & private key
+            if staging:
+                _info(
+                    f"ACME Dry-Run (Staging) validation succeeded for '{domain}'. Skipping disk installation."
+                )
+                return (
+                    True,
+                    f"Dry-run (Staging) validation succeeded for '{domain}'! Port 80 HTTP-01 challenge verified. Uncheck Dry-Run and click Issue / Renew to install the production certificate.",
+                )
+
+            # Save production certificate & private key
             saved, save_err = self.save_custom_cert(
                 cert_pem_bytes,
                 key_pem_bytes,
                 mode="acme",
-                extra_meta={"domain": domain, "email": email, "staging": staging},
+                extra_meta={"domain": domain, "email": email, "staging": False},
             )
             if not saved:
                 _err(f"Failed to save issued certificate: {save_err}")
                 return False, f"Failed to save certificate: {save_err}"
 
-            _info("ACME certificate successfully issued and persisted.")
-            return True, "Certificate issued and saved successfully."
+            _info("ACME production certificate successfully issued and persisted.")
+            return True, f"Production SSL certificate for '{domain}' issued and installed successfully."
         except Exception as e:
             _err(f"ACME renewal failed: {e}")
             return False, f"ACME renewal failed: {str(e)}"

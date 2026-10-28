@@ -14,9 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Consolidated `FleetView` with top 4 KPI cards (Total Appliances, Online, Offline/Degraded, Active Groups), free-text/status filter bar, and collapsible `GroupAccordionSection` with quick-enroll modal.
   - Sticky-header `AuditLogsView` with business filter bar (Tenant, Node, Origin, Category, free-text search, limit) and modal JSON payload inspector.
   - Tabbed `SettingsView` with RBAC gating: General Branding & Maintenance, Network & SSL, Tenants (Owner only), Appliance Groups, and User Accounts.
-- **Autonomous Let's Encrypt ACME Engine & Custom SSL:**
-  - Pure-Python ACME v2 HTTP-01 challenge engine with temporary TCP port 80 listener.
-  - Custom certificate upload endpoints supporting standard PEM certificate chain and private key.
+- **Network Binding, Dual-Port HTTP/HTTPS & Autonomous Let's Encrypt ACME Engine:**
+  - Ported `network_inspector.py` and `NetworkInterfaceSelector` from `ffmpeg-gui` with host interface discovery (`0.0.0.0`, `127.0.0.1`, or specific host IP with fail-safe lockout protection).
+  - Dual-server `uvicorn` runtime in `run_server.py` supporting concurrent HTTP (`http_port`, default `9000`) and HTTPS (`https_port`, default `9443`) listeners on a unified `asyncio` event loop with `SIGHUP` warm reload.
+  - Explicit `ssl_enabled` and `force_https_redirect` (`307 Temporary Redirect` from `http_port` to `https_port`) controls gated by active certificate validity.
+  - Pure-Python ACME v2 HTTP-01 challenge engine (`acme` + `josepy`) with temporary TCP port 80 listener: Dry-Run (Staging) mode validates domain & port 80 reachability without installing untrusted staging certificates to disk.
+  - Custom certificate upload endpoints supporting standard PEM certificate chain and private key files.
   - Live certificate health monitoring with remaining days countdown, issuer inspection, and warning badges.
 - **Background Maintenance & Gzipped Log Rotation:**
   - `GzippedRotatingFileHandler` compressing rotated server logs (`.1.gz` ... `.5.gz`) automatically.

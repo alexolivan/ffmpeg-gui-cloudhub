@@ -53,7 +53,7 @@ app.add_middleware(
 
 @app.middleware("http")
 async def force_https_middleware(request: Request, call_next):
-    """Enforces HTTPS redirection when force_https is enabled in SystemSettings."""
+    """Enforces HTTP -> HTTPS (307) redirection to https_port when ssl_enabled and force_https_redirect are active."""
     if request.url.path.startswith("/.well-known/acme-challenge/"):
         return await call_next(request)
 
@@ -62,16 +62,43 @@ async def force_https_middleware(request: Request, call_next):
         try:
             from backend.database.db import SessionLocal
             from backend.database.models import SystemSettings
+            from backend.services.cert_manager import cert_manager
             import json
 
             with SessionLocal() as db:
-                setting = db.query(SystemSettings).filter(SystemSettings.key == "force_https").first()
-                if setting:
-                    val = json.loads(setting.value) if isinstance(setting.value, str) else setting.value
-                    if val is True:
-                        url = request.url.replace(scheme="https")
-                        from fastapi.responses import RedirectResponse
-                        return RedirectResponse(url=str(url), status_code=307)
+                records = (
+                    db.query(SystemSettings)
+                    .filter(
+                        SystemSettings.key.in_(
+                            ["ssl_enabled", "force_https_redirect", "force_https", "https_port"]
+                        )
+                    )
+                    .all()
+                )
+                cfg = {}
+                for r in records:
+                    try:
+                        cfg[r.key] = json.loads(r.value)
+                    except Exception:
+                        cfg[r.key] = r.value
+
+                ssl_enabled = bool(cfg.get("ssl_enabled", False))
+                force_redirect = bool(
+                    cfg.get("force_https_redirect", cfg.get("force_https", False))
+                )
+                https_port = int(
+                    cfg.get("https_port", os.environ.get("CLOUDHUB_HTTPS_PORT", "9443"))
+                )
+
+                if ssl_enabled and force_redirect and cert_manager.get_cert_status().get("valid"):
+                    hostname = request.url.hostname or "localhost"
+                    target_netloc = (
+                        hostname if https_port == 443 else f"{hostname}:{https_port}"
+                    )
+                    url = request.url.replace(scheme="https", netloc=target_netloc)
+                    from fastapi.responses import RedirectResponse
+
+                    return RedirectResponse(url=str(url), status_code=307)
         except Exception:
             pass
 
