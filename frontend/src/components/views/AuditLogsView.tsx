@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { User, AuditLogEntry, EnrolledNode } from '../../types/hub';
-import { SearchIcon, RefreshIcon, AuditIcon, ChevronDownIcon } from '../Icons';
+import { SearchIcon, RefreshIcon, AuditIcon, ChevronDownIcon, ExportIcon } from '../Icons';
 
 interface AuditLogsViewProps {
   currentUser?: User;
@@ -19,6 +19,37 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ currentUser, selec
   const [limit, setLimit] = useState<number>(200);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDetailLog, setSelectedDetailLog] = useState<AuditLogEntry | null>(null);
+
+  // Date Range Filtering
+  const [datePreset, setDatePreset] = useState<string>('all');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+  const handleDatePresetChange = (preset: string) => {
+    setDatePreset(preset);
+    const now = new Date();
+    if (preset === 'all') {
+      setStartDate('');
+      setEndDate('');
+    } else if (preset === 'today') {
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+      setStartDate(todayStart.toISOString().slice(0, 10));
+      setEndDate(now.toISOString().slice(0, 10));
+    } else if (preset === '24h') {
+      const d24 = new Date(now.getTime() - 24 * 3600 * 1000);
+      setStartDate(d24.toISOString().slice(0, 16));
+      setEndDate(now.toISOString().slice(0, 16));
+    } else if (preset === '7d') {
+      const d7 = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
+      setStartDate(d7.toISOString().slice(0, 10));
+      setEndDate(now.toISOString().slice(0, 10));
+    } else if (preset === '30d') {
+      const d30 = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+      setStartDate(d30.toISOString().slice(0, 10));
+      setEndDate(now.toISOString().slice(0, 10));
+    }
+  };
 
   const fetchNodes = async () => {
     try {
@@ -41,6 +72,15 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ currentUser, selec
       if (selectedOrgId !== null && selectedOrgId !== undefined) {
         url += `&org_id=${selectedOrgId}`;
       }
+      if (selectedChannel !== 'all') {
+        url += `&channel=${encodeURIComponent(selectedChannel)}`;
+      }
+      if (startDate) {
+        url += `&start_date=${encodeURIComponent(startDate)}`;
+      }
+      if (endDate) {
+        url += `&end_date=${encodeURIComponent(endDate)}`;
+      }
       const res = await fetch(url, { credentials: 'include' });
       if (res.ok) {
         setLogs(await res.json());
@@ -52,13 +92,59 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ currentUser, selec
     }
   };
 
+  const handleExportPdf = async () => {
+    setIsExportingPdf(true);
+    try {
+      let url = `/api/hub/audit-logs/export-pdf?limit=1500`;
+      if (selectedNode !== 'all') {
+        url += `&node_id=${encodeURIComponent(selectedNode)}`;
+      }
+      if (selectedOrgId !== null && selectedOrgId !== undefined) {
+        url += `&org_id=${selectedOrgId}`;
+      }
+      if (selectedChannel !== 'all') {
+        url += `&channel=${encodeURIComponent(selectedChannel)}`;
+      }
+      if (startDate) {
+        url += `&start_date=${encodeURIComponent(startDate)}`;
+      }
+      if (endDate) {
+        url += `&end_date=${encodeURIComponent(endDate)}`;
+      }
+      if (searchQuery.trim()) {
+        url += `&search=${encodeURIComponent(searchQuery.trim())}`;
+      }
+
+      const res = await fetch(url, { credentials: 'include' });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.detail || 'Failed to generate audit report PDF');
+      }
+
+      const blob = await res.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      a.download = `cloudhub_audit_report_${ts}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(downloadUrl);
+    } catch (err: any) {
+      alert(err.message || 'Error exporting PDF');
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   useEffect(() => {
     fetchNodes();
   }, []);
 
   useEffect(() => {
     fetchLogs();
-  }, [selectedNode, selectedOrgId, limit]);
+  }, [selectedNode, selectedOrgId, selectedChannel, limit, startDate, endDate]);
 
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
@@ -173,11 +259,25 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ currentUser, selec
           <button
             onClick={fetchLogs}
             disabled={isLoading}
-            className="pill-button bg-white/5 hover:bg-white/10 text-[var(--text-primary)] border border-white/10 text-xs py-2 px-3.5 flex items-center gap-1.5 flex-1 sm:flex-initial justify-center cursor-pointer"
+            className="pill-button bg-white/5 hover:bg-white/10 text-[var(--text-primary)] border border-white/10 text-xs py-2 px-3.5 flex items-center gap-1.5 flex-1 sm:flex-initial justify-center cursor-pointer transition-all"
             title={t('common.refresh', 'Refresh')}
           >
             <RefreshIcon size={14} className={isLoading ? 'animate-spin' : ''} />
             <span>{t('common.refresh', 'Refresh')}</span>
+          </button>
+
+          <button
+            onClick={handleExportPdf}
+            disabled={isExportingPdf || logs.length === 0}
+            className="pill-button bg-brand-lime text-black font-bold text-xs py-2 px-3.5 flex items-center gap-1.5 cursor-pointer hover:bg-brand-lime/90 disabled:opacity-50 transition-all shadow-md shadow-brand-lime/10"
+            title={t('audit.exportPdf', 'Export Corporate PDF Report')}
+          >
+            <ExportIcon size={14} className={isExportingPdf ? 'animate-bounce' : ''} />
+            <span>
+              {isExportingPdf
+                ? t('audit.exportingPdf', 'GENERATING PDF...')
+                : t('audit.exportPdfBtn', 'EXPORT PDF REPORT')}
+            </span>
           </button>
         </div>
       </div>
@@ -280,6 +380,59 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ currentUser, selec
               <ChevronDownIcon size={14} />
             </div>
           </div>
+
+          {/* Date Range Filter */}
+          <div className="relative">
+            <select
+              value={datePreset}
+              onChange={(e) => handleDatePresetChange(e.target.value)}
+              className="appearance-none bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-1.5 pr-8 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime cursor-pointer font-medium"
+              title={t('audit.dateRange', 'Date Range')}
+            >
+              <option value="all" className="bg-[#18181b] text-white">
+                📅 {t('audit.dateAll', 'All Time')}
+              </option>
+              <option value="today" className="bg-[#18181b] text-white">
+                📅 {t('audit.dateToday', 'Today')}
+              </option>
+              <option value="24h" className="bg-[#18181b] text-white">
+                📅 {t('audit.date24h', 'Last 24 Hours')}
+              </option>
+              <option value="7d" className="bg-[#18181b] text-white">
+                📅 {t('audit.date7d', 'Last 7 Days')}
+              </option>
+              <option value="30d" className="bg-[#18181b] text-white">
+                📅 {t('audit.date30d', 'Last 30 Days')}
+              </option>
+              <option value="custom" className="bg-[#18181b] text-white">
+                📅 {t('audit.dateCustom', 'Custom Range...')}
+              </option>
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[var(--text-secondary)]">
+              <ChevronDownIcon size={14} />
+            </div>
+          </div>
+
+          {/* Custom Date Pickers */}
+          {datePreset === 'custom' && (
+            <div className="flex items-center gap-1.5 animate-in fade-in duration-200">
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-2.5 py-1 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime"
+                title={t('audit.startDate', 'Start Date')}
+              />
+              <span className="text-xs text-[var(--text-secondary)]">→</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-2.5 py-1 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime"
+                title={t('audit.endDate', 'End Date')}
+              />
+            </div>
+          )}
 
           {/* Limit */}
           <div className="relative">

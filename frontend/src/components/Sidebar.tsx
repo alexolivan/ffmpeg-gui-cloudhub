@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { User, Organization } from '../types/hub';
 import { FleetIcon, AuditIcon, GearIcon, LogoutIcon, ChevronDownIcon, LayersIcon } from './Icons';
@@ -53,6 +53,48 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ? t('auth.roleAdmin', 'Tenant Admin')
       : t('auth.roleOperator', 'Operator');
 
+  const [versionInfo, setVersionInfo] = useState<{
+    version: string;
+    db_schema_version?: string;
+    git_branch?: string;
+    git_commit?: string;
+    is_release?: boolean;
+    update_available?: boolean;
+    latest_release?: string;
+    release_url?: string;
+  } | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+
+  useEffect(() => {
+    if (currentUser.role === 'superadmin') {
+      fetch('/api/hub/version', { credentials: 'include' })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data) setVersionInfo(data);
+        })
+        .catch(() => {});
+    }
+  }, [currentUser.role]);
+
+  const handleCheckUpdates = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (checkingUpdate) return;
+    setCheckingUpdate(true);
+    try {
+      const res = await fetch('/api/hub/version/check-updates', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setVersionInfo(await res.json());
+      }
+    } catch {
+      // Ignore
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
+
   return (
     <div className="w-20 lg:w-64 h-screen bg-[var(--bg-card)] border-r border-[var(--glass-border)] flex flex-col items-center py-6 transition-colors duration-300 select-none flex-shrink-0">
       {/* Brand Icon */}
@@ -69,10 +111,95 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </div>
 
-      <div className="hidden lg:flex flex-col items-center mb-3">
+      <div className="hidden lg:flex flex-col items-center mb-2">
         <span className="font-bold tracking-wider text-sm text-[var(--text-primary)]">CLOUDHUB</span>
         <span className="text-[10px] tracking-widest text-[var(--text-secondary)] font-mono uppercase">Control Plane</span>
       </div>
+
+      {/* ── OWNER VERSION INDICATOR & ENVIRONMENT BADGE (Between Logo and Tenant Selector) ── */}
+      {currentUser.role === 'superadmin' && (
+        <>
+          {/* Collapsed Sidebar Pill (Mobile / w-20) */}
+          <div
+            className="lg:hidden flex flex-col items-center mb-3 px-2 cursor-pointer"
+            onClick={handleCheckUpdates}
+            title={`CloudHub v${versionInfo?.version || '1.5.0'} (${versionInfo?.is_release ? 'Production' : `${versionInfo?.git_branch || 'devel'} @ ${versionInfo?.git_commit || 'HEAD'}`})`}
+          >
+            <span
+              className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-full border ${
+                versionInfo?.update_available
+                  ? 'bg-amber-500/15 border-amber-500/40 text-amber-400 animate-pulse'
+                  : 'bg-white/5 border-[var(--glass-border)] text-brand-lime'
+              }`}
+            >
+              v{versionInfo?.version || '1.5'}
+            </span>
+          </div>
+
+          {/* Expanded Sidebar Version Card (Desktop / lg:w-64) */}
+          <div className="hidden lg:block w-full px-3 mb-3">
+            <div className="p-2.5 rounded-xl bg-white/5 border border-[var(--glass-border)] space-y-1.5 shadow-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span
+                    className={`w-2 h-2 rounded-full shrink-0 ${
+                      versionInfo?.update_available
+                        ? 'bg-amber-400 animate-ping'
+                        : versionInfo?.is_release
+                        ? 'bg-emerald-400'
+                        : 'bg-brand-lime'
+                    }`}
+                  />
+                  <span className="text-[11px] font-mono font-bold text-[var(--text-primary)]">
+                    v{versionInfo?.version || '1.5.0'}
+                  </span>
+                  {versionInfo?.db_schema_version && (
+                    <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-white/10 text-[var(--text-secondary)]">
+                      DB v{versionInfo.db_schema_version}
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCheckUpdates}
+                  disabled={checkingUpdate}
+                  title={checkingUpdate ? t('common.checking', 'Checking...') : t('common.checkUpdates', 'Check for updates')}
+                  className="text-xs text-[var(--text-secondary)] hover:text-brand-lime transition-colors disabled:opacity-50 p-0.5 cursor-pointer"
+                >
+                  <span className={`inline-block ${checkingUpdate ? 'animate-spin' : ''}`}>↻</span>
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between gap-1 text-[10px] font-mono pt-0.5">
+                {versionInfo?.is_release ? (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold truncate">
+                    🟢 {t('common.envProduction', 'Production')}
+                  </span>
+                ) : (
+                  <span
+                    className="px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 font-bold truncate max-w-[170px]"
+                    title={`Branch: ${versionInfo?.git_branch || 'devel'}, Commit: ${versionInfo?.git_commit || 'HEAD'}`}
+                  >
+                    🟣 {versionInfo?.git_branch || 'devel'} {versionInfo?.git_commit ? `(${versionInfo.git_commit})` : ''}
+                  </span>
+                )}
+
+                {versionInfo?.update_available && versionInfo?.latest_release && (
+                  <a
+                    href={versionInfo.release_url || 'https://github.com/alexolivan/ffmpeg-gui-cloudhub/releases'}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={`${t('common.updateAvailable', 'Update available')}: v${versionInfo.latest_release}`}
+                    className="px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold hover:bg-amber-500/20 transition-all text-[9px] shrink-0"
+                  >
+                    ▲ v{versionInfo.latest_release}
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ── TENANT CONTEXT CONTROLLER (Between Logo and Menu Items) ── */}
       {currentUser.role === 'superadmin' ? (

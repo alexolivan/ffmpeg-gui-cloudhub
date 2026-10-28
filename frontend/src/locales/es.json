@@ -39,6 +39,10 @@
     "creating": "Creando...",
     "generating": "Generando...",
     "uploading": "Subiendo...",
+    "checking": "Comprobando...",
+    "checkUpdates": "Buscar actualizaciones",
+    "updateAvailable": "Actualización disponible",
+    "envProduction": "Producción",
     "saveChanges": "Guardar Cambios",
     "network": {
       "interfaceSelector": {
@@ -136,7 +140,19 @@
     "details": "Detalles",
     "viewJson": "Ver",
     "entryDetails": "Detalle del Registro de Auditoría",
-    "noLogsFound": "No se encontraron registros de auditoría coincidentes."
+    "noLogsFound": "No se encontraron registros de auditoría coincidentes.",
+    "exportPdf": "Exportar Informe PDF",
+    "exportPdfBtn": "EXPORTAR INFORME PDF",
+    "exportingPdf": "GENERANDO PDF...",
+    "dateRange": "Rango de Fechas",
+    "dateAll": "Todo el Historial",
+    "dateToday": "Hoy",
+    "date24h": "Últimas 24 Horas",
+    "date7d": "Últimos 7 Días",
+    "date30d": "Últimos 30 Días",
+    "dateCustom": "Rango Personalizado...",
+    "startDate": "Fecha Inicio",
+    "endDate": "Fecha Fin"
   },
   "settings": {
     "title": "Ajustes de la Plataforma",

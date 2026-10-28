@@ -39,6 +39,10 @@
     "creating": "Creating...",
     "generating": "Generating...",
     "uploading": "Uploading...",
+    "checking": "Checking...",
+    "checkUpdates": "Check for updates",
+    "updateAvailable": "Update Available",
+    "envProduction": "Production",
     "saveChanges": "Save Changes",
     "network": {
       "interfaceSelector": {
@@ -136,7 +140,19 @@
     "details": "Details",
     "viewJson": "View",
     "entryDetails": "Audit Log Details",
-    "noLogsFound": "No audit logs found matching selected criteria."
+    "noLogsFound": "No audit logs found matching selected criteria.",
+    "exportPdf": "Export PDF Audit Report",
+    "exportPdfBtn": "EXPORT PDF REPORT",
+    "exportingPdf": "GENERATING PDF...",
+    "dateRange": "Date Range",
+    "dateAll": "All Time",
+    "dateToday": "Today",
+    "date24h": "Last 24 Hours",
+    "date7d": "Last 7 Days",
+    "date30d": "Last 30 Days",
+    "dateCustom": "Custom Range...",
+    "startDate": "Start Date",
+    "endDate": "End Date"
   },
   "settings": {
     "title": "Platform Settings",

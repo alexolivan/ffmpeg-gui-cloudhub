@@ -39,6 +39,10 @@
     "creating": "Creant...",
     "generating": "Generant...",
     "uploading": "Pujant...",
+    "checking": "Comprovant...",
+    "checkUpdates": "Cercar actualitzacions",
+    "updateAvailable": "Actualització disponible",
+    "envProduction": "Producció",
     "saveChanges": "Desar Canvis",
     "network": {
       "interfaceSelector": {
@@ -136,7 +140,19 @@
     "details": "Detalls",
     "viewJson": "Veure",
     "entryDetails": "Detall del Registre d'Auditoria",
-    "noLogsFound": "No s'han trobat registres d'auditoria coincidents."
+    "noLogsFound": "No s'han trobat registres d'auditoria coincidents.",
+    "exportPdf": "Exportar Informe PDF",
+    "exportPdfBtn": "EXPORTAR INFORME PDF",
+    "exportingPdf": "GENERANT PDF...",
+    "dateRange": "Rang de Dates",
+    "dateAll": "Tot l'Historial",
+    "dateToday": "Avui",
+    "date24h": "Darreres 24 Hores",
+    "date7d": "Darrers 7 Dies",
+    "date30d": "Darrers 30 Dies",
+    "dateCustom": "Rang Personalitzat...",
+    "startDate": "Data Inici",
+    "endDate": "Data Fi"
   },
   "settings": {
     "title": "Ajustos de la Plataforma",

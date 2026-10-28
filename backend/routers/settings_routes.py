@@ -7,16 +7,22 @@ import signal
 import time
 import threading
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
+from datetime import datetime, timezone
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, File, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from backend.version import __version__
+from backend.database.version import DB_SCHEMA_VERSION
 from backend.database.db import get_db
-from backend.database.models import User, SystemSettings, AuditLog
+from backend.database.models import User, SystemSettings, AuditLog, Organization, EnrolledNode
 from backend.services.cert_manager import cert_manager
 from backend.core.network_inspector import get_network_interfaces
+from backend.core.update_checker import get_git_metadata, check_latest_release
+from backend.services.audit_pdf_generator import AuditPdfReportGenerator
 from backend.routers.auth_routes import get_current_user, require_roles
 
 logger = logging.getLogger("cloudhub.api.settings")
@@ -525,21 +531,84 @@ def delete_ssl(
     }
 
 
+def _apply_audit_filters(
+    query,
+    current_user: User,
+    node_id: Optional[str] = None,
+    org_id: Optional[int] = None,
+    channel: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    search: Optional[str] = None,
+):
+    # Strict RBAC boundary
+    if current_user.role != "superadmin":
+        query = query.filter(AuditLog.org_id == current_user.org_id)
+    elif org_id is not None:
+        query = query.filter(AuditLog.org_id == org_id)
+
+    if node_id and node_id != "all":
+        query = query.filter(AuditLog.node_id == node_id)
+
+    if channel and channel != "all":
+        query = query.filter(AuditLog.channel == channel)
+
+    if start_date and start_date.strip():
+        try:
+            clean_start = start_date.strip().replace("Z", "+00:00")
+            dt_start = datetime.fromisoformat(clean_start)
+            if dt_start.tzinfo is not None:
+                dt_start = dt_start.astimezone(timezone.utc).replace(tzinfo=None)
+            query = query.filter(AuditLog.timestamp >= dt_start)
+        except Exception as e:
+            logger.debug("Could not parse start_date '%s': %s", start_date, e)
+
+    if end_date and end_date.strip():
+        try:
+            clean_end = end_date.strip().replace("Z", "+00:00")
+            dt_end = datetime.fromisoformat(clean_end)
+            if len(clean_end) <= 10:
+                dt_end = dt_end.replace(hour=23, minute=59, second=59, microsecond=999999)
+            if dt_end.tzinfo is not None:
+                dt_end = dt_end.astimezone(timezone.utc).replace(tzinfo=None)
+            query = query.filter(AuditLog.timestamp <= dt_end)
+        except Exception as e:
+            logger.debug("Could not parse end_date '%s': %s", end_date, e)
+
+    if search and search.strip():
+        term = f"%{search.strip()}%"
+        query = query.filter(
+            or_(
+                AuditLog.username.ilike(term),
+                AuditLog.action.ilike(term),
+                AuditLog.details.ilike(term),
+                AuditLog.ip_address.ilike(term),
+                AuditLog.node_id.ilike(term),
+            )
+        )
+
+    return query
+
+
 @router.get("/audit-logs")
 def list_audit_logs(
-    limit: int = 100,
+    limit: int = 200,
     node_id: Optional[str] = None,
+    org_id: Optional[int] = None,
+    channel: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    search: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Query audit logs filtered by organization permissions and optional edge node."""
+    """Query audit logs filtered by organization permissions, date range, origin, and node."""
     query = db.query(AuditLog)
-    if current_user.role != "superadmin":
-        query = query.filter(AuditLog.org_id == current_user.org_id)
-    if node_id:
-        query = query.filter(AuditLog.node_id == node_id)
+    query = _apply_audit_filters(
+        query, current_user, node_id, org_id, channel, start_date, end_date, search
+    )
 
-    logs = query.order_by(AuditLog.timestamp.desc()).limit(min(limit, 500)).all()
+    logs = query.order_by(AuditLog.timestamp.desc()).limit(min(max(1, limit), 2000)).all()
     return [
         {
             "id": l.id,
@@ -556,3 +625,129 @@ def list_audit_logs(
         }
         for l in logs
     ]
+
+
+@router.get("/audit-logs/export-pdf")
+def export_audit_pdf(
+    node_id: Optional[str] = None,
+    org_id: Optional[int] = None,
+    channel: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    search: Optional[str] = None,
+    limit: int = 1500,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Generates a downloadable corporate PDF report of filtered audit logs."""
+    query = db.query(AuditLog)
+    query = _apply_audit_filters(
+        query, current_user, node_id, org_id, channel, start_date, end_date, search
+    )
+    logs = query.order_by(AuditLog.timestamp.desc()).limit(min(max(1, limit), 2500)).all()
+
+    # Determine tenant name
+    tenant_name = "All Tenants (Global Platform)"
+    if current_user.role != "superadmin":
+        org = db.query(Organization).filter(Organization.id == current_user.org_id).first()
+        tenant_name = org.name if org else f"Tenant #{current_user.org_id}"
+    elif org_id is not None:
+        org = db.query(Organization).filter(Organization.id == org_id).first()
+        tenant_name = org.name if org else f"Tenant #{org_id}"
+
+    # Determine node name
+    node_name = "All Appliances"
+    if node_id and node_id != "all":
+        enrolled = db.query(EnrolledNode).filter(EnrolledNode.node_id == node_id).first()
+        node_name = enrolled.name if enrolled else node_id
+
+    # Format date range text
+    if start_date and end_date:
+        date_range_str = f"{start_date[:10]} to {end_date[:10]}"
+    elif start_date:
+        date_range_str = f"Since {start_date[:10]}"
+    elif end_date:
+        date_range_str = f"Until {end_date[:10]}"
+    else:
+        date_range_str = "All Recorded Events"
+
+    log_dicts = [
+        {
+            "id": l.id,
+            "timestamp": l.timestamp.isoformat() if l.timestamp else None,
+            "org_id": l.org_id,
+            "node_id": l.node_id,
+            "channel": getattr(l, "channel", "cloudhub"),
+            "username": l.username,
+            "action": l.action,
+            "target_type": l.target_type,
+            "target_id": l.target_id,
+            "ip_address": l.ip_address,
+            "details": l.details,
+        }
+        for l in logs
+    ]
+
+    metadata = {
+        "tenant_name": tenant_name,
+        "date_range": date_range_str,
+        "node_name": node_name,
+        "app_version": __version__,
+    }
+
+    generator = AuditPdfReportGenerator(log_dicts, metadata)
+    pdf_bytes = generator.build_pdf()
+
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    filename = f"cloudhub_audit_report_{ts}.pdf"
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+        },
+    )
+
+
+@router.get("/version")
+def get_hub_version(
+    current_user: User = Depends(require_roles(["superadmin"])),
+):
+    """Returns CloudHub software release version, git environment metadata, and upstream update status."""
+    git_meta = get_git_metadata()
+    update_info = check_latest_release(__version__, force=False)
+    return {
+        "app": "ffmpeg-gui-cloudhub",
+        "version": __version__,
+        "db_schema_version": DB_SCHEMA_VERSION,
+        "git_branch": git_meta.get("branch"),
+        "git_commit": git_meta.get("commit"),
+        "is_release": git_meta.get("is_release"),
+        "update_available": update_info.get("update_available", False),
+        "latest_release": update_info.get("latest_release"),
+        "release_url": update_info.get("release_url"),
+        "checked_at": update_info.get("checked_at"),
+    }
+
+
+@router.post("/version/check-updates")
+def force_check_updates(
+    current_user: User = Depends(require_roles(["superadmin"])),
+):
+    """Forces an immediate check against GitHub Releases/Tags for CloudHub updates."""
+    git_meta = get_git_metadata(force=True)
+    update_info = check_latest_release(__version__, force=True)
+    return {
+        "app": "ffmpeg-gui-cloudhub",
+        "version": __version__,
+        "db_schema_version": DB_SCHEMA_VERSION,
+        "git_branch": git_meta.get("branch"),
+        "git_commit": git_meta.get("commit"),
+        "is_release": git_meta.get("is_release"),
+        "update_available": update_info.get("update_available", False),
+        "latest_release": update_info.get("latest_release"),
+        "release_url": update_info.get("release_url"),
+        "checked_at": update_info.get("checked_at"),
+    }

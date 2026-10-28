@@ -5,6 +5,26 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-10-28
+
+### Added
+- **Platform Owner Version Panel & Environment Card (Parity with ffmpeg-gui):**
+  - Positioned in Sidebar directly beneath Logo area and above Tenant Context Controller.
+  - Role-gated strictly to Platform Owner (`superadmin`), hidden for tenant administrators and operators.
+  - Live environment detection: distinguishes `🟢 Production` (main/master/release tags) from development branches `🟣 {branch} ({commit})` with short git hash.
+  - Integrated `update_checker.py` performing non-blocking cached checks against upstream GitHub releases/tags with SemVer comparison.
+  - Real-time update notification badge (`▲ v{latest}`) linking to release notes, and interactive manual update refresh button (`↻`) with spin animation.
+  - Responsive layout: compact version pill in collapsed sidebar (`w-20`) and full card with DB schema version (`DB v1.0.0`) in expanded view (`lg:w-64`).
+- **Audit Logs Date Range Filtering & Time Interval Scoping:**
+  - Added query parameters (`start_date`, `end_date`, `org_id`, `channel`, `search`) to `GET /api/hub/audit-logs`.
+  - Frontend interactive date range selector with quick presets (*All Time*, *Today*, *Last 24 Hours*, *Last 7 Days*, *Last 30 Days*, *Custom Range...*) and dual HTML5 date pickers.
+- **Pure-Python Corporate Audit PDF Report Generator & Downloader:**
+  - Built zero-dependency PDF 1.4 report generation engine in `backend/services/audit_pdf_generator.py`.
+  - Added `GET /api/hub/audit-logs/export-pdf` endpoint delivering paginated compliance reports with official corporate header, metadata block (tenant, date range, node), executive summary KPI metrics (total events, security events, distinct operators, appliances), alternating row styling, and running footers (*Page X of Y*).
+  - Floating `EXPORT PDF REPORT` button on `AuditLogsView.tsx` with instant browser file download.
+- **Multi-language Localization (i18n):**
+  - Added all version, update status, date range presets, and PDF export translation keys to `en.json` (Single Source of Truth), `es.json`, and `ca.json`.
+
 ## [1.4.0] - 2026-10-28
 
 ### Added
