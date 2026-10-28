@@ -50,6 +50,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def force_https_middleware(request: Request, call_next):
+    """Enforces HTTPS redirection when force_https is enabled in SystemSettings."""
+    if request.url.path.startswith("/.well-known/acme-challenge/"):
+        return await call_next(request)
+
+    proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+    if proto == "http":
+        try:
+            from backend.database.db import SessionLocal
+            from backend.database.models import SystemSettings
+            import json
+
+            with SessionLocal() as db:
+                setting = db.query(SystemSettings).filter(SystemSettings.key == "force_https").first()
+                if setting:
+                    val = json.loads(setting.value) if isinstance(setting.value, str) else setting.value
+                    if val is True:
+                        url = request.url.replace(scheme="https")
+                        from fastapi.responses import RedirectResponse
+                        return RedirectResponse(url=str(url), status_code=307)
+        except Exception:
+            pass
+
+    return await call_next(request)
+
 # Include API routers
 app.include_router(auth_routes.router)
 app.include_router(tenant_routes.router)

@@ -89,7 +89,11 @@ def get_ssl_status(
     current_user: User = Depends(require_roles(["superadmin"])),
 ):
     """Get active SSL certificate expiration and validity status."""
-    return cert_manager.get_cert_status()
+    import os
+    st = dict(cert_manager.get_cert_status())
+    st["listen_port"] = int(os.environ.get("CLOUDHUB_PORT", "9000"))
+    st["listen_scheme"] = "https" if st.get("valid") else "http"
+    return st
 
 
 class IssueAcmeRequest(BaseModel):

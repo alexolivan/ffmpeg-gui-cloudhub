@@ -269,18 +269,39 @@ export const NetworkSslTab: React.FC = () => {
       </div>
 
       {/* ── Network & FQDN Configuration ── */}
-      <form onSubmit={handleSaveNetworkSettings} className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl p-6 shadow-sm space-y-4">
-        <div className="flex items-center justify-between border-b border-[var(--glass-border)] pb-3">
+      <form onSubmit={handleSaveNetworkSettings} className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl p-6 shadow-sm space-y-5">
+        <div className="border-b border-[var(--glass-border)] pb-3">
           <h3 className="text-sm font-bold text-[var(--text-primary)]">
             {t('settings.networkFqdnTitle', 'Domain & Network Routing')}
           </h3>
-          <button
-            type="submit"
-            disabled={isSavingSettings}
-            className="px-4 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-[var(--text-primary)] text-xs font-medium transition-all cursor-pointer disabled:opacity-50"
-          >
-            {isSavingSettings ? t('common.saving', 'Saving...') : t('common.saveSettings', 'Save Network')}
-          </button>
+        </div>
+
+        {/* Current Active Listener & Port Info */}
+        <div className="bg-black/25 border border-[var(--glass-border)] rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+          <div className="space-y-1">
+            <span className="text-[11px] text-[var(--text-secondary)] font-mono uppercase tracking-wider block">
+              {t('settings.activeListener', 'Current Service Listener')}
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="font-mono font-bold text-sm text-[var(--text-primary)]">
+                {(sslStatus?.listen_scheme || (sslStatus?.valid ? 'https' : 'http')).toUpperCase()}://{settings.hub_domain || '0.0.0.0'}:{sslStatus?.listen_port || 9000}
+              </span>
+              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold border ${sslBadge}`}>
+                {sslStatus?.valid ? 'TLS ACTIVE' : 'UNENCRYPTED HTTP'}
+              </span>
+            </div>
+            <p className="text-[11px] text-[var(--text-secondary)]">
+              {sslStatus?.valid
+                ? t('settings.portTlsActiveNotice', {
+                    defaultValue: 'Port {{port}} is running natively under TLS. Edge appliances and browsers connect via HTTPS/WSS on this port.',
+                    port: sslStatus?.listen_port || 9000,
+                  })
+                : t('settings.portHttpNotice', {
+                    defaultValue: 'Port {{port}} is running in unencrypted HTTP mode.',
+                    port: sslStatus?.listen_port || 9000,
+                  })}
+            </p>
+          </div>
         </div>
 
         {settingsMsg && (
@@ -323,26 +344,48 @@ export const NetworkSslTab: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-6 pt-2">
-          <label className="flex items-center gap-2.5 text-xs text-[var(--text-primary)] cursor-pointer">
-            <input
-              type="checkbox"
-              checked={Boolean(settings.force_https)}
-              onChange={(e) => setSettings({ ...settings, force_https: e.target.checked })}
-              className="rounded accent-brand-lime cursor-pointer w-4 h-4"
-            />
-            <span>{t('settings.forceHttps', 'Enforce HTTPS & WSS Redirection')}</span>
-          </label>
+        <div className="space-y-3 pt-1">
+          <div className="p-3 bg-white/[0.02] border border-[var(--glass-border)] rounded-xl space-y-1">
+            <label className="flex items-center gap-2.5 text-xs text-[var(--text-primary)] cursor-pointer font-medium">
+              <input
+                type="checkbox"
+                checked={Boolean(settings.force_https)}
+                onChange={(e) => setSettings({ ...settings, force_https: e.target.checked })}
+                className="rounded accent-brand-lime cursor-pointer w-4 h-4"
+              />
+              <span>{t('settings.forceHttps', 'Enforce HTTPS & WSS Redirection')}</span>
+            </label>
+            <p className="text-[11px] text-[var(--text-secondary)] pl-6.5">
+              {t('settings.forceHttpsHelp')}
+            </p>
+          </div>
 
-          <label className="flex items-center gap-2.5 text-xs text-[var(--text-primary)] cursor-pointer">
-            <input
-              type="checkbox"
-              checked={Boolean(settings.letsencrypt_staging)}
-              onChange={(e) => setSettings({ ...settings, letsencrypt_staging: e.target.checked })}
-              className="rounded accent-brand-lime cursor-pointer w-4 h-4"
-            />
-            <span>{t('settings.acmeStaging', 'Use Let’s Encrypt Staging Environment (Dry-run)')}</span>
-          </label>
+          <div className="p-3 bg-white/[0.02] border border-[var(--glass-border)] rounded-xl space-y-1">
+            <label className="flex items-center gap-2.5 text-xs text-[var(--text-primary)] cursor-pointer font-medium">
+              <input
+                type="checkbox"
+                checked={Boolean(settings.letsencrypt_staging)}
+                onChange={(e) => setSettings({ ...settings, letsencrypt_staging: e.target.checked })}
+                className="rounded accent-brand-lime cursor-pointer w-4 h-4"
+              />
+              <span>{t('settings.acmeStaging', 'Use Let’s Encrypt Staging Environment (Dry-run)')}</span>
+            </label>
+            <p className="text-[11px] text-[var(--text-secondary)] pl-6.5">
+              {t('settings.acmeStagingHelp')}
+            </p>
+          </div>
+        </div>
+
+        {/* Prominent Save Button at Bottom */}
+        <div className="flex items-center justify-end pt-3 border-t border-[var(--glass-border)]">
+          <button
+            type="submit"
+            disabled={isSavingSettings}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-lime text-black font-bold text-xs tracking-wide hover:bg-brand-lime/90 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+          >
+            <CheckIcon size={16} />
+            <span>{isSavingSettings ? t('common.saving', 'Saving...') : t('settings.saveNetworkBtn', 'Save Network & Redirection Settings')}</span>
+          </button>
         </div>
       </form>
 
