@@ -13,6 +13,8 @@ interface SettingsViewProps {
   selectedOrgId: number | null;
   currentTheme?: string;
   onThemeChange?: (theme: string) => void;
+  onSettingsUpdated?: () => void;
+  onUserUpdated?: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -20,6 +22,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   selectedOrgId,
   currentTheme,
   onThemeChange,
+  onSettingsUpdated,
+  onUserUpdated,
 }) => {
   const { t } = useTranslation();
   const isSuperadmin = currentUser.role === 'superadmin';
@@ -83,7 +87,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* ── Tab Content ── */}
       <div>
         {activeTab === 'general' && isSuperadmin && (
-          <GeneralSettingsTab currentTheme={currentTheme} onThemeChange={onThemeChange} />
+          <GeneralSettingsTab
+            currentUser={currentUser}
+            currentTheme={currentTheme}
+            onThemeChange={onThemeChange}
+            onSettingsUpdated={onSettingsUpdated}
+            onUserUpdated={onUserUpdated}
+          />
         )}
         {activeTab === 'network_ssl' && isSuperadmin && <NetworkSslTab />}
         {activeTab === 'tenants' && isSuperadmin && <TenantsTab />}

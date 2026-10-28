@@ -86,6 +86,12 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=6)
 
 
+class UpdateOwnerProfileRequest(BaseModel):
+    current_password: str = Field(..., min_length=1)
+    new_username: Optional[str] = Field(None, min_length=1, max_length=50)
+    new_password: Optional[str] = Field(None, min_length=6)
+
+
 @router.post("/login", response_model=LoginResponse)
 def login(
     req: LoginRequest,
@@ -208,4 +214,91 @@ def change_password(
         "status": "ok",
         "message": "Password changed successfully. All previous sessions invalidated.",
         "token": new_token,
+    }
+
+
+@router.put("/owner-profile")
+def update_owner_profile(
+    req: UpdateOwnerProfileRequest,
+    request: Request,
+    response: Response,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Allows the platform owner (superadmin) to update their username and/or password with current password confirmation."""
+    if user.role != "superadmin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only superadmin owner can update credentials via this endpoint",
+        )
+
+    if not AuthManager.verify_password(req.current_password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect current password",
+        )
+
+    changes = []
+    old_username = user.username
+
+    if req.new_username and req.new_username.strip() and req.new_username.strip() != user.username:
+        clean_name = req.new_username.strip()
+        existing = db.query(User).filter(User.username == clean_name, User.id != user.id).first()
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Username '{clean_name}' is already taken",
+            )
+        user.username = clean_name
+        changes.append(f"username updated to '{clean_name}'")
+
+    if req.new_password and req.new_password.strip():
+        user.password_hash = AuthManager.hash_password(req.new_password.strip())
+        changes.append("password updated")
+
+    if not changes:
+        return {
+            "status": "ok",
+            "message": "No changes requested",
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "role": user.role,
+                "org_id": user.org_id,
+            },
+        }
+
+    db.commit()
+
+    new_token = AuthManager.create_session(user.id, user.password_hash)
+    response.set_cookie(
+        key="ch_session",
+        value=new_token,
+        httponly=True,
+        samesite="lax",
+        secure=request.url.scheme == "https",
+        max_age=604800,
+    )
+
+    db.add(
+        AuditLog(
+            username=user.username,
+            action="UPDATE_OWNER_PROFILE",
+            target_type="auth",
+            ip_address=get_client_ip(request),
+            details=f"Owner profile updated from '{old_username}': {', '.join(changes)}",
+        )
+    )
+    db.commit()
+
+    return {
+        "status": "ok",
+        "message": f"Owner profile updated successfully ({', '.join(changes)})",
+        "token": new_token,
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "role": user.role,
+            "org_id": user.org_id,
+        },
     }

@@ -144,6 +144,8 @@ export const App: React.FC = () => {
               selectedOrgId={selectedOrgId}
               currentTheme={theme}
               onThemeChange={setTheme}
+              onSettingsUpdated={fetchAppData}
+              onUserUpdated={checkAuth}
             />
           )}
       </main>

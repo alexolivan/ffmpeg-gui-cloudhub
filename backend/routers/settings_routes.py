@@ -2,12 +2,14 @@
 
 import os
 import json
+import uuid
 import signal
 import time
 import threading
 import logging
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, File, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -19,6 +21,8 @@ from backend.routers.auth_routes import get_current_user, require_roles
 
 logger = logging.getLogger("cloudhub.api.settings")
 router = APIRouter(prefix="/api/hub", tags=["settings"])
+
+UPLOAD_DIR = os.environ.get("CLOUDHUB_UPLOAD_DIR", "data/uploads")
 
 
 def _trigger_warm_reload_delayed(delay_sec: float = 1.0):
@@ -64,6 +68,12 @@ def _load_settings_dict(db: Session) -> Dict[str, Any]:
         "letsencrypt_staging": False,
         "session_timeout_days": 7,
         "audit_retention_days": 90,
+        "logging_mode": "both",
+        "logging_timestamp_tz": "utc",
+        "logging_path": "data/logs",
+        "logging_rotation_enabled": True,
+        "logging_rotation_max_bytes": 10485760,
+        "logging_rotation_backup_count": 5,
     }
     for k, v in defaults.items():
         if k not in out:
@@ -165,6 +175,26 @@ def update_settings(
     )
     db.commit()
 
+    logging_keys = (
+        "logging_mode",
+        "logging_path",
+        "logging_timestamp_tz",
+        "logging_rotation_enabled",
+        "logging_rotation_max_bytes",
+        "logging_rotation_backup_count",
+    )
+    if any(k in incoming for k in logging_keys):
+        updated_settings = _load_settings_dict(db)
+        from backend.services.maintenance_scheduler import setup_cloudhub_logging
+        setup_cloudhub_logging(
+            log_dir=str(updated_settings.get("logging_path", "data/logs")),
+            max_bytes=int(updated_settings.get("logging_rotation_max_bytes", 10485760)),
+            backup_count=int(updated_settings.get("logging_rotation_backup_count", 5)),
+            mode=str(updated_settings.get("logging_mode", "both")),
+            timestamp_tz=str(updated_settings.get("logging_timestamp_tz", "utc")),
+            rotation_enabled=bool(updated_settings.get("logging_rotation_enabled", True)),
+        )
+
     if listener_changed:
         _trigger_warm_reload_delayed(1.0)
 
@@ -191,6 +221,150 @@ def restart_cloudhub_panel(
     """Triggers a warm reload of the HTTP/HTTPS listeners."""
     _trigger_warm_reload_delayed(1.0)
     return {"status": "ok", "message": "CloudHub listeners reloading"}
+
+
+@router.post("/settings/logo")
+async def upload_logo(
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_roles(["superadmin"])),
+    db: Session = Depends(get_db),
+):
+    """Uploads custom platform branding logo with thumbnail optimization."""
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    filename = f"logo_{uuid.uuid4().hex[:8]}.png"
+    disk_path = os.path.join(UPLOAD_DIR, filename)
+
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Image file exceeds maximum allowed size (5MB).",
+        )
+
+    try:
+        from PIL import Image
+        import io
+        img = Image.open(io.BytesIO(content))
+        img = img.convert("RGBA")
+        img.thumbnail((256, 256), Image.Resampling.LANCZOS)
+        img.save(disk_path, format="PNG")
+    except Exception as exc:
+        logger.warning("PIL thumbnailing skipped or failed: %s, saving raw bytes", exc)
+        with open(disk_path, "wb") as f:
+            f.write(content)
+
+    url_path = "/api/hub/settings/logo/file"
+
+    # Remove old logo file if existed
+    rec_disk = db.query(SystemSettings).filter(SystemSettings.key == "login_logo_disk_path").first()
+    if rec_disk and rec_disk.value and os.path.exists(rec_disk.value) and rec_disk.value != disk_path:
+        try:
+            os.remove(rec_disk.value)
+        except Exception:
+            pass
+
+    for k, v in [("login_logo_url", url_path), ("login_logo_disk_path", disk_path)]:
+        rec = db.query(SystemSettings).filter(SystemSettings.key == k).first()
+        if not rec:
+            db.add(SystemSettings(key=k, value=v))
+        else:
+            rec.value = v
+
+    db.add(
+        AuditLog(
+            username=current_user.username,
+            action="UPLOAD_LOGO",
+            target_type="settings",
+            details="Uploaded custom platform brand logo",
+        )
+    )
+    db.commit()
+
+    return {"status": "ok", "logo_url": url_path}
+
+
+@router.get("/settings/logo/file")
+def get_logo_file(db: Session = Depends(get_db)):
+    """Serves the custom uploaded branding logo without requiring authentication."""
+    rec_disk = db.query(SystemSettings).filter(SystemSettings.key == "login_logo_disk_path").first()
+    if rec_disk and rec_disk.value and os.path.isfile(rec_disk.value):
+        return FileResponse(rec_disk.value, media_type="image/png")
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No custom logo uploaded")
+
+
+@router.delete("/settings/logo")
+def delete_logo(
+    current_user: User = Depends(require_roles(["superadmin"])),
+    db: Session = Depends(get_db),
+):
+    """Deletes custom branding logo and restores default monogram."""
+    rec_disk = db.query(SystemSettings).filter(SystemSettings.key == "login_logo_disk_path").first()
+    if rec_disk:
+        if rec_disk.value and os.path.exists(rec_disk.value):
+            try:
+                os.remove(rec_disk.value)
+            except Exception:
+                pass
+        rec_disk.value = ""
+
+    rec_url = db.query(SystemSettings).filter(SystemSettings.key == "login_logo_url").first()
+    if rec_url:
+        rec_url.value = ""
+
+    db.add(
+        AuditLog(
+            username=current_user.username,
+            action="DELETE_LOGO",
+            target_type="settings",
+            details="Removed custom platform brand logo",
+        )
+    )
+    db.commit()
+
+    return {"status": "ok", "message": "Custom logo removed"}
+
+
+class TestLoggingPathRequest(BaseModel):
+    path: str
+
+
+@router.post("/settings/logging/test-path")
+def test_logging_path(
+    req: TestLoggingPathRequest,
+    current_user: User = Depends(require_roles(["superadmin"])),
+):
+    """Validates filesystem write permissions for a requested logging directory or file path."""
+    raw_path = req.path.strip()
+    if not raw_path:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Log path cannot be empty.",
+        )
+
+    test_dir = raw_path
+    if raw_path.endswith(".log") or os.path.splitext(raw_path)[1]:
+        test_dir = os.path.dirname(raw_path) or "."
+
+    try:
+        os.makedirs(test_dir, exist_ok=True)
+        probe_file = os.path.join(test_dir, f".probe_perm_{uuid.uuid4().hex[:6]}.tmp")
+        with open(probe_file, "w") as f:
+            f.write("probe write test")
+        if os.path.exists(probe_file):
+            os.remove(probe_file)
+
+        abs_path = os.path.abspath(test_dir)
+        return {
+            "status": "ok",
+            "writable": True,
+            "resolved_path": abs_path,
+            "message": f"Path is valid and writable: {abs_path}",
+        }
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Filesystem permission error on '{test_dir}': {str(exc)}",
+        )
 
 
 @router.get("/settings/ssl/status")

@@ -64,32 +64,52 @@ def setup_cloudhub_logging(
     max_bytes: int = 10 * 1024 * 1024,
     backup_count: int = 5,
     log_level: int = logging.INFO,
+    mode: str = "both",
+    timestamp_tz: str = "utc",
+    rotation_enabled: bool = True,
 ):
-    """Configures server logging with gzipped rotation and graceful read-only fallback."""
-    effective_log_dir = log_dir or os.environ.get("CLOUDHUB_LOG_DIR", "data/logs")
+    """Configures server logging with gzipped rotation, timezone formatting, and graceful read-only fallback."""
+    root_logger = logging.getLogger()
+
+    # Remove existing GzippedRotatingFileHandlers to allow dynamic reconfiguration
+    for h in list(root_logger.handlers):
+        if isinstance(h, GzippedRotatingFileHandler):
+            root_logger.removeHandler(h)
+            try:
+                h.close()
+            except Exception:
+                pass
+
+    if mode == "journalctl":
+        return
+
+    effective_path = log_dir or os.environ.get("CLOUDHUB_LOG_DIR", "data/logs")
     try:
-        os.makedirs(effective_log_dir, exist_ok=True)
-        main_log_path = os.path.join(effective_log_dir, "cloudhub.log")
+        if effective_path.endswith(".log"):
+            main_log_path = effective_path
+            os.makedirs(os.path.dirname(effective_path) or ".", exist_ok=True)
+        else:
+            os.makedirs(effective_path, exist_ok=True)
+            main_log_path = os.path.join(effective_path, "cloudhub.log")
 
         formatter = logging.Formatter(
             "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
         )
+        if timestamp_tz == "utc":
+            import time
+            formatter.converter = time.gmtime
 
         handler = GzippedRotatingFileHandler(
             main_log_path,
-            maxBytes=max_bytes,
-            backupCount=backup_count,
+            maxBytes=max_bytes if rotation_enabled else 0,
+            backupCount=backup_count if rotation_enabled else 0,
             encoding="utf-8",
         )
         handler.setFormatter(formatter)
         handler.setLevel(log_level)
-
-        root_logger = logging.getLogger()
-        # Avoid duplicate handlers
-        if not any(isinstance(h, GzippedRotatingFileHandler) for h in root_logger.handlers):
-            root_logger.addHandler(handler)
-    except OSError:
-        pass
+        root_logger.addHandler(handler)
+    except OSError as exc:
+        logger.warning("Could not setup file logging at '%s': %s (running in console-only mode)", effective_path, exc)
 
 
 class MaintenanceScheduler:

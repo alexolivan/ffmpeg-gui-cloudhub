@@ -5,6 +5,22 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-10-28
+
+### Added
+- **Authentication & Owner Credentials Card (Parity with ffmpeg-gui):**
+  - Dedicated card with red badge indicator for owner credentials and authentication management.
+  - Added `PUT /api/hub/auth/owner-profile` endpoint allowing the platform owner (superadmin) to rename their username from the default `admin` to any custom handle and/or change their password with required current password validation.
+  - Automatically re-issues authenticated session cookies and generates security audit trail entries upon credential modifications.
+- **Branding & Platform Identity Card (Parity with ffmpeg-gui):**
+  - 1:1 design matching `ffmpeg-gui` with platform name, customizable logo monogram abbreviation (up to 4 chars), and interactive drag-and-drop / click-to-upload image box.
+  - Added `POST /api/hub/settings/logo` endpoint with automatic 256x256 thumbnailing and RGBA normalization via Pillow, unauthenticated public serve endpoint `GET /api/hub/settings/logo/file`, and deletion endpoint `DELETE /api/hub/settings/logo` with immediate monogram fallback.
+- **Logging Configuration Card & Filesystem Probe (Parity with ffmpeg-gui):**
+  - Configurable logging modes (`journalctl`, `file`, `both`), timestamp formats (`utc` / `local`), and gzipped log file rotation with customizable max bytes and backup archives.
+  - Added `POST /api/hub/settings/logging/test-path` endpoint with dynamic filesystem write-permission probing to validate user-defined log directory or file paths prior to committing changes.
+- **Multi-language Localization (i18n):**
+  - Added all security, branding, and logging translation keys to `en.json` (Single Source of Truth), `es.json`, and `ca.json`.
+
 ## [1.2.0] - 2026-10-28
 
 ### Added
