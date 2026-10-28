@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { User, Organization } from './types/hub';
 import { Sidebar } from './components/Sidebar';
-import { Header } from './components/Header';
 import { LoginView } from './components/views/LoginView';
 import { FleetView } from './components/views/FleetView';
 import { AuditLogsView } from './components/views/AuditLogsView';
@@ -121,37 +120,33 @@ export const App: React.FC = () => {
         onLogout={handleLogout}
         logoText={hubSettings?.login_logo_text || 'CH'}
         logoPath={hubSettings?.login_logo_url || undefined}
+        organizations={organizations}
+        selectedOrgId={selectedOrgId}
+        onSelectOrg={setSelectedOrgId}
       />
 
-      {/* ── Main Canvas with Header and Scrollable View ── */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <Header
-          activeView={activeView}
-          currentUser={currentUser}
-          organizations={organizations}
-          selectedOrgId={selectedOrgId}
-          onSelectOrg={setSelectedOrgId}
-          currentTheme={theme}
-          onThemeChange={setTheme}
-        />
+      {/* ── Main Canvas (Parity with ffmpeg-gui: No global topbar, full horizontal canvas) ── */}
+      <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+        {activeView === 'fleet' && (
+          <FleetView currentUser={currentUser} selectedOrgId={selectedOrgId} />
+        )}
 
-        <main className="flex-1 overflow-y-auto">
-          {activeView === 'fleet' && (
-            <FleetView currentUser={currentUser} selectedOrgId={selectedOrgId} />
+        {activeView === 'audit' && (
+          <AuditLogsView currentUser={currentUser} selectedOrgId={selectedOrgId} />
+        )}
+
+        {activeView === 'settings' &&
+          (currentUser.role === 'superadmin' ||
+            currentUser.role === 'org_admin' ||
+            currentUser.role === 'tenant_admin') && (
+            <SettingsView
+              currentUser={currentUser}
+              selectedOrgId={selectedOrgId}
+              currentTheme={theme}
+              onThemeChange={setTheme}
+            />
           )}
-
-          {activeView === 'audit' && (
-            <AuditLogsView currentUser={currentUser} selectedOrgId={selectedOrgId} />
-          )}
-
-          {activeView === 'settings' &&
-            (currentUser.role === 'superadmin' ||
-              currentUser.role === 'org_admin' ||
-              currentUser.role === 'tenant_admin') && (
-              <SettingsView currentUser={currentUser} selectedOrgId={selectedOrgId} />
-            )}
-        </main>
-      </div>
+      </main>
     </div>
   );
 };

@@ -206,7 +206,46 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
   };
 
   return (
-    <div className="p-6 lg:p-10 max-w-7xl mx-auto space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-300">
+      {/* ── Top Banner Header & Floating Actions (Parity with ffmpeg-gui) ── */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-black tracking-tight text-[var(--text-primary)]">
+            {t('nav.fleet', 'Fleet Directory')}
+          </h2>
+          <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+            {t(
+              'fleet.manageSubtitle',
+              'Monitor and manage connected ffmpeg-gui edge appliances across distributed networks.'
+            )}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
+          {canManage && (
+            <button
+              onClick={() => {
+                setShowTokenModal(true);
+                setGeneratedToken(null);
+              }}
+              className="pill-button bg-brand-lime hover:bg-brand-lime/90 text-black font-bold text-xs py-2 px-4 flex items-center gap-1.5 flex-1 sm:flex-initial justify-center shadow-lg shadow-brand-lime/10 cursor-pointer"
+            >
+              <PlusIcon size={14} />
+              <span>{t('fleet.enrollNewNode', 'Enroll Node')}</span>
+            </button>
+          )}
+          <button
+            onClick={fetchData}
+            disabled={isLoading}
+            className="pill-button bg-white/5 hover:bg-white/10 text-[var(--text-primary)] border border-white/10 text-xs py-2 px-3.5 flex items-center gap-1.5 flex-1 sm:flex-initial justify-center cursor-pointer"
+            title={t('common.refresh', 'Refresh')}
+          >
+            <RefreshIcon size={14} className={isLoading ? 'animate-spin' : ''} />
+            <span>{t('common.refresh', 'Refresh')}</span>
+          </button>
+        </div>
+      </div>
+
       {/* ── Top 4 KPI Metric Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Nodes */}

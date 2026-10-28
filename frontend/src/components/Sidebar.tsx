@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { User } from '../types/hub';
-import { FleetIcon, AuditIcon, GearIcon, LogoutIcon } from './Icons';
+import type { User, Organization } from '../types/hub';
+import { FleetIcon, AuditIcon, GearIcon, LogoutIcon, ChevronDownIcon, LayersIcon } from './Icons';
 
 interface SidebarProps {
   activeView: string;
@@ -11,6 +11,9 @@ interface SidebarProps {
   logoText?: string;
   logoPath?: string;
   accentColor?: string;
+  organizations?: Organization[];
+  selectedOrgId?: number | null;
+  onSelectOrg?: (orgId: number | null) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -21,8 +24,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   logoText = 'CH',
   logoPath,
   accentColor = '#d4ff5b',
+  organizations = [],
+  selectedOrgId = null,
+  onSelectOrg,
 }) => {
   const { t } = useTranslation();
+
+  const activeOrg = organizations.find((o) => o.id === selectedOrgId);
+  const userOrg = organizations.find((o) => o.id === currentUser.org_id);
 
   const items = [
     { id: 'fleet', icon: <FleetIcon size={20} />, label: t('nav.fleet', 'Fleet') },
@@ -60,10 +69,79 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </div>
 
-      <div className="hidden lg:flex flex-col items-center mb-6">
+      <div className="hidden lg:flex flex-col items-center mb-3">
         <span className="font-bold tracking-wider text-sm text-[var(--text-primary)]">CLOUDHUB</span>
         <span className="text-[10px] tracking-widest text-[var(--text-secondary)] font-mono uppercase">Control Plane</span>
       </div>
+
+      {/* ── TENANT CONTEXT CONTROLLER (Between Logo and Menu Items) ── */}
+      {currentUser.role === 'superadmin' ? (
+        <div className="w-full px-3 mb-4 space-y-2">
+          {/* Dropdown Selector (Compact) */}
+          <div className="relative hidden lg:block">
+            <select
+              value={selectedOrgId ?? 'all'}
+              onChange={(e) => {
+                const val = e.target.value;
+                onSelectOrg?.(val === 'all' ? null : Number(val));
+              }}
+              className="w-full appearance-none bg-[var(--input-bg)] border border-[var(--glass-border)] hover:border-brand-lime/40 text-[var(--text-primary)] text-xs rounded-xl px-2.5 py-1.5 pr-7 focus:outline-none focus:ring-1 focus:ring-brand-lime transition-all cursor-pointer font-medium truncate"
+              title={t('common.switchTenant', 'Switch Tenant')}
+            >
+              <option value="all" className="bg-[#18181b] text-white">
+                🌐 {t('common.allTenants', 'All Tenants')}
+              </option>
+              {organizations.map((org) => (
+                <option key={org.id} value={org.id} className="bg-[#18181b] text-white">
+                  🏢 {org.name}
+                </option>
+              ))}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[var(--text-secondary)]">
+              <ChevronDownIcon size={12} />
+            </div>
+          </div>
+
+          {/* Active Tenant Indicator Element */}
+          <div
+            className="flex items-center gap-2.5 p-2 rounded-xl bg-white/5 border border-[var(--glass-border)] justify-center lg:justify-start transition-all"
+            title={activeOrg ? `Tenant: ${activeOrg.name}` : t('common.allTenants', 'All Tenants')}
+          >
+            <span className="text-base shrink-0">{activeOrg ? '🏢' : '🌐'}</span>
+            <div className="hidden lg:flex flex-col min-w-0 flex-1">
+              <span className="text-[9px] font-mono uppercase tracking-wider text-[var(--text-secondary)]">
+                {t('common.tenantContext', 'Active Tenant')}
+              </span>
+              <span className="text-xs font-bold text-brand-lime truncate">
+                {activeOrg ? activeOrg.name : t('common.allTenants', 'All Tenants')}
+              </span>
+            </div>
+            {activeOrg && activeOrg.nodes_count !== undefined && (
+              <span className="hidden lg:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded bg-brand-lime/15 text-brand-lime border border-brand-lime/30 font-bold shrink-0">
+                {activeOrg.nodes_count}
+              </span>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* Static Tenant Indicator for Tenant Admin and Operators */
+        <div className="w-full px-3 mb-4">
+          <div
+            className="flex items-center gap-2.5 p-2 rounded-xl bg-white/5 border border-[var(--glass-border)] justify-center lg:justify-start"
+            title={`Tenant: ${userOrg?.name || `Tenant #${currentUser.org_id}`}`}
+          >
+            <span className="text-base shrink-0">🏢</span>
+            <div className="hidden lg:flex flex-col min-w-0">
+              <span className="text-[9px] font-mono uppercase tracking-wider text-[var(--text-secondary)]">
+                {t('common.tenantContext', 'Tenant')}
+              </span>
+              <span className="text-xs font-bold text-[var(--text-primary)] truncate">
+                {userOrg?.name || `Tenant #${currentUser.org_id}`}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Navigation Items */}
       <div className="flex-1 flex flex-col gap-2 w-full px-3">

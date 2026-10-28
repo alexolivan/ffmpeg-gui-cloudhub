@@ -28,6 +28,8 @@
     "unknown": "Desconegut",
     "tenant": "Tenant",
     "allTenants": "Tots els Tenants",
+    "tenantContext": "Tenant Actiu",
+    "switchTenant": "Canviar Tenant",
     "node": "dispositiu",
     "nodes": "dispositius",
     "days": "dies",
@@ -74,6 +76,8 @@
     "roleOperator": "Operador"
   },
   "fleet": {
+    "manageSubtitle": "Supervisa i gestiona appliances ffmpeg-gui connectats a través de xarxes distribuïdes.",
+    "enrollNewNode": "Enrolar Node",
     "totalAppliances": "Total Dispositius",
     "inSelectedTenant": "Al tenant actiu",
     "acrossAllTenants": "A tots els tenants",
@@ -115,6 +119,7 @@
   "audit": {
     "title": "Registre d'Auditoria",
     "subtitle": "Supervisió d'accions administratives i esdeveniments de seguretat",
+    "manageSubtitle": "Logs operatius centralitzats, esdeveniments de seguretat i retransmissió des dels appliances.",
     "searchPlaceholder": "Filtrar per actor, acció, IP o detalls...",
     "allNodes": "Tots els Dispositius",
     "allOrigins": "Tots els Orígens",
@@ -132,9 +137,24 @@
     "noLogsFound": "No s'han trobat registres d'auditoria coincidents."
   },
   "settings": {
-    "title": "Configuració de CloudHub",
-    "subtitle": "Identitat visual, TLS automatitzat i segmentació multitenant",
-    "theme": "Tema",
+    "title": "Ajustos de la Plataforma",
+    "subtitle": "Configura identitat global, xarxa, polítiques de seguretat i accessos multitenant.",
+    "language": {
+      "title": "Idioma de la Interfície",
+      "description": "Selecciona l'idioma de visualització de la interfície d'usuari.",
+      "en": "English (US)",
+      "es": "Español (ES)",
+      "ca": "Català (CA)"
+    },
+    "theme": {
+      "title": "TEMA DE INTERFÍCIE",
+      "description": "Selecciona el tema visual per a la interfície d'usuari.",
+      "studioDark": "Studio Dark",
+      "cyberpunk": "Cyberpunk Neó",
+      "nordicFrost": "Nordic Frost",
+      "broadcastLight": "Broadcast Light",
+      "warmPaper": "Warm Paper"
+    },
     "tabs": {
       "general": "General i Identitat",
       "network_ssl": "Xarxa i SSL/TLS",

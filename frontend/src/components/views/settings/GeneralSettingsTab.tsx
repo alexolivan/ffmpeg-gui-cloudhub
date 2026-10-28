@@ -2,8 +2,64 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CheckIcon } from '../../Icons';
 
-export const GeneralSettingsTab: React.FC = () => {
-  const { t } = useTranslation();
+const THEME_OPTIONS = [
+  {
+    key: 'studio-dark',
+    nameKey: 'settings.theme.studioDark',
+    defaultName: 'Studio Dark',
+    mode: 'dark',
+    bg: '#050505',
+    accent1: '#d4ff5b',
+    accent2: '#ff9500',
+  },
+  {
+    key: 'cyberpunk',
+    nameKey: 'settings.theme.cyberpunk',
+    defaultName: 'Cyberpunk',
+    mode: 'dark',
+    bg: '#050508',
+    accent1: '#00f0ff',
+    accent2: '#ff0055',
+  },
+  {
+    key: 'nordic-frost',
+    nameKey: 'settings.theme.nordicFrost',
+    defaultName: 'Nordic Frost',
+    mode: 'dark',
+    bg: '#0c1017',
+    accent1: '#38bdf8',
+    accent2: '#818cf8',
+  },
+  {
+    key: 'broadcast-light',
+    nameKey: 'settings.theme.broadcastLight',
+    defaultName: 'Broadcast Light',
+    mode: 'light',
+    bg: '#f1f5f9',
+    accent1: '#0284c7',
+    accent2: '#ea580c',
+  },
+  {
+    key: 'warm-paper',
+    nameKey: 'settings.theme.warmPaper',
+    defaultName: 'Warm Paper',
+    mode: 'light',
+    bg: '#f7f4ee',
+    accent1: '#b45309',
+    accent2: '#0f766e',
+  },
+];
+
+interface GeneralSettingsTabProps {
+  currentTheme?: string;
+  onThemeChange?: (theme: string) => void;
+}
+
+export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
+  currentTheme = 'studio-dark',
+  onThemeChange,
+}) => {
+  const { t, i18n } = useTranslation();
   const [settings, setSettings] = useState<Record<string, any>>({
     hub_name: 'ffmpeg-gui CloudHub',
     login_logo_text: 'CH',
@@ -66,7 +122,7 @@ export const GeneralSettingsTab: React.FC = () => {
   }
 
   return (
-    <form onSubmit={handleSave} className="space-y-6 max-w-3xl">
+    <form onSubmit={handleSave} className="space-y-6">
       {statusMsg && (
         <div
           className={`p-3.5 rounded-xl border text-xs font-medium flex items-center gap-2 ${
@@ -80,7 +136,115 @@ export const GeneralSettingsTab: React.FC = () => {
         </div>
       )}
 
-      {/* Platform Branding */}
+      {/* ── CARD 1: Interface Language (Ported 1:1 from ffmpeg-gui) ── */}
+      <div className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl p-5 shadow-sm space-y-4">
+        <div className="flex items-center gap-2 border-b border-[var(--glass-border)] pb-2 mb-2">
+          <span className="w-2 h-2 rounded-full bg-cyan-400" />
+          <h4 className="text-cyan-400 font-bold text-xs uppercase tracking-wider">
+            {t('settings.language.title', 'Interface Language')}
+          </h4>
+        </div>
+
+        <div className="space-y-3">
+          <p className="text-xs text-[var(--text-secondary)]">
+            {t('settings.language.description', 'Select the display language for the application user interface.')}
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[
+              { code: 'en', label: 'English (US)', badge: 'EN' },
+              { code: 'es', label: 'Español (ES)', badge: 'ES' },
+              { code: 'ca', label: 'Català (CA)', badge: 'CA' },
+            ].map((item) => {
+              const isSelected = i18n.language.startsWith(item.code);
+              return (
+                <button
+                  key={item.code}
+                  type="button"
+                  onClick={() => i18n.changeLanguage(item.code)}
+                  className={`p-3 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
+                    isSelected
+                      ? 'border-brand-lime bg-brand-lime/10 text-[var(--text-primary)] font-bold shadow-md ring-1 ring-brand-lime/40'
+                      : 'border-[var(--glass-border)] bg-[var(--input-bg)] text-[var(--text-secondary)] hover:border-brand-lime/40 hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  <span className="text-xs">{item.label}</span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[var(--bg-dark)] border border-[var(--glass-border)] text-cyan-400 font-bold">
+                    {item.badge}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ── CARD 2: Interface Theme (Ported 1:1 from ffmpeg-gui) ── */}
+      <div className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl p-5 shadow-sm space-y-4">
+        <div className="flex items-center gap-2 border-b border-[var(--glass-border)] pb-2 mb-2">
+          <span className="w-2 h-2 rounded-full bg-brand-lime" />
+          <h4 className="text-brand-lime font-bold text-xs uppercase tracking-wider">
+            {t('settings.theme.title', 'INTERFACE THEME')}
+          </h4>
+        </div>
+
+        <div className="space-y-3">
+          <p className="text-xs text-[var(--text-secondary)]">
+            {t('settings.theme.description', 'Select visual theme for the user interface.')}
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            {THEME_OPTIONS.map((item) => {
+              const isSelected = currentTheme === item.key;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => onThemeChange?.(item.key)}
+                  className={`p-3 rounded-xl border flex flex-col justify-between transition-all cursor-pointer text-left relative overflow-hidden ${
+                    isSelected
+                      ? 'border-brand-lime bg-brand-lime/10 shadow-md ring-1 ring-brand-lime/50'
+                      : 'border-[var(--glass-border)] bg-[var(--input-bg)] hover:border-brand-lime/40'
+                  }`}
+                >
+                  {isSelected && (
+                    <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-brand-lime text-black flex items-center justify-center text-[10px] font-bold">
+                      ✓
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between gap-2 mb-2 pr-5">
+                    <span className="text-xs font-bold text-[var(--text-primary)] truncate">
+                      {t(item.nameKey, item.defaultName)}
+                    </span>
+                    <span className="text-xs shrink-0" title={item.mode}>
+                      {item.mode === 'dark' ? '🌙' : '☀️'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-2">
+                    <span
+                      className="w-4 h-4 rounded-full border border-white/20 shadow-sm"
+                      style={{ backgroundColor: item.bg }}
+                      title={`BG: ${item.bg}`}
+                    />
+                    <span
+                      className="w-4 h-4 rounded-full border border-white/20 shadow-sm"
+                      style={{ backgroundColor: item.accent1 }}
+                      title={`Accent 1: ${item.accent1}`}
+                    />
+                    <span
+                      className="w-4 h-4 rounded-full border border-white/20 shadow-sm"
+                      style={{ backgroundColor: item.accent2 }}
+                      title={`Accent 2: ${item.accent2}`}
+                    />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ── CARD 3: Platform Branding ── */}
       <div className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl p-6 shadow-sm space-y-4">
         <h3 className="text-sm font-bold text-[var(--text-primary)] border-b border-[var(--glass-border)] pb-3">
           {t('settings.brandingTitle', 'Platform Branding')}
@@ -132,7 +296,7 @@ export const GeneralSettingsTab: React.FC = () => {
         </div>
       </div>
 
-      {/* Security & Maintenance Policies */}
+      {/* ── CARD 4: Security & Maintenance Policies ── */}
       <div className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl p-6 shadow-sm space-y-4">
         <h3 className="text-sm font-bold text-[var(--text-primary)] border-b border-[var(--glass-border)] pb-3">
           {t('settings.maintenanceTitle', 'Security & Retention Policies')}

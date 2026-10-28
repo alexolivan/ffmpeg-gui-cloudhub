@@ -9,8 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **UI/UX Parity with ffmpeg-gui Appliance:**
-  - Modern lateral Sidebar navigation (`w-20 lg:w-64`) with brand logo, Fleet, Audit Log, and role-gated Settings, plus user profile indicator and clean logout.
-  - Top Header with active view title, Owner Tenant Context Switcher (with tenant badge, name, and node counter), static tenant badge for operators, theme picker (5 themes), and language selector (`en`, `es`, `ca`).
+  - Modern lateral Sidebar navigation (`w-20 lg:w-64`) with brand logo, Fleet, Audit Log, role-gated Settings, user profile indicator, clean logout, and embedded Tenant Context Controller.
+  - Removed top persistent header bar; main canvas directly occupies the screen with natural horizontal expansion (`p-6 lg:p-8`), eliminating restrictive maximum-width constraints.
+  - Page titles and descriptions positioned at top-left with contextual action controls floating at top-right on each view.
+  - Integrated Tenant Context Controller into the lateral Sidebar between the logo area and navigation items, cleanly separating the compact dropdown selector from the active tenant badge indicator.
+  - Relocated Interface Language and Interface Theme controls to Settings -> General as dedicated cards matching the 1:1 design and color swatches of `ffmpeg-gui`.
   - Consolidated `FleetView` with top 4 KPI cards (Total Appliances, Online, Offline/Degraded, Active Groups), free-text/status filter bar, and collapsible `GroupAccordionSection` with quick-enroll modal.
   - Sticky-header `AuditLogsView` with business filter bar (Tenant, Node, Origin, Category, free-text search, limit) and modal JSON payload inspector.
   - Tabbed `SettingsView` with RBAC gating: General Branding & Maintenance, Network & SSL, Tenants (Owner only), Appliance Groups, and User Accounts.

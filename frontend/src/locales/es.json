@@ -28,6 +28,8 @@
     "unknown": "Desconocido",
     "tenant": "Tenant",
     "allTenants": "Todos los Tenants",
+    "tenantContext": "Tenant Activo",
+    "switchTenant": "Cambiar Tenant",
     "node": "dispositivo",
     "nodes": "dispositivos",
     "days": "días",
@@ -74,6 +76,8 @@
     "roleOperator": "Operador"
   },
   "fleet": {
+    "manageSubtitle": "Supervisa y gestiona appliances ffmpeg-gui conectados a través de redes distribuidas.",
+    "enrollNewNode": "Enrolar Nodo",
     "totalAppliances": "Total Dispositivos",
     "inSelectedTenant": "En el tenant activo",
     "acrossAllTenants": "En todos los tenants",
@@ -115,6 +119,7 @@
   "audit": {
     "title": "Registro de Auditoría",
     "subtitle": "Supervisión de acciones administrativas y eventos de seguridad",
+    "manageSubtitle": "Logs operativos centralizados, eventos de seguridad y retransmisión desde los appliances.",
     "searchPlaceholder": "Filtrar por actor, acción, IP o detalles...",
     "allNodes": "Todos los Dispositivos",
     "allOrigins": "Todos los Orígenes",
@@ -132,9 +137,24 @@
     "noLogsFound": "No se encontraron registros de auditoría coincidentes."
   },
   "settings": {
-    "title": "Configuración de CloudHub",
-    "subtitle": "Identidad visual, TLS automatizado y segmentación multitenant",
-    "theme": "Tema",
+    "title": "Ajustes de la Plataforma",
+    "subtitle": "Configura identidad global, red, políticas de seguridad y accesos multitenant.",
+    "language": {
+      "title": "Idioma de la Interfaz",
+      "description": "Selecciona el idioma de visualización de la interfaz de usuario.",
+      "en": "English (US)",
+      "es": "Español (ES)",
+      "ca": "Català (CA)"
+    },
+    "theme": {
+      "title": "TEMA DE INTERFAZ",
+      "description": "Selecciona el tema visual para la interfaz de usuario.",
+      "studioDark": "Studio Dark",
+      "cyberpunk": "Cyberpunk Neón",
+      "nordicFrost": "Nordic Frost",
+      "broadcastLight": "Broadcast Light",
+      "warmPaper": "Warm Paper"
+    },
     "tabs": {
       "general": "General e Identidad",
       "network_ssl": "Red y SSL/TLS",

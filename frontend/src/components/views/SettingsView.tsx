@@ -11,9 +11,16 @@ import { GearIcon, ShieldIcon, LayersIcon, UsersIcon } from '../Icons';
 interface SettingsViewProps {
   currentUser: User;
   selectedOrgId: number | null;
+  currentTheme?: string;
+  onThemeChange?: (theme: string) => void;
 }
 
-export const SettingsView: React.FC<SettingsViewProps> = ({ currentUser, selectedOrgId }) => {
+export const SettingsView: React.FC<SettingsViewProps> = ({
+  currentUser,
+  selectedOrgId,
+  currentTheme,
+  onThemeChange,
+}) => {
   const { t } = useTranslation();
   const isSuperadmin = currentUser.role === 'superadmin';
 
@@ -34,7 +41,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ currentUser, selecte
   );
 
   return (
-    <div className="p-6 lg:p-10 max-w-7xl mx-auto space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-300">
+      {/* ── Top Banner Header (Parity with ffmpeg-gui) ── */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-black tracking-tight text-[var(--text-primary)]">
+            {t('nav.settings', 'Settings')}
+          </h2>
+          <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+            {t(
+              'settings.subtitle',
+              'Configure global branding, networking, security policies, and tenant access.'
+            )}
+          </p>
+        </div>
+      </div>
+
       {/* ── Subtitle and Tab Bar ── */}
       <div className="border-b border-[var(--glass-border)] pb-4">
         <div className="flex items-center gap-2 overflow-x-auto">
@@ -60,7 +82,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ currentUser, selecte
 
       {/* ── Tab Content ── */}
       <div>
-        {activeTab === 'general' && isSuperadmin && <GeneralSettingsTab />}
+        {activeTab === 'general' && isSuperadmin && (
+          <GeneralSettingsTab currentTheme={currentTheme} onThemeChange={onThemeChange} />
+        )}
         {activeTab === 'network_ssl' && isSuperadmin && <NetworkSslTab />}
         {activeTab === 'tenants' && isSuperadmin && <TenantsTab />}
         {activeTab === 'groups' && <GroupsTab currentUser={currentUser} selectedOrgId={selectedOrgId} />}

@@ -28,6 +28,8 @@
     "unknown": "Unknown",
     "tenant": "Tenant",
     "allTenants": "All Tenants",
+    "tenantContext": "Active Tenant",
+    "switchTenant": "Switch Tenant",
     "node": "appliance",
     "nodes": "appliances",
     "days": "days",
@@ -74,6 +76,8 @@
     "roleOperator": "Operator"
   },
   "fleet": {
+    "manageSubtitle": "Monitor and manage connected ffmpeg-gui edge appliances across distributed networks.",
+    "enrollNewNode": "Enroll Node",
     "totalAppliances": "Total Appliances",
     "inSelectedTenant": "In active tenant",
     "acrossAllTenants": "Across all tenants",
@@ -115,6 +119,7 @@
   "audit": {
     "title": "Audit Logs",
     "subtitle": "Track administrative actions and security events",
+    "manageSubtitle": "Centralized operational event logs, security actions, and edge appliance relays.",
     "searchPlaceholder": "Filter by actor, action, IP, or details...",
     "allNodes": "All Appliances",
     "allOrigins": "All Origins",
@@ -132,9 +137,24 @@
     "noLogsFound": "No audit logs found matching selected criteria."
   },
   "settings": {
-    "title": "CloudHub Configuration",
-    "subtitle": "Platform branding, automated TLS, and tenant segmentation",
-    "theme": "Theme",
+    "title": "Platform Settings",
+    "subtitle": "Configure global branding, networking, security policies, and tenant access.",
+    "language": {
+      "title": "Interface Language",
+      "description": "Select the display language for the application user interface.",
+      "en": "English (US)",
+      "es": "Español (ES)",
+      "ca": "Català (CA)"
+    },
+    "theme": {
+      "title": "INTERFACE THEME",
+      "description": "Select visual theme for the user interface.",
+      "studioDark": "Studio Dark",
+      "cyberpunk": "Cyberpunk Neon",
+      "nordicFrost": "Nordic Frost",
+      "broadcastLight": "Broadcast Light",
+      "warmPaper": "Warm Paper"
+    },
     "tabs": {
       "general": "General & Branding",
       "network_ssl": "Network & SSL/TLS",

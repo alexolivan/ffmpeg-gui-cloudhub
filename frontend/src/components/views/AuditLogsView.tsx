@@ -154,7 +154,34 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ currentUser, selec
   };
 
   return (
-    <div className="p-6 lg:p-10 max-w-7xl mx-auto space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-300">
+      {/* ── Top Banner Header & Floating Actions (Parity with ffmpeg-gui) ── */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-black tracking-tight text-[var(--text-primary)]">
+            {t('nav.audit', 'Audit Logs')}
+          </h2>
+          <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+            {t(
+              'audit.manageSubtitle',
+              'Centralized operational event logs, security actions, and edge appliance relays.'
+            )}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
+          <button
+            onClick={fetchLogs}
+            disabled={isLoading}
+            className="pill-button bg-white/5 hover:bg-white/10 text-[var(--text-primary)] border border-white/10 text-xs py-2 px-3.5 flex items-center gap-1.5 flex-1 sm:flex-initial justify-center cursor-pointer"
+            title={t('common.refresh', 'Refresh')}
+          >
+            <RefreshIcon size={14} className={isLoading ? 'animate-spin' : ''} />
+            <span>{t('common.refresh', 'Refresh')}</span>
+          </button>
+        </div>
+      </div>
+
       {/* ── Business Filter Bar ── */}
       <div className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
         {/* Search input */}
