@@ -2,6 +2,7 @@
 
 import os
 import logging
+import datetime
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
@@ -11,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from backend.version import __version__
 from backend.database.version import DB_SCHEMA_VERSION
 from backend.database.db import init_db
-from backend.routers import auth_routes, tenant_routes, edge_routes, settings_routes
+from backend.routers import auth_routes, tenant_routes, edge_routes, settings_routes, backup_routes
 from backend.core import reverse_proxy
 from backend.services.maintenance_scheduler import setup_cloudhub_logging, maintenance_scheduler
 
@@ -49,6 +50,86 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+class AccessLogMiddleware:
+    """ASGI Middleware emitting W3C / Nginx Combined Log Format lines for all HTTP traffic."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        status_code = [200]
+        content_length = ["-"]
+
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                status_code[0] = message["status"]
+                headers = message.get("headers", [])
+                for key, val in headers:
+                    if key.lower() == b"content-length":
+                        content_length[0] = val.decode("utf-8", errors="ignore")
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_wrapper)
+        finally:
+            path = scope.get("path", "-")
+            status = status_code[0]
+
+            # Suppress static assets from access log for successful requests
+            ignore_static = os.getenv("ACCESS_LOG_IGNORE_STATIC", "true").lower() == "true"
+            if ignore_static and status < 400:
+                clean_path = path.split("?")[0].lower()
+                if clean_path.startswith("/assets/") or clean_path in ("/favicon.ico", "/favicon.svg"):
+                    return
+
+            client = scope.get("client")
+            client_host = client[0] if client else "-"
+            remote_user = "-"
+
+            headers = scope.get("headers", [])
+            referer = "-"
+            user_agent = "-"
+            for key, val in headers:
+                key_lower = key.lower()
+                if key_lower == b"referer":
+                    referer = val.decode("utf-8", errors="ignore")
+                elif key_lower == b"user-agent":
+                    user_agent = val.decode("utf-8", errors="ignore")
+                elif key_lower == b"x-forwarded-for":
+                    xff_val = val.decode("utf-8", errors="ignore").strip()
+                    if xff_val:
+                        client_host = xff_val.split(",")[0].strip()
+                elif key_lower == b"x-real-ip" and client_host in ("-", "127.0.0.1", "::1", "localhost"):
+                    x_real_val = val.decode("utf-8", errors="ignore").strip()
+                    if x_real_val:
+                        client_host = x_real_val
+
+            now = datetime.datetime.now(datetime.timezone.utc)
+            time_local = now.strftime("%d/%b/%Y:%H:%M:%S +0000")
+
+            method = scope.get("method", "-")
+            query_string = scope.get("query_string", b"").decode("utf-8", errors="ignore")
+            full_path = f"{path}?{query_string}" if query_string else path
+            http_version = scope.get("http_version", "1.1")
+            request_line = f"{method} {full_path} HTTP/{http_version}"
+
+            access_log_path = os.getenv("ACCESS_LOG_PATH")
+            if access_log_path:
+                try:
+                    nginx_line = f'{client_host} - {remote_user} [{time_local}] "{request_line}" {status_code[0]} {content_length[0]} "{referer}" "{user_agent}"'
+                    with open(access_log_path, "a", encoding="utf-8") as f:
+                        f.write(nginx_line + "\n")
+                except Exception:
+                    pass
+
+
+app.add_middleware(AccessLogMiddleware)
 
 
 @app.middleware("http")
@@ -126,6 +207,7 @@ app.include_router(auth_routes.router)
 app.include_router(tenant_routes.router)
 app.include_router(edge_routes.router)
 app.include_router(settings_routes.router)
+app.include_router(backup_routes.router)
 app.include_router(reverse_proxy.router)
 
 

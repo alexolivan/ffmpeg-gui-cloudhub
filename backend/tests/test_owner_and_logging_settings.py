@@ -12,6 +12,7 @@ from backend.main import app
 from backend.database.db import get_db, Base
 from backend.database.models import User, SystemSettings
 from backend.core.auth_manager import AuthManager
+import backend.routers.settings_routes as settings_routes
 
 
 class TestOwnerAndLoggingSettings(unittest.TestCase):
@@ -19,6 +20,11 @@ class TestOwnerAndLoggingSettings(unittest.TestCase):
     def setUpClass(cls):
         cls.temp_dir = tempfile.TemporaryDirectory()
         cls.db_path = os.path.join(cls.temp_dir.name, "test_hub.db")
+        cls.upload_dir = os.path.join(cls.temp_dir.name, "uploads")
+        os.makedirs(cls.upload_dir, exist_ok=True)
+        cls.orig_upload_dir = settings_routes.UPLOAD_DIR
+        settings_routes.UPLOAD_DIR = cls.upload_dir
+
         cls.engine = create_engine(
             f"sqlite:///{cls.db_path}",
             connect_args={"check_same_thread": False},
@@ -40,6 +46,7 @@ class TestOwnerAndLoggingSettings(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        settings_routes.UPLOAD_DIR = cls.orig_upload_dir
         app.dependency_overrides.clear()
         cls.temp_dir.cleanup()
 

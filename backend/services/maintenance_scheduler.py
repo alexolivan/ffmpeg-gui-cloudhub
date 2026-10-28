@@ -81,16 +81,28 @@ def setup_cloudhub_logging(
                 pass
 
     if mode == "journalctl":
+        os.environ.pop("ACCESS_LOG_PATH", None)
         return
 
     effective_path = log_dir or os.environ.get("CLOUDHUB_LOG_DIR", "data/logs")
     try:
         if effective_path.endswith(".log"):
             main_log_path = effective_path
-            os.makedirs(os.path.dirname(effective_path) or ".", exist_ok=True)
+            base_dir = os.path.dirname(effective_path) or "."
+            os.makedirs(base_dir, exist_ok=True)
+            access_log_path = os.path.join(base_dir, "access.log")
         else:
             os.makedirs(effective_path, exist_ok=True)
             main_log_path = os.path.join(effective_path, "cloudhub.log")
+            access_log_path = os.path.join(effective_path, "access.log")
+
+        # Set dedicated access log path environment variable
+        try:
+            with open(access_log_path, "a", encoding="utf-8") as f:
+                pass
+            os.environ["ACCESS_LOG_PATH"] = access_log_path
+        except (PermissionError, OSError):
+            os.environ.pop("ACCESS_LOG_PATH", None)
 
         formatter = logging.Formatter(
             "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
@@ -208,6 +220,39 @@ class MaintenanceScheduler:
             logger.error("Error during audit log retention prune: %s", e)
             return 0
 
+    def rotate_access_log(self, max_bytes: int = 10 * 1024 * 1024, backup_count: int = 5) -> bool:
+        """Rotates oversized HTTP access.log via copytruncate and compresses with gzip."""
+        access_log_path = os.environ.get("ACCESS_LOG_PATH")
+        if not access_log_path or not os.path.isfile(access_log_path):
+            return False
+
+        try:
+            sz = os.path.getsize(access_log_path)
+            if sz > max_bytes:
+                for i in range(backup_count - 1, 0, -1):
+                    sfn = f"{access_log_path}.{i}.gz"
+                    dfn = f"{access_log_path}.{i+1}.gz"
+                    if os.path.exists(sfn):
+                        if os.path.exists(dfn):
+                            os.remove(dfn)
+                        os.rename(sfn, dfn)
+
+                arch_dest = f"{access_log_path}.1.gz"
+                if os.path.exists(arch_dest):
+                    os.remove(arch_dest)
+
+                with open(access_log_path, "rb") as f_in:
+                    with gzip.open(arch_dest, "wb") as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                with open(access_log_path, "r+b") as f_trunc:
+                    f_trunc.truncate(0)
+
+                logger.info("Rotated oversized access log (%d bytes) to %s", sz, arch_dest)
+                return True
+        except Exception as exc:
+            logger.error("Error rotating access log: %s", exc)
+        return False
+
     async def _worker_loop(self):
         """Asynchronous periodic execution loop."""
         # Initial grace delay after boot (60 seconds)
@@ -217,6 +262,7 @@ class MaintenanceScheduler:
             try:
                 self.perform_ssl_check()
                 self.prune_audit_logs(retention_days=90)
+                self.rotate_access_log()
             except Exception as e:
                 logger.error("Unexpected error in maintenance worker: %s", e)
 

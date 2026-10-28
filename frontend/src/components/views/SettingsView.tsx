@@ -6,7 +6,8 @@ import { NetworkSslTab } from './settings/NetworkSslTab';
 import { TenantsTab } from './settings/TenantsTab';
 import { GroupsTab } from './settings/GroupsTab';
 import { UsersTab } from './settings/UsersTab';
-import { GearIcon, ShieldIcon, LayersIcon, UsersIcon } from '../Icons';
+import { BackupRestoreTab } from './settings/BackupRestoreTab';
+import { GearIcon, ShieldIcon, LayersIcon, UsersIcon, ExportIcon } from '../Icons';
 
 interface SettingsViewProps {
   currentUser: User;
@@ -41,7 +42,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   tabs.push(
     { id: 'groups', label: t('settings.tabs.groups', 'Appliance Groups'), icon: <LayersIcon size={16} /> },
-    { id: 'users', label: t('settings.tabs.users', 'Users & RBAC'), icon: <UsersIcon size={16} /> }
+    { id: 'users', label: t('settings.tabs.users', 'Users & RBAC'), icon: <UsersIcon size={16} /> },
+    { id: 'backup', label: t('settings.tabs.backup', 'Backup & Restore'), icon: <ExportIcon size={16} /> }
   );
 
   return (
@@ -99,6 +101,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {activeTab === 'tenants' && isSuperadmin && <TenantsTab />}
         {activeTab === 'groups' && <GroupsTab currentUser={currentUser} selectedOrgId={selectedOrgId} />}
         {activeTab === 'users' && <UsersTab currentUser={currentUser} selectedOrgId={selectedOrgId} />}
+        {activeTab === 'backup' && <BackupRestoreTab currentUser={currentUser} selectedOrgId={selectedOrgId} />}
       </div>
     </div>
   );

@@ -5,6 +5,23 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-10-28
+
+### Added
+- **Multi-Tenant Backup & Restore System (Export/Validate/Import):**
+  - Strict RBAC-enforced configuration export and import: platform owner (`superadmin`) can export the entire platform (`scope="full"`) or scope down to any individual tenant (`scope="tenant"`). Tenant administrators (`org_admin` / `tenant_admin`) are strictly isolated to exporting and restoring records within their assigned organization.
+  - Granular selection of configuration sections to export: platform system settings (branding, networking, logging), appliance groups, enrolled appliances (nodes), and user accounts.
+  - Safe import pre-validation (`POST /api/hub/backup/validate`): verifies `ffmpeg-gui-cloudhub` application signature, schema version, permission boundaries, and returns real-time entity count breakdown. Rejects full platform backups when uploaded by tenant administrators with clear UI feedback.
+  - Atomic database restoration (`POST /api/hub/backup/import`) merging missing records without destructive overwrite of existing database identifiers.
+  - Dedicated `BackupRestoreTab.tsx` in Settings with metadata preview badge grid, target tenant selector for superadmins, warning alerts, and confirmation modal.
+- **W3C Access Logging & Fail2ban Security Hardening (Parity with ffmpeg-gui):**
+  - Added `AccessLogMiddleware` logging HTTP requests in standard Nginx Combined / W3C format (`%h %l %u %t "%r" %>s %b "%{Referer}i" "%{User-Agent}i"`), with real client IP resolution from `X-Forwarded-For` and `X-Real-IP`, and noise filtering for static web assets.
+  - Copytruncate gzipped rotation (`access.log.1.gz` ... `access.log.5.gz`) automated in `MaintenanceScheduler`.
+  - Updated Fail2ban filter (`packaging/fail2ban/filter.d/ffmpeg-gui-cloudhub.conf`) with dual regex matching both Python warning logs in systemd journald and HTTP 401/429 login brute-force attempts in `access.log`.
+  - Updated Fail2ban jail (`packaging/fail2ban/jail.d/ffmpeg-gui-cloudhub.local`) with ports `80,443,9000,9443` and dual backend log monitoring.
+- **Multi-language Localization (i18n):**
+  - Added all backup, export, validation, and restore translation keys to `en.json` (Single Source of Truth), `es.json`, and `ca.json`.
+
 ## [1.3.0] - 2026-10-28
 
 ### Added

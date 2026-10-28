@@ -3,10 +3,18 @@
 
 [ffmpeg-gui-cloudhub]
 enabled = true
-port = 80,443,8000
+port = 80,443,9000,9443
 filter = ffmpeg-gui-cloudhub
-backend = systemd
-journalmatch = _SYSTEMD_UNIT=ffmpeg-gui-cloudhub.service
+
+# Mode 1: Log file inspection (recommended when CloudHub writes logs to disk)
+# Monitors both standard W3C access.log and application cloudhub.log
+logpath = /var/log/ffmpeg-gui-cloudhub/access.log
+          /var/log/ffmpeg-gui-cloudhub/cloudhub.log
+
+# Mode 2: Systemd journal inspection (uncomment if operating under systemd without file logs)
+# backend = systemd
+# journalmatch = _SYSTEMD_UNIT=ffmpeg-gui-cloudhub.service
+
 maxretry = 5
 findtime = 300
 bantime = 900

@@ -353,3 +353,43 @@ export const UploadIcon: React.FC<IconProps> = ({ size = 18, className = '', ...
     <line x1="12" y1="3" x2="12" y2="15" />
   </svg>
 );
+
+export const ImportIcon: React.FC<IconProps> = ({ size = 18, className = '', ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={`inline-block align-middle ${className}`}
+    {...props}
+  >
+    <path d="M12 15V3" />
+    <path d="m17 10-5 5-5-5" />
+    <path d="M2 17v3a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3" />
+  </svg>
+);
+
+export const ExportIcon: React.FC<IconProps> = ({ size = 18, className = '', ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={`inline-block align-middle ${className}`}
+    {...props}
+  >
+    <path d="M12 3v12" />
+    <path d="m17 8-5-5-5 5" />
+    <path d="M2 17v3a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3" />
+  </svg>
+);
