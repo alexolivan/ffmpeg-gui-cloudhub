@@ -5,6 +5,38 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.4] - 2026-10-29
+
+### Added
+- **Public Branding Endpoint (`GET /api/hub/public-branding`):**
+  - Added unauthenticated public branding endpoint serving platform hub name, custom logo URL, and login logo text.
+  - Dynamically renders configured custom logo image and fallback monogram on the Login screen (`LoginView.tsx`) and updates browser favicon dynamically in document `<head>`.
+- **Branded Audit PDF Reports:**
+  - Enriched both audit log list reports and single-event forensic certificates with branded visual badges (custom monogram and tenant name / platform owner branding) in `backend/services/audit_pdf_generator.py`.
+- **Complete Users CRUD Update (`PUT /api/hub/users/{id}` & `PATCH /api/hub/users/{id}`):**
+  - Added user edit modal and action buttons in `UsersTab.tsx` supporting role editing, optional password update, group permissions assignment, and tenant reassignment for platform owners.
+- **Complete Groups CRUD Update & Branding:**
+  - Added group edit modal in `GroupsTab.tsx` with name modification, monogram/custom logo upload, and tenant reassignment for platform owners.
+  - Added drag-and-drop logo upload and monogram badge support for appliance groups.
+- **Fleet Appliance Reassignment & Branding in Edit Modal:**
+  - Added tenant re-assignment selector (for platform owners) and custom monogram / abbreviation input in Edit Appliance modal in `FleetView.tsx`.
+  - Added responsive logo image and monogram badge rendering on `NodeAccessCard.tsx`.
+
+### Changed
+- **Fleet Domain Clarification ("Ungrouped" vs "Unassigned"):**
+  - Clarified UI terminology: renamed accordion to "Ungrouped Appliances" ("Equipos sin agrupar") to remove conceptual conflict with the "Default" organization tenant.
+- **Groups Tab Header Cleanup:**
+  - Removed redundant tenant selector dropdown in `GroupsTab.tsx` header, synchronizing group clustering with the persistent global sidebar tenant context.
+
+### Fixed
+- **Tenant & Group Image Upload Visual Feedback:**
+  - Added visual thumbnail preview in tenant and group edit modals when selecting or dropping an image instead of plain text "✓ Image set".
+  - Replaced text `✕` clear button with red trash icon.
+- **Appliance Logo/Monogram Broken Image Rendering:**
+  - Resolved broken `<img>` rendering when `node.icon_data` contained plain text abbreviations (e.g. `ENC`, `ST1`) rather than image URLs.
+- **Favicon Fallback Route Handling:**
+  - Fixed `/favicon.ico` / `/favicon.svg` requests returning 404 when originating directly on CloudHub rather than inside an edge proxy session.
+
 ## [1.5.3] - 2026-10-29
 
 ### Added

@@ -102,6 +102,17 @@ class UpdateSettingsRequest(BaseModel):
     settings: Dict[str, Any]
 
 
+@router.get("/public-branding")
+def get_public_branding(db: Session = Depends(get_db)):
+    """Public unauthenticated branding info for Login screen and Favicon."""
+    cfg = _load_settings_dict(db)
+    return {
+        "hub_name": cfg.get("hub_name", "ffmpeg-gui CloudHub"),
+        "login_logo_text": cfg.get("login_logo_text", "CH"),
+        "login_logo_url": cfg.get("login_logo_url", ""),
+    }
+
+
 @router.get("/settings")
 def get_settings(
     current_user: User = Depends(get_current_user),
@@ -700,8 +711,24 @@ def export_audit_pdf(
         for l in logs
     ]
 
+    tenant_icon = None
+    if org_id:
+        t_org = db.query(Organization).filter(Organization.id == org_id).first()
+        if t_org:
+            tenant_name = t_org.name
+            tenant_icon = t_org.icon_data
+    elif current_user.org_id:
+        t_org = db.query(Organization).filter(Organization.id == current_user.org_id).first()
+        if t_org:
+            tenant_name = t_org.name
+            tenant_icon = t_org.icon_data
+
+    settings_dict = _load_settings_dict(db)
     metadata = {
         "tenant_name": tenant_name,
+        "tenant_icon": tenant_icon,
+        "platform_logo_text": settings_dict.get("login_logo_text", "CH"),
+        "platform_logo_url": settings_dict.get("login_logo_url", ""),
         "date_range": date_range_str,
         "node_name": node_name,
         "app_version": __version__,
@@ -768,8 +795,19 @@ def export_single_audit_log_pdf(
         "details": log.details,
     }
 
+    tenant_icon = None
+    if log.org_id:
+        t_org = db.query(Organization).filter(Organization.id == log.org_id).first()
+        if t_org:
+            tenant_name = t_org.name
+            tenant_icon = t_org.icon_data
+
+    settings_dict = _load_settings_dict(db)
     metadata = {
         "tenant_name": tenant_name,
+        "tenant_icon": tenant_icon,
+        "platform_logo_text": settings_dict.get("login_logo_text", "CH"),
+        "platform_logo_url": settings_dict.get("login_logo_url", ""),
         "node_name": node_name,
         "exported_by": current_user.username,
         "app_version": __version__,

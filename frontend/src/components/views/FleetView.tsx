@@ -31,6 +31,8 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
   const [editingNode, setEditingNode] = useState<EnrolledNode | null>(null);
   const [editName, setEditName] = useState('');
   const [editGroupId, setEditGroupId] = useState<string>('');
+  const [editOrgId, setEditOrgId] = useState<number>(1);
+  const [editIconData, setEditIconData] = useState<string>('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const canManage =
@@ -162,6 +164,8 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
     setEditingNode(node);
     setEditName(node.name);
     setEditGroupId(node.group_id ? String(node.group_id) : '');
+    setEditOrgId(node.org_id);
+    setEditIconData(node.icon_data || '');
   };
 
   const handleSaveEdit = async () => {
@@ -169,12 +173,14 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
     setIsSavingEdit(true);
     try {
       const res = await fetch(`/api/hub/nodes/${editingNode.node_id}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          name: editName,
-          group_id: editGroupId ? Number(editGroupId) : null,
+          name: editName.trim(),
+          group_id: editGroupId ? Number(editGroupId) : -1,
+          org_id: currentUser.role === 'superadmin' ? editOrgId : undefined,
+          icon_data: editIconData.trim() || null,
         }),
       });
       if (res.ok) {
@@ -431,7 +437,7 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
               <GroupAccordionSection
                 key="unassigned-group"
                 groupId={null}
-                groupName={t('fleet.unassignedGroup', 'Unassigned Appliances')}
+                groupName={t('fleet.ungroupedGroup', 'Ungrouped Appliances')}
                 nodes={unassignedNodes}
                 onEditNode={openEditModal}
                 onDeleteNode={handleDeleteNode}
@@ -601,6 +607,42 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
                 />
               </div>
 
+              {currentUser.role === 'superadmin' && orgs.length > 0 && (
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                    {t('common.tenant', 'Tenant Organization')}
+                  </label>
+                  <select
+                    value={editOrgId}
+                    onChange={(e) => {
+                      setEditOrgId(Number(e.target.value));
+                      setEditGroupId('');
+                    }}
+                    className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime cursor-pointer font-mono"
+                  >
+                    {orgs.map((o) => (
+                      <option key={o.id} value={o.id} className="bg-[#18181b] text-white">
+                        {o.name} ({o.slug})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                  {t('fleet.monogramAbbr', 'Monogram / Abbreviation')}
+                </label>
+                <input
+                  type="text"
+                  maxLength={4}
+                  value={editIconData}
+                  onChange={(e) => setEditIconData(e.target.value.toUpperCase())}
+                  placeholder="e.g. ENC, ST1"
+                  className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-2 text-xs text-brand-lime font-mono font-bold uppercase focus:outline-none focus:ring-1 focus:ring-brand-lime"
+                />
+              </div>
+
               <div>
                 <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                   {t('fleet.assignGroup', 'Assigned Group')}
@@ -611,10 +653,10 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
                   className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime cursor-pointer"
                 >
                   <option value="" className="bg-[#18181b] text-white">
-                    -- {t('fleet.noGroupUnassigned', 'None (Unassigned)')} --
+                    -- {t('fleet.noGroupUngrouped', 'None (Ungrouped)')} --
                   </option>
                   {groups
-                    .filter((g) => g.org_id === editingNode.org_id)
+                    .filter((g) => g.org_id === (currentUser.role === 'superadmin' ? editOrgId : editingNode.org_id))
                     .map((g) => (
                       <option key={g.id} value={g.id} className="bg-[#18181b] text-white">
                         {g.name}

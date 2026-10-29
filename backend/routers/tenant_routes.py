@@ -51,6 +51,7 @@ class CreateGroupRequest(BaseModel):
 class UpdateGroupRequest(BaseModel):
     name: Optional[str] = None
     icon_data: Optional[str] = None
+    org_id: Optional[int] = None
 
 
 class CreateUserRequest(BaseModel):
@@ -71,6 +72,7 @@ class CreateUserGlobalRequest(BaseModel):
 class UpdateUserRequest(BaseModel):
     password: Optional[str] = Field(None, min_length=6)
     role: Optional[str] = Field(None, pattern="^(org_admin|group_operator)$")
+    org_id: Optional[int] = None
     group_ids: Optional[List[int]] = None
 
 
@@ -83,6 +85,7 @@ class CreateTokenRequest(BaseModel):
 class UpdateNodeRequest(BaseModel):
     name: Optional[str] = None
     group_id: Optional[int] = None
+    org_id: Optional[int] = None
     icon_data: Optional[str] = None
 
 
@@ -296,9 +299,32 @@ def update_group(
         group.name = req.name.strip()
     if req.icon_data is not None:
         group.icon_data = req.icon_data
+    if req.org_id is not None and user.role == "superadmin":
+        group.org_id = req.org_id
 
     db.commit()
     return {"status": "ok", "group": {"id": group.id, "name": group.name}}
+
+
+@router.put("/orgs/{org_id}/groups/{group_id}")
+def update_group_with_org(
+    org_id: int,
+    group_id: int,
+    req: UpdateGroupRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return update_group(group_id=group_id, req=req, user=user, db=db)
+
+
+@router.delete("/orgs/{org_id}/groups/{group_id}")
+def delete_group_with_org(
+    org_id: int,
+    group_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return delete_group(group_id=group_id, user=user, db=db)
 
 
 @router.delete("/groups/{group_id}")
@@ -455,6 +481,7 @@ def create_user(
     return {"status": "ok", "user": {"id": new_user.id, "username": new_user.username, "role": new_user.role}}
 
 
+@router.patch("/users/{user_id}")
 @router.put("/users/{user_id}")
 def update_user(
     user_id: int,
@@ -475,6 +502,11 @@ def update_user(
         target_user.password_hash = AuthManager.hash_password(req.password)
     if req.role:
         target_user.role = req.role
+    if req.org_id is not None and current_user.role == "superadmin":
+        target_org = db.query(Organization).filter(Organization.id == req.org_id).first()
+        if target_org:
+            target_user.org_id = target_org.id
+            db.query(UserGroupPermission).filter(UserGroupPermission.user_id == target_user.id).delete()
 
     if req.group_ids is not None:
         db.query(UserGroupPermission).filter(UserGroupPermission.user_id == user_id).delete()
@@ -640,6 +672,7 @@ def list_nodes(
     return result
 
 
+@router.patch("/nodes/{node_id}")
 @router.put("/nodes/{node_id}")
 def update_node(
     node_id: str,
@@ -654,6 +687,12 @@ def update_node(
     if not AuthManager.can_user_access_node(db, current_user, node) or current_user.role == "group_operator":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
+    if req.org_id is not None and current_user.role == "superadmin":
+        target_org = db.query(Organization).filter(Organization.id == req.org_id).first()
+        if target_org:
+            node.org_id = target_org.id
+            if req.group_id is None:
+                node.group_id = None
     if req.name is not None:
         node.name = req.name.strip()
     if req.group_id is not None:

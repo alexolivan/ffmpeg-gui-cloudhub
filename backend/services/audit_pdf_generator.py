@@ -151,7 +151,7 @@ class AuditPdfReportGenerator:
         return self._assemble_pdf_file()
 
     def _render_page_header(self, c: PDFCanvas, now_str: str, version: str, page_num: int, total_pages: int) -> None:
-        """Top banner on every page."""
+        """Top banner on every page with dynamic branding badge."""
         # Top brand bar
         c.set_fill_color(0.08, 0.10, 0.13)  # Dark slate
         c.draw_rect(self.MARGIN_LEFT, 775.0, self.CONTENT_WIDTH, 42.0, fill=True, stroke=False)
@@ -160,9 +160,32 @@ class AuditPdfReportGenerator:
         c.set_fill_color(0.68, 0.95, 0.22)  # Brand lime
         c.draw_rect(self.MARGIN_LEFT, 772.0, self.CONTENT_WIDTH, 3.0, fill=True, stroke=False)
 
-        # Brand title & subtitle
-        c.draw_text("FFMPEG-GUI CLOUDHUB", self.MARGIN_LEFT + 12.0, 798.0, font="/F2", size=13.0, r=0.95, g=0.98, b=1.0)
-        c.draw_text("AUDIT TRAIL & OPERATIONAL COMPLIANCE REPORT", self.MARGIN_LEFT + 12.0, 784.0, font="/F1", size=8.0, r=0.68, g=0.95, b=0.22)
+        # Resolve badge monogram text (from tenant icon or platform logo)
+        raw_icon = self.metadata.get("tenant_icon") or self.metadata.get("platform_logo_text") or "CH"
+        if raw_icon.startswith("data:image") or raw_icon.startswith("http") or raw_icon.startswith("/"):
+            badge_text = (self.metadata.get("tenant_name") or "CH")[:3].upper()
+        else:
+            badge_text = raw_icon[:4].upper()
+
+        # Branding Badge Box: x=44, y=781, w=30, h=30
+        bx = self.MARGIN_LEFT + 8.0
+        by = 781.0
+        bw, bh = 30.0, 30.0
+        c.set_fill_color(0.14, 0.17, 0.22)
+        c.set_stroke_color(0.68, 0.95, 0.22)
+        c.set_line_width(1.0)
+        c.draw_rect(bx, by, bw, bh, fill=True, stroke=True)
+
+        # Centered monogram text inside badge
+        font_sz = 11.0 if len(badge_text) <= 2 else (9.0 if len(badge_text) == 3 else 7.5)
+        text_x = bx + (6.0 if len(badge_text) <= 2 else (4.0 if len(badge_text) == 3 else 2.5))
+        c.draw_text(badge_text, text_x, by + 10.0, font="/F2", size=font_sz, r=0.68, g=0.95, b=0.22)
+
+        # Brand title & subtitle shifted right
+        tx = bx + bw + 10.0
+        tenant_label = (self.metadata.get("tenant_name") or "FFMPEG-GUI CLOUDHUB").upper()
+        c.draw_text(tenant_label[:30], tx, 798.0, font="/F2", size=12.0, r=0.95, g=0.98, b=1.0)
+        c.draw_text("AUDIT TRAIL & OPERATIONAL COMPLIANCE REPORT", tx, 784.0, font="/F1", size=7.5, r=0.68, g=0.95, b=0.22)
 
         # Right header: timestamp & page info
         c.draw_text(f"Generated: {now_str}", self.PAGE_WIDTH - self.MARGIN_RIGHT - 180.0, 798.0, font="/F1", size=7.5, r=0.75, g=0.78, b=0.82)
@@ -431,8 +454,32 @@ class AuditSingleEventPdfGenerator:
         c.set_fill_color(0.68, 0.95, 0.22)
         c.draw_rect(self.MARGIN_LEFT, 772.0, self.CONTENT_WIDTH, 3.0, fill=True, stroke=False)
 
-        c.draw_text("FFMPEG-GUI CLOUDHUB", self.MARGIN_LEFT + 12.0, 798.0, font="/F2", size=13.0, r=0.95, g=0.98, b=1.0)
-        c.draw_text("FORENSIC AUDIT RECORD & EVIDENCE CERTIFICATE", self.MARGIN_LEFT + 12.0, 784.0, font="/F1", size=8.0, r=0.68, g=0.95, b=0.22)
+        # Resolve badge monogram text (from tenant icon or platform logo)
+        raw_icon = self.metadata.get("tenant_icon") or self.metadata.get("platform_logo_text") or "CH"
+        if raw_icon.startswith("data:image") or raw_icon.startswith("http") or raw_icon.startswith("/"):
+            badge_text = (self.metadata.get("tenant_name") or "CH")[:3].upper()
+        else:
+            badge_text = raw_icon[:4].upper()
+
+        # Branding Badge Box: x=44, y=781, w=30, h=30
+        bx = self.MARGIN_LEFT + 8.0
+        by = 781.0
+        bw, bh = 30.0, 30.0
+        c.set_fill_color(0.14, 0.17, 0.22)
+        c.set_stroke_color(0.68, 0.95, 0.22)
+        c.set_line_width(1.0)
+        c.draw_rect(bx, by, bw, bh, fill=True, stroke=True)
+
+        # Centered monogram text inside badge
+        font_sz = 11.0 if len(badge_text) <= 2 else (9.0 if len(badge_text) == 3 else 7.5)
+        text_x = bx + (6.0 if len(badge_text) <= 2 else (4.0 if len(badge_text) == 3 else 2.5))
+        c.draw_text(badge_text, text_x, by + 10.0, font="/F2", size=font_sz, r=0.68, g=0.95, b=0.22)
+
+        # Brand title & subtitle shifted right
+        tx = bx + bw + 10.0
+        tenant_label = (self.metadata.get("tenant_name") or "FFMPEG-GUI CLOUDHUB").upper()
+        c.draw_text(tenant_label[:28], tx, 798.0, font="/F2", size=12.0, r=0.95, g=0.98, b=1.0)
+        c.draw_text("FORENSIC AUDIT RECORD & EVIDENCE CERTIFICATE", tx, 784.0, font="/F1", size=7.5, r=0.68, g=0.95, b=0.22)
 
         c.draw_text(f"EVENT ID: #{log_id}", self.PAGE_WIDTH - self.MARGIN_RIGHT - 160.0, 798.0, font="/F2", size=10.0, r=0.95, g=0.98, b=1.0)
         c.draw_text(f"Generated: {now_str}", self.PAGE_WIDTH - self.MARGIN_RIGHT - 160.0, 784.0, font="/F1", size=7.5, r=0.75, g=0.78, b=0.82)

@@ -17,7 +17,27 @@ export const NodeAccessCard: React.FC<NodeAccessCardProps> = ({
 }) => {
   const { t } = useTranslation();
   const [isOpening, setIsOpening] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const isImageLogo =
+    Boolean(node.icon_data) &&
+    !imgError &&
+    (node.icon_data!.startsWith('data:image') ||
+      node.icon_data!.startsWith('http://') ||
+      node.icon_data!.startsWith('https://') ||
+      node.icon_data!.startsWith('/'));
+
+  const monogramText =
+    node.icon_data && !isImageLogo
+      ? node.icon_data.slice(0, 4).toUpperCase()
+      : (node.name
+          .trim()
+          .split(/\s+/)
+          .map((w) => w[0])
+          .join('')
+          .slice(0, 3)
+          .toUpperCase() || 'AP');
 
   const vitality = node.vitality || {
     status: 'offline',
@@ -98,28 +118,18 @@ export const NodeAccessCard: React.FC<NodeAccessCardProps> = ({
         {/* Header: Node Icon, Name, and Status Badge */}
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="flex items-center gap-3">
-            {node.icon_data ? (
-              <img
-                src={node.icon_data}
-                alt={node.name}
-                className="w-10 h-10 rounded-lg object-cover border border-[var(--glass-border)] bg-[var(--input-bg)]"
-              />
+            {isImageLogo ? (
+              <div className="w-10 h-10 rounded-xl border border-[var(--glass-border)] bg-[var(--input-bg)] flex items-center justify-center overflow-hidden">
+                <img
+                  src={node.icon_data!}
+                  alt={node.name}
+                  className="w-full h-full object-contain p-1"
+                  onError={() => setImgError(true)}
+                />
+              </div>
             ) : (
-              <div className="w-10 h-10 rounded-lg border border-[var(--glass-border)] bg-brand-lime/10 flex items-center justify-center text-brand-lime">
-                <svg
-                  className="w-5 h-5"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <rect width="20" height="8" x="2" y="2" rx="2" ry="2" />
-                  <rect width="20" height="8" x="2" y="14" rx="2" ry="2" />
-                  <line x1="6" x2="6.01" y1="6" y2="6" />
-                  <line x1="6" x2="6.01" y1="18" y2="18" />
-                </svg>
+              <div className="w-10 h-10 rounded-xl border border-brand-lime/30 bg-brand-lime/10 flex items-center justify-center text-brand-lime font-mono font-black text-xs uppercase tracking-wider shadow-sm">
+                {monogramText}
               </div>
             )}
             <div>

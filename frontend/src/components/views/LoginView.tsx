@@ -6,15 +6,22 @@ interface LoginViewProps {
   onLoginSuccess: (user: User, token: string) => void;
   currentTheme: string;
   onThemeChange: (theme: string) => void;
+  branding?: {
+    login_logo_text?: string;
+    login_logo_url?: string;
+    hub_name?: string;
+  };
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({
   onLoginSuccess,
   currentTheme,
   onThemeChange,
+  branding,
 }) => {
   const { t, i18n } = useTranslation();
   const [username, setUsername] = useState('');
+  const [logoFailed, setLogoFailed] = useState(false);
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -98,18 +105,31 @@ export const LoginView: React.FC<LoginViewProps> = ({
       <div className="w-full max-w-md bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl p-8 shadow-[var(--card-shadow)]">
         {/* Brand Header */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-lime/15 border border-brand-lime/30 text-brand-lime mb-3">
-            <svg
-              className="w-8 h-8"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
-            </svg>
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-lime/15 border border-brand-lime/30 text-brand-lime mb-3 overflow-hidden shadow-lg">
+            {branding?.login_logo_url && !logoFailed ? (
+              <img
+                src={branding.login_logo_url}
+                alt={branding?.hub_name || 'Logo'}
+                className="w-full h-full object-contain p-2"
+                onError={() => setLogoFailed(true)}
+              />
+            ) : branding?.login_logo_text ? (
+              <span className="text-brand-lime font-black text-2xl tracking-widest uppercase">
+                {branding.login_logo_text}
+              </span>
+            ) : (
+              <svg
+                className="w-8 h-8"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+              </svg>
+            )}
           </div>
           <h2 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
             {t('auth.login_title')}

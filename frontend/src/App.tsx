@@ -12,7 +12,33 @@ export const App: React.FC = () => {
   const [selectedOrgId, setSelectedOrgId] = useState<number | null>(null);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [hubSettings, setHubSettings] = useState<Record<string, any>>({});
+  const [publicBranding, setPublicBranding] = useState<{
+    login_logo_text?: string;
+    login_logo_url?: string;
+    hub_name?: string;
+  }>({});
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+
+  const fetchPublicBranding = async () => {
+    try {
+      const res = await fetch('/api/hub/public-branding');
+      if (res.ok) {
+        const data = await res.json();
+        setPublicBranding(data);
+        if (data.login_logo_url) {
+          let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
+          if (!link) {
+            link = document.createElement('link');
+            link.rel = 'icon';
+            document.head.appendChild(link);
+          }
+          link.href = data.login_logo_url;
+        }
+      }
+    } catch {
+      // Non-blocking
+    }
+  };
 
   const [theme, setTheme] = useState<string>(() => {
     return localStorage.getItem('cloudhub_theme') || 'studio-dark';
@@ -60,6 +86,7 @@ export const App: React.FC = () => {
   };
 
   useEffect(() => {
+    fetchPublicBranding();
     checkAuth();
   }, []);
 
@@ -100,6 +127,7 @@ export const App: React.FC = () => {
         }}
         currentTheme={theme}
         onThemeChange={setTheme}
+        branding={publicBranding}
       />
     );
   }
@@ -118,8 +146,8 @@ export const App: React.FC = () => {
         }}
         currentUser={currentUser}
         onLogout={handleLogout}
-        logoText={hubSettings?.login_logo_text || 'CH'}
-        logoPath={hubSettings?.login_logo_url || undefined}
+        logoText={hubSettings?.login_logo_text || publicBranding?.login_logo_text || 'CH'}
+        logoPath={hubSettings?.login_logo_url || publicBranding?.login_logo_url || undefined}
         organizations={organizations}
         selectedOrgId={selectedOrgId}
         onSelectOrg={setSelectedOrgId}

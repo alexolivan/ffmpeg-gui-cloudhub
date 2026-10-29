@@ -285,6 +285,22 @@ async def proxy_referer_fallback(request: Request):
         query = f"?{request.url.query}" if request.url.query else ""
         return RedirectResponse(url=f"/proxy/{node_id}/{rel_path}{query}", status_code=307)
 
+    if request.url.path in ("/favicon.ico", "/favicon.svg", "/favicon.png"):
+        from backend.database.db import SessionLocal
+        from backend.database.models import SystemSettings
+        with SessionLocal() as db:
+            disk_rec = db.query(SystemSettings).filter(SystemSettings.key == "login_logo_disk_path").first()
+            if disk_rec and disk_rec.value and os.path.isfile(disk_rec.value):
+                ctype = "image/svg+xml" if disk_rec.value.endswith(".svg") else "image/png"
+                return FileResponse(disk_rec.value, media_type=ctype)
+        if os.path.isdir(FRONTEND_DIST_DIR):
+            dist_fav = os.path.join(FRONTEND_DIST_DIR, request.url.path.lstrip("/"))
+            if os.path.isfile(dist_fav):
+                return FileResponse(dist_fav)
+            default_svg = os.path.join(FRONTEND_DIST_DIR, "favicon.svg")
+            if os.path.isfile(default_svg):
+                return FileResponse(default_svg, media_type="image/svg+xml")
+
     return JSONResponse(status_code=404, content={"detail": "Not Found"})
 
 

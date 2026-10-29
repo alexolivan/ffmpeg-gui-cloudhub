@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { User, Organization, NodeGroup, UserRole } from '../../../types/hub';
-import { PlusIcon, TrashIcon, UsersIcon } from '../../Icons';
+import { PlusIcon, TrashIcon, UsersIcon, EditIcon } from '../../Icons';
 
 interface UsersTabProps {
   currentUser: User;
@@ -24,6 +24,16 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
   const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Edit User State
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editRole, setEditRole] = useState<UserRole>('group_operator');
+  const [editPassword, setEditPassword] = useState('');
+  const [editOrgId, setEditOrgId] = useState<number>(1);
+  const [editSelectedGroupIds, setEditSelectedGroupIds] = useState<number[]>([]);
+  const [editGroupsList, setEditGroupsList] = useState<NodeGroup[]>([]);
+  const [isUpdatingUser, setIsUpdatingUser] = useState(false);
+  const [editErrorMsg, setEditErrorMsg] = useState<string | null>(null);
 
   const isSuperadmin = currentUser.role === 'superadmin';
 
@@ -71,7 +81,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
     }
   }, [selectedOrgId, orgs]);
 
-  // Load groups for the target tenant inside the modal
+  // Load groups for the target tenant inside the create modal
   useEffect(() => {
     const targetOrg = isSuperadmin ? modalOrgId : currentUser.org_id;
     if (targetOrg) {
@@ -81,6 +91,71 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
         .catch(() => setModalGroups([]));
     }
   }, [modalOrgId, currentUser.org_id, isSuperadmin]);
+
+  // Load groups for the target tenant inside the edit modal
+  useEffect(() => {
+    if (editingUser) {
+      const targetOrg = isSuperadmin ? editOrgId : currentUser.org_id;
+      if (targetOrg) {
+        fetch(`/api/hub/orgs/${targetOrg}/groups`, { credentials: 'include' })
+          .then((r) => (r.ok ? r.json() : []))
+          .then(setEditGroupsList)
+          .catch(() => setEditGroupsList([]));
+      }
+    }
+  }, [editingUser, editOrgId, isSuperadmin, currentUser.org_id]);
+
+  const openEditUserModal = (u: User) => {
+    setEditingUser(u);
+    setEditRole(u.role);
+    setEditPassword('');
+    setEditOrgId(u.org_id || 1);
+    setEditSelectedGroupIds(u.group_ids || []);
+    setEditErrorMsg(null);
+  };
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    if (editPassword && editPassword.trim().length < 6) {
+      setEditErrorMsg(t('auth.passwordLengthError', 'Password must be at least 6 characters.'));
+      return;
+    }
+
+    setIsUpdatingUser(true);
+    setEditErrorMsg(null);
+    try {
+      const payload: any = {
+        role: editRole,
+        group_ids: editRole === 'group_operator' ? editSelectedGroupIds : [],
+      };
+      if (editPassword.trim()) {
+        payload.password = editPassword.trim();
+      }
+      if (isSuperadmin) {
+        payload.org_id = editOrgId;
+      }
+
+      const res = await fetch(`/api/hub/users/${editingUser.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        setEditingUser(null);
+        fetchUsers();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setEditErrorMsg(data.detail || 'Failed to update user.');
+      }
+    } catch (err: any) {
+      setEditErrorMsg(err.message || 'Error updating user.');
+    } finally {
+      setIsUpdatingUser(false);
+    }
+  };
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -250,13 +325,22 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
                 </div>
 
                 {u.id !== currentUser.id && u.role !== 'superadmin' && (
-                  <button
-                    onClick={() => handleDeleteUser(u)}
-                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
-                    title={t('common.delete', 'Delete User')}
-                  >
-                    <TrashIcon size={16} />
-                  </button>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => openEditUserModal(u)}
+                      className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-brand-lime hover:bg-white/5 transition-all cursor-pointer"
+                      title={t('common.edit', 'Edit User')}
+                    >
+                      <EditIcon size={15} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteUser(u)}
+                      className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+                      title={t('common.delete', 'Delete User')}
+                    >
+                      <TrashIcon size={15} />
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -287,6 +371,133 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
           ))
         )}
       </div>
+
+      {/* ── Edit User Modal ── */}
+      {editingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl w-full max-w-md p-6 shadow-2xl relative">
+            <button
+              onClick={() => setEditingUser(null)}
+              className="absolute top-4 right-4 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-sm cursor-pointer"
+            >
+              ✕
+            </button>
+            <h3 className="text-base font-bold text-[var(--text-primary)] mb-1">
+              {t('settings.editUserTitle', 'Edit User Account')}
+            </h3>
+            <p className="text-xs text-[var(--text-secondary)] mb-4 font-mono">
+              user: <span className="text-brand-lime font-bold">{editingUser.username}</span> (ID #{editingUser.id})
+            </p>
+
+            {editErrorMsg && (
+              <div className="p-3 mb-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs">
+                {editErrorMsg}
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateUser} autoComplete="off" className="space-y-4">
+              {isSuperadmin && orgs.length > 0 && (
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                    {t('settings.assignTenant', 'Tenant Organization')}
+                  </label>
+                  <select
+                    value={editOrgId}
+                    onChange={(e) => {
+                      setEditOrgId(Number(e.target.value));
+                      setEditSelectedGroupIds([]);
+                    }}
+                    className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime cursor-pointer font-mono"
+                  >
+                    {orgs.map((o) => (
+                      <option key={o.id} value={o.id} className="bg-[#18181b] text-white">
+                        {o.name} ({o.slug})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                  {t('settings.role', 'User Role')}
+                </label>
+                <select
+                  value={editRole}
+                  onChange={(e) => setEditRole(e.target.value as UserRole)}
+                  className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime cursor-pointer"
+                >
+                  <option value="group_operator" className="bg-[#18181b] text-white">
+                    Operator (View & Connect to Appliances)
+                  </option>
+                  <option value="org_admin" className="bg-[#18181b] text-white">
+                    Tenant Admin (Manage Groups & Users in Tenant)
+                  </option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                  {t('settings.newPasswordOptional', 'New Password (leave blank to keep current)')}
+                </label>
+                <input
+                  type="password"
+                  name="edit_user_pwd"
+                  autoComplete="new-password"
+                  value={editPassword}
+                  onChange={(e) => setEditPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime font-mono"
+                />
+              </div>
+
+              {editGroupsList.length > 0 && editRole === 'group_operator' && (
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                    {t('settings.restrictGroups', 'Restrict to Specific Groups (Optional)')}
+                  </label>
+                  <div className="max-h-28 overflow-y-auto space-y-1.5 p-2 bg-black/20 rounded-xl border border-[var(--glass-border)]">
+                    {editGroupsList.map((grp) => (
+                      <label key={grp.id} className="flex items-center gap-2 text-xs text-[var(--text-primary)] cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editSelectedGroupIds.includes(grp.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setEditSelectedGroupIds([...editSelectedGroupIds, grp.id]);
+                            } else {
+                              setEditSelectedGroupIds(editSelectedGroupIds.filter((id) => id !== grp.id));
+                            }
+                          }}
+                          className="rounded accent-brand-lime"
+                        />
+                        <span>{grp.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingUser(null)}
+                  className="px-4 py-2 rounded-xl bg-white/5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs cursor-pointer"
+                >
+                  {t('common.cancel', 'Cancel')}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingUser}
+                  className="px-4 py-2 rounded-xl bg-brand-lime text-black font-bold text-xs hover:bg-brand-lime/90 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {isUpdatingUser ? t('common.saving', 'Saving...') : t('common.save', 'Save Changes')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ── Create User Modal ── */}
       {showCreateModal && (

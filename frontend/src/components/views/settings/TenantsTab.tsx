@@ -382,7 +382,7 @@ export const TenantsTab: React.FC = () => {
                 />
               </div>
 
-              {/* Branding: Monogram & Logo Upload */}
+              {/* Branding: Monogram & Logo Upload with Drag & Drop and Preview */}
               <div className="grid grid-cols-2 gap-3 p-3 bg-white/5 rounded-xl border border-[var(--glass-border)]">
                 <div>
                   <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
@@ -408,7 +408,15 @@ export const TenantsTab: React.FC = () => {
                     {t('settings.customLogo', 'Custom Logo Image')}
                   </label>
                   <div className="flex items-center gap-2">
-                    <label className="flex-1 cursor-pointer">
+                    <label
+                      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (e.dataTransfer.files?.[0]) handleIconFileUpload(e.dataTransfer.files[0], false);
+                      }}
+                      className="flex-1 cursor-pointer"
+                    >
                       <input
                         type="file"
                         accept="image/*"
@@ -417,18 +425,25 @@ export const TenantsTab: React.FC = () => {
                           if (e.target.files?.[0]) handleIconFileUpload(e.target.files[0], false);
                         }}
                       />
-                      <div className="bg-[var(--input-bg)] border border-dashed border-[var(--glass-border)] hover:border-brand-lime rounded-lg px-2 py-1.5 text-center text-[11px] text-[var(--text-secondary)] truncate">
-                        {newOrgIconData ? t('common.imageSelected', '✓ Image set') : t('common.upload', 'Upload...')}
-                      </div>
+                      {newOrgIconData ? (
+                        <div className="flex items-center gap-2 p-1 bg-[var(--input-bg)] border border-brand-lime/40 rounded-lg">
+                          <img src={newOrgIconData} alt="Logo" className="w-6 h-6 rounded object-contain shrink-0 bg-black/40" />
+                          <span className="text-[10px] text-brand-lime font-mono truncate">{t('common.imageSelected', '✓ Logo image')}</span>
+                        </div>
+                      ) : (
+                        <div className="bg-[var(--input-bg)] border border-dashed border-[var(--glass-border)] hover:border-brand-lime rounded-lg px-2 py-2 text-center text-[11px] text-[var(--text-secondary)] truncate">
+                          {t('common.uploadOrDrop', 'Choose or drop...')}
+                        </div>
+                      )}
                     </label>
                     {newOrgIconData && (
                       <button
                         type="button"
                         onClick={() => setNewOrgIconData(null)}
-                        className="text-red-400 hover:text-red-300 text-xs px-1"
-                        title={t('common.clear', 'Clear')}
+                        className="p-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors cursor-pointer shrink-0"
+                        title={t('common.clear', 'Remove Image')}
                       >
-                        ✕
+                        <TrashIcon size={14} />
                       </button>
                     )}
                   </div>
@@ -511,7 +526,7 @@ export const TenantsTab: React.FC = () => {
                 />
               </div>
 
-              {/* Branding: Monogram & Logo Upload */}
+              {/* Branding: Monogram & Logo Upload with Drag & Drop and Preview */}
               <div className="grid grid-cols-2 gap-3 p-3 bg-white/5 rounded-xl border border-[var(--glass-border)]">
                 <div>
                   <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
@@ -536,7 +551,15 @@ export const TenantsTab: React.FC = () => {
                     {t('settings.customLogo', 'Custom Logo Image')}
                   </label>
                   <div className="flex items-center gap-2">
-                    <label className="flex-1 cursor-pointer">
+                    <label
+                      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (e.dataTransfer.files?.[0]) handleIconFileUpload(e.dataTransfer.files[0], true);
+                      }}
+                      className="flex-1 cursor-pointer"
+                    >
                       <input
                         type="file"
                         accept="image/*"
@@ -545,18 +568,25 @@ export const TenantsTab: React.FC = () => {
                           if (e.target.files?.[0]) handleIconFileUpload(e.target.files[0], true);
                         }}
                       />
-                      <div className="bg-[var(--input-bg)] border border-dashed border-[var(--glass-border)] hover:border-brand-lime rounded-lg px-2 py-1.5 text-center text-[11px] text-[var(--text-secondary)] truncate">
-                        {editIconData ? t('common.imageSelected', '✓ Image set') : t('common.upload', 'Upload...')}
-                      </div>
+                      {editIconData ? (
+                        <div className="flex items-center gap-2 p-1 bg-[var(--input-bg)] border border-brand-lime/40 rounded-lg">
+                          <img src={editIconData} alt="Logo" className="w-6 h-6 rounded object-contain shrink-0 bg-black/40" />
+                          <span className="text-[10px] text-brand-lime font-mono truncate">{t('common.imageSelected', '✓ Logo image')}</span>
+                        </div>
+                      ) : (
+                        <div className="bg-[var(--input-bg)] border border-dashed border-[var(--glass-border)] hover:border-brand-lime rounded-lg px-2 py-2 text-center text-[11px] text-[var(--text-secondary)] truncate">
+                          {t('common.uploadOrDrop', 'Choose or drop...')}
+                        </div>
+                      )}
                     </label>
                     {editIconData && (
                       <button
                         type="button"
                         onClick={() => setEditIconData(null)}
-                        className="text-red-400 hover:text-red-300 text-xs px-1"
-                        title={t('common.clear', 'Clear')}
+                        className="p-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors cursor-pointer shrink-0"
+                        title={t('common.clear', 'Remove Image')}
                       >
-                        ✕
+                        <TrashIcon size={14} />
                       </button>
                     )}
                   </div>
