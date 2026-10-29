@@ -304,6 +304,14 @@ if os.path.isdir(FRONTEND_DIST_DIR):
         if os.path.isfile(file_path):
             return FileResponse(file_path)
 
+        # Do not serve index.html for missing static files / asset extensions
+        static_exts = (
+            ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp",
+            ".css", ".js", ".json", ".map", ".woff", ".woff2", ".ttf"
+        )
+        if full_path.startswith("uploads/") or any(full_path.lower().endswith(ext) for ext in static_exts):
+            return JSONResponse(status_code=404, content={"detail": "Asset Not Found"})
+
         index_file = os.path.join(FRONTEND_DIST_DIR, "index.html")
         if os.path.isfile(index_file):
             return FileResponse(index_file)

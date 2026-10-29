@@ -97,6 +97,11 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
 
   // Logo upload state
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [logoImgError, setLogoImgError] = useState(false);
+
+  useEffect(() => {
+    setLogoImgError(false);
+  }, [settings.login_logo_url]);
 
   // Log path test state
   const [pathTestStatus, setPathTestStatus] = useState<{
@@ -602,13 +607,14 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
               />
             </label>
 
-            {settings.login_logo_url ? (
+            {settings.login_logo_url && !logoImgError ? (
               <div className="relative flex flex-col items-center gap-2 z-20">
                 <div className="relative w-16 h-16 flex items-center justify-center">
                   <img
                     src={settings.login_logo_url}
                     alt="Custom Logo"
                     className="max-w-full max-h-full object-contain"
+                    onError={() => setLogoImgError(true)}
                   />
                 </div>
                 <button

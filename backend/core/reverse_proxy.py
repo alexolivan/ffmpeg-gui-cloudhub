@@ -272,7 +272,8 @@ async def proxy_http_endpoint(
         if not user:
             # Check sso_assertion parameter from query if clicking direct link
             sso_param = request.query_params.get("sso_assertion")
-            if not sso_param:
+            is_public_asset = any(subpath.startswith(p) for p in ["assets/", "favicon", "manifest", "uploads/"]) or "/icon" in subpath
+            if not sso_param and not is_public_asset:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Authentication required to access node",
@@ -402,4 +403,5 @@ async def proxy_http_endpoint(
         content=body_bytes,
         status_code=status_code,
         headers=dict(response_headers),
+        media_type=content_type or None,
     )

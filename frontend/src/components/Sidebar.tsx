@@ -64,6 +64,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     release_url?: string;
   } | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [logoError, setLogoError] = useState(false);
+
+  useEffect(() => {
+    setLogoError(false);
+  }, [logoPath]);
 
   useEffect(() => {
     if (currentUser.role === 'superadmin') {
@@ -104,8 +109,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
         onClick={() => onViewChange('fleet')}
         title="ffmpeg-gui CloudHub"
       >
-        {logoPath ? (
-          <img src={logoPath} alt="Logo" className="w-full h-full object-contain" />
+        {logoPath && !logoError ? (
+          <img
+            src={logoPath}
+            alt="Logo"
+            className="w-full h-full object-contain"
+            onError={() => setLogoError(true)}
+          />
         ) : (
           <span className="text-black font-black text-xl tracking-wider">{logoText}</span>
         )}

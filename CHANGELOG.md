@@ -26,6 +26,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added dynamic `MutationObserver` on `document.documentElement` to rewrite un-shimmed `/uploads/`, `/api/`, and `/favicon` paths for dynamically rendered React components (e.g. `SoftwareEngineCard`, `EngineLogo`, `SettingsView` custom logo).
   - Extended static HTML string rewriting in `proxy_http_endpoint` to rewrite `/uploads/` and `/favicon` links.
 
+### Fixed
+- **Master Audit PDF Report Table Layout:**
+  - Replaced truncated technical payload text in the table grid with executive columns: `APPLIANCE` (88pt) and `TARGET` (80pt), keeping total table width at 523pt.
+  - Eliminated truncated `details` text clippings from table rows, delegating complete payload analysis to the single-event forensic certificate export.
+  - Resolved `node_name` dynamically in `export_audit_pdf` so human appliance labels ("Studio 1", etc.) appear instead of raw fallback IDs.
+- **Service Process Updater Mechanism (`update.sh`):**
+  - Updated step 5 to use `systemctl restart ffmpeg-gui-cloudhub.service` instead of `systemctl reload-or-restart`.
+  - Fixes bug where Uvicorn received SIGHUP (which only reloaded SSL certificates) without restarting the Python interpreter or loading updated module code, causing freshly deployed routes (such as `/export-pdf`) to return 404 until a full restart was executed.
+- **SPA Static Asset Protection & Image Fallbacks:**
+  - Prevented catch-all SPA router in `serve_spa` from serving `index.html` (HTTP 200) for missing static assets, images, and fonts; returns HTTP 404 JSON, preventing the browser from rendering broken image placeholder frames without console errors.
+  - Added seamless `onError` image handlers in `Sidebar.tsx` and `GeneralSettingsTab.tsx` to automatically fall back to the dynamic monogram text badge if an image fails to load.
+
 ## [1.5.1] - 2026-10-29
 
 ### Fixed

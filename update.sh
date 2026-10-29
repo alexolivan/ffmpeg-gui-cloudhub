@@ -59,13 +59,13 @@ cd "${PROJ_DIR}"
 echo "[4/4] Synchronizing database schema..."
 "${PROJ_DIR}/bin/ffmpeg-gui-cloudhub-admin" init-db
 
-# 5. Reload systemd service without connection loss
+# 5. Restart systemd service to load new Python code and listeners
 if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet ffmpeg-gui-cloudhub.service 2>/dev/null; then
-    echo "[*] Reloading active ffmpeg-gui-cloudhub systemd service..."
+    echo "[*] Restarting ffmpeg-gui-cloudhub systemd service..."
     if [ "$EUID" -eq 0 ]; then
-        systemctl reload-or-restart ffmpeg-gui-cloudhub.service
+        systemctl restart ffmpeg-gui-cloudhub.service
     elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
-        sudo systemctl reload-or-restart ffmpeg-gui-cloudhub.service
+        sudo systemctl restart ffmpeg-gui-cloudhub.service
     fi
 fi
 

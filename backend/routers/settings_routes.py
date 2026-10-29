@@ -676,6 +676,8 @@ def export_audit_pdf(
     else:
         date_range_str = "All Recorded Events"
 
+    node_name_map = {n.node_id: (n.name or n.node_id) for n in db.query(EnrolledNode).all()}
+
     log_dicts = [
         {
             "id": l.id,
@@ -686,6 +688,7 @@ def export_audit_pdf(
             ),
             "org_id": l.org_id,
             "node_id": l.node_id,
+            "node_name": node_name_map.get(l.node_id, l.node_id or "CloudHub") if l.node_id else "CloudHub",
             "channel": getattr(l, "channel", "cloudhub"),
             "username": l.username,
             "action": l.action,

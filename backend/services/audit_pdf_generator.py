@@ -226,20 +226,22 @@ class AuditPdfReportGenerator:
         c.set_fill_color(0.12, 0.15, 0.18)
         c.draw_rect(self.MARGIN_LEFT, y - header_h, self.CONTENT_WIDTH, header_h, fill=True, stroke=False)
 
-        # Columns:
-        # Timestamp (92pt) | Channel (45pt) | Operator (65pt) | IP (75pt) | Action (95pt) | Target & Details (151pt)
+        # Columns total = 523pt (CONTENT_WIDTH = 523.28pt)
+        # Timestamp (85pt) | Origin (45pt) | Appliance (88pt) | Operator (62pt) | IP (70pt) | Action (93pt) | Target (80pt)
         x = self.MARGIN_LEFT + 5.0
         c.draw_text("TIMESTAMP (UTC)", x, y - 11.0, font="/F2", size=7.0, r=0.90, g=0.92, b=0.95)
-        x += 92.0
+        x += 85.0
         c.draw_text("ORIGIN", x, y - 11.0, font="/F2", size=7.0, r=0.90, g=0.92, b=0.95)
         x += 45.0
+        c.draw_text("APPLIANCE", x, y - 11.0, font="/F2", size=7.0, r=0.90, g=0.92, b=0.95)
+        x += 88.0
         c.draw_text("OPERATOR", x, y - 11.0, font="/F2", size=7.0, r=0.90, g=0.92, b=0.95)
-        x += 65.0
+        x += 62.0
         c.draw_text("CLIENT IP", x, y - 11.0, font="/F2", size=7.0, r=0.90, g=0.92, b=0.95)
-        x += 75.0
+        x += 70.0
         c.draw_text("ACTION EVENT", x, y - 11.0, font="/F2", size=7.0, r=0.90, g=0.92, b=0.95)
-        x += 95.0
-        c.draw_text("TARGET & DETAILS", x, y - 11.0, font="/F2", size=7.0, r=0.90, g=0.92, b=0.95)
+        x += 93.0
+        c.draw_text("TARGET", x, y - 11.0, font="/F2", size=7.0, r=0.90, g=0.92, b=0.95)
 
         return y - header_h
 
@@ -260,14 +262,19 @@ class AuditPdfReportGenerator:
         # Format values
         ts = (log.get("timestamp") or "")[:19].replace("T", " ")
         ch = (log.get("channel") or "hub")[:6].upper()
-        user = (log.get("username") or "system")[:12]
+        appliance = (log.get("node_name") or log.get("node_id") or "CloudHub")[:17]
+        user = (log.get("username") or "system")[:11]
         ip = (log.get("ip_address") or "—")[:15]
         act = (log.get("action") or "EVENT")[:18]
 
-        # Target and details
-        target_info = f"[{log.get('target_type') or 'sys'}:{log.get('target_id') or '—'}]" if log.get("target_type") else ""
-        details = (log.get("details") or "").replace("\n", " ").strip()
-        combined_details = f"{target_info} {details}".strip()[:52]
+        # Target display (human-meaningful, no truncated details garbage)
+        target_type = log.get("target_type") or "system"
+        target_id = log.get("target_id")
+        if target_id:
+            target_str = f"{target_type} #{target_id}"
+        else:
+            target_str = str(target_type)
+        target_disp = target_str[:16]
 
         # Action color styling
         act_r, act_g, act_b = 0.20, 0.22, 0.25
@@ -281,16 +288,18 @@ class AuditPdfReportGenerator:
 
         x = self.MARGIN_LEFT + 5.0
         c.draw_text(ts, x, y - 9.5, font="/F1", size=6.8, r=0.25, g=0.28, b=0.32)
-        x += 92.0
+        x += 85.0
         c.draw_text(ch, x, y - 9.5, font="/F2", size=6.2, r=0.40, g=0.45, b=0.50)
         x += 45.0
+        c.draw_text(appliance, x, y - 9.5, font="/F1", size=6.5, r=0.20, g=0.25, b=0.30)
+        x += 88.0
         c.draw_text(user, x, y - 9.5, font="/F2", size=6.8, r=0.15, g=0.18, b=0.22)
-        x += 65.0
+        x += 62.0
         c.draw_text(ip, x, y - 9.5, font="/F1", size=6.5, r=0.35, g=0.38, b=0.42)
-        x += 75.0
+        x += 70.0
         c.draw_text(act, x, y - 9.5, font="/F2", size=6.5, r=act_r, g=act_g, b=act_b)
-        x += 95.0
-        c.draw_text(combined_details, x, y - 9.5, font="/F1", size=6.5, r=0.25, g=0.28, b=0.32)
+        x += 93.0
+        c.draw_text(target_disp, x, y - 9.5, font="/F1", size=6.5, r=0.25, g=0.28, b=0.32)
 
         return y - row_h
 
