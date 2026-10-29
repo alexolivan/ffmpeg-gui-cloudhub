@@ -643,6 +643,36 @@ def list_audit_logs(
     ]
 
 
+def _resolve_pdf_logo_bytes(db: Session, tenant_icon: Optional[str] = None) -> Optional[bytes]:
+    """Resolves raw logo bytes for PDF header branding from tenant icon or platform logo."""
+    if tenant_icon and str(tenant_icon).startswith("data:image"):
+        try:
+            import base64
+            _, b64 = tenant_icon.split(",", 1)
+            return base64.b64decode(b64)
+        except Exception:
+            pass
+
+    rec_disk = db.query(SystemSettings).filter(SystemSettings.key == "login_logo_disk_path").first()
+    if rec_disk and rec_disk.value and os.path.exists(rec_disk.value):
+        try:
+            with open(rec_disk.value, "rb") as f:
+                return f.read()
+        except Exception:
+            pass
+
+    if os.path.isdir(UPLOAD_DIR):
+        for fname in sorted(os.listdir(UPLOAD_DIR), reverse=True):
+            if fname.startswith("logo_") and fname.endswith(".png"):
+                p = os.path.join(UPLOAD_DIR, fname)
+                try:
+                    with open(p, "rb") as f:
+                        return f.read()
+                except Exception:
+                    pass
+    return None
+
+
 @router.get("/audit-logs/export-pdf")
 def export_audit_pdf(
     node_id: Optional[str] = None,
@@ -729,6 +759,7 @@ def export_audit_pdf(
         "tenant_icon": tenant_icon,
         "platform_logo_text": settings_dict.get("login_logo_text", "CH"),
         "platform_logo_url": settings_dict.get("login_logo_url", ""),
+        "logo_image_bytes": _resolve_pdf_logo_bytes(db, tenant_icon),
         "date_range": date_range_str,
         "node_name": node_name,
         "app_version": __version__,
@@ -808,6 +839,7 @@ def export_single_audit_log_pdf(
         "tenant_icon": tenant_icon,
         "platform_logo_text": settings_dict.get("login_logo_text", "CH"),
         "platform_logo_url": settings_dict.get("login_logo_url", ""),
+        "logo_image_bytes": _resolve_pdf_logo_bytes(db, tenant_icon),
         "node_name": node_name,
         "exported_by": current_user.username,
         "app_version": __version__,

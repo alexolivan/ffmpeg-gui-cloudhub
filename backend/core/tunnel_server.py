@@ -182,6 +182,7 @@ class TunnelServer:
 
             elif msg_type == TunnelMessageType.HEARTBEAT:
                 telemetry_collector.record_heartbeat(node_id, msg)
+                self._sync_node_identity_from_heartbeat(node_id, msg)
 
             elif msg_type == TunnelMessageType.AUDIT_EVENT:
                 event_payload = msg.get("event") or {}
@@ -189,6 +190,43 @@ class TunnelServer:
 
         except Exception as err:
             logger.error("Error processing tunnel frame from node '%s': %s", node_id, err)
+
+    def _sync_node_identity_from_heartbeat(self, node_id: str, msg: Dict[str, Any]) -> None:
+        """Synchronize node friendly name, current version and brand icon/monogram from heartbeat."""
+        from backend.database.db import SessionLocal
+        from backend.database.models import EnrolledNode
+
+        node_name = msg.get("node_name")
+        logo_text = msg.get("logo_text")
+        logo_path = msg.get("logo_path")
+        curr_ver = msg.get("current_version")
+
+        # Determine icon value: image URL over reverse proxy or monogram abbreviation string
+        icon_val = f"/proxy/{node_id}{logo_path}" if logo_path else (logo_text.strip().upper() if logo_text else None)
+
+        try:
+            with SessionLocal() as db:
+                node = db.query(EnrolledNode).filter(EnrolledNode.node_id == node_id).first()
+                if not node:
+                    return
+
+                changed = False
+                if curr_ver and node.current_version != curr_ver:
+                    node.current_version = curr_ver
+                    changed = True
+
+                if icon_val and node.icon_data != icon_val:
+                    node.icon_data = icon_val
+                    changed = True
+
+                if node_name and node.name in ("FFmpeg Appliance", "New Node", "FFmpeg Node", ""):
+                    node.name = node_name.strip()
+                    changed = True
+
+                if changed:
+                    db.commit()
+        except Exception as exc:
+            logger.debug("Failed to sync node identity from heartbeat: %s", exc)
 
     def _persist_edge_audit_event(self, node_id: str, event: Dict[str, Any]) -> None:
         """Persist an audit log event received from an edge node."""

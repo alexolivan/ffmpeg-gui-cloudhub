@@ -71,9 +71,49 @@ class PDFCanvas:
         escaped = _escape_pdf_str(text)
         self.commands.append(f"q {r:.3f} {g:.3f} {b:.3f} rg BT {font} {size:.1f} Tf {x:.2f} {y:.2f} Td ({escaped}) Tj ET Q")
 
+    def draw_image(self, img_ref: str, x: float, y: float, w: float, h: float) -> None:
+        self.commands.append(f"q {w:.2f} 0 0 {h:.2f} {x:.2f} {y:.2f} cm /{img_ref} Do Q")
+
     def get_stream(self) -> bytes:
         raw = "\n".join(self.commands).encode("latin1")
         return zlib.compress(raw)
+
+
+def _prepare_pdf_logo(logo_bytes: Optional[bytes] = None, tenant_icon: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Preprocesses logo image bytes into an optimized FlateDecode RGB payload."""
+    if not logo_bytes and tenant_icon and str(tenant_icon).startswith("data:image"):
+        try:
+            import base64
+            _, b64 = tenant_icon.split(",", 1)
+            logo_bytes = base64.b64decode(b64)
+        except Exception:
+            pass
+
+    if not logo_bytes:
+        return None
+
+    try:
+        from PIL import Image
+        import io
+        im = Image.open(io.BytesIO(logo_bytes))
+        im = im.convert("RGBA")
+        im.thumbnail((120, 120), Image.Resampling.LANCZOS)
+
+        # Composite against dark slate matching badge container (RGB: 36, 43, 56)
+        bg = Image.new("RGB", im.size, (36, 43, 56))
+        bg.paste(im, mask=im.split()[3])
+
+        w_px, h_px = bg.size
+        rgb_raw = bg.tobytes()
+        compressed = zlib.compress(rgb_raw)
+        return {
+            "w_px": w_px,
+            "h_px": h_px,
+            "compressed": compressed,
+            "length": len(compressed),
+        }
+    except Exception:
+        return None
 
 
 class AuditPdfReportGenerator:
@@ -89,6 +129,10 @@ class AuditPdfReportGenerator:
         self.logs = logs
         self.metadata = metadata or {}
         self.pages: List[PDFCanvas] = []
+        self.logo_img_data = _prepare_pdf_logo(
+            self.metadata.get("logo_image_bytes"),
+            self.metadata.get("tenant_icon"),
+        )
 
     def build_pdf(self) -> bytes:
         """Constructs and returns binary PDF bytes."""
@@ -176,10 +220,22 @@ class AuditPdfReportGenerator:
         c.set_line_width(1.0)
         c.draw_rect(bx, by, bw, bh, fill=True, stroke=True)
 
-        # Centered monogram text inside badge
-        font_sz = 11.0 if len(badge_text) <= 2 else (9.0 if len(badge_text) == 3 else 7.5)
-        text_x = bx + (6.0 if len(badge_text) <= 2 else (4.0 if len(badge_text) == 3 else 2.5))
-        c.draw_text(badge_text, text_x, by + 10.0, font="/F2", size=font_sz, r=0.68, g=0.95, b=0.22)
+        if self.logo_img_data:
+            aspect = self.logo_img_data["w_px"] / max(1, self.logo_img_data["h_px"])
+            if aspect >= 1.0:
+                dw = 24.0
+                dh = 24.0 / aspect
+            else:
+                dh = 24.0
+                dw = 24.0 * aspect
+            ix = bx + (bw - dw) / 2.0
+            iy = by + (bh - dh) / 2.0
+            c.draw_image("ImLogo", ix, iy, dw, dh)
+        else:
+            # Centered monogram text inside badge
+            font_sz = 11.0 if len(badge_text) <= 2 else (9.0 if len(badge_text) == 3 else 7.5)
+            text_x = bx + (6.0 if len(badge_text) <= 2 else (4.0 if len(badge_text) == 3 else 2.5))
+            c.draw_text(badge_text, text_x, by + 10.0, font="/F2", size=font_sz, r=0.68, g=0.95, b=0.22)
 
         # Brand title & subtitle shifted right
         tx = bx + bw + 10.0
@@ -370,6 +426,17 @@ class AuditPdfReportGenerator:
         font_f1_idx = add_obj("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
         font_f2_idx = add_obj("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>")
 
+        img_id = None
+        if self.logo_img_data:
+            img_obj = (
+                f"<< /Type /XObject /Subtype /Image /Width {self.logo_img_data['w_px']} "
+                f"/Height {self.logo_img_data['h_px']} /ColorSpace /DeviceRGB /BitsPerComponent 8 "
+                f"/Filter /FlateDecode /Length {self.logo_img_data['length']} >>\nstream\n".encode("latin1")
+                + self.logo_img_data["compressed"]
+                + b"\nendstream"
+            )
+            img_id = add_obj(img_obj)
+
         page_obj_ids = []
         for p in self.pages:
             # Add content stream object
@@ -382,9 +449,10 @@ class AuditPdfReportGenerator:
             content_id = add_obj(stream_obj)
 
             # Add Page object
+            xobj_str = f"/XObject << /ImLogo {img_id} 0 R >> " if img_id else ""
             page_dict = (
                 f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {self.PAGE_WIDTH:.2f} {self.PAGE_HEIGHT:.2f}] "
-                f"/Contents {content_id} 0 R /Resources << /Font << /F1 {font_f1_idx} 0 R /F2 {font_f2_idx} 0 R >> >> >>"
+                f"/Contents {content_id} 0 R /Resources << /Font << /F1 {font_f1_idx} 0 R /F2 {font_f2_idx} 0 R >> {xobj_str}>> >>"
             )
             page_id = add_obj(page_dict)
             page_obj_ids.append(f"{page_id} 0 R")
@@ -431,6 +499,10 @@ class AuditSingleEventPdfGenerator:
         self.log = log
         self.metadata = metadata or {}
         self.pages: List[PDFCanvas] = []
+        self.logo_img_data = _prepare_pdf_logo(
+            self.metadata.get("logo_image_bytes"),
+            self.metadata.get("tenant_icon"),
+        )
 
     def build_pdf(self) -> bytes:
         canvas = PDFCanvas(self.PAGE_WIDTH, self.PAGE_HEIGHT)
@@ -470,10 +542,22 @@ class AuditSingleEventPdfGenerator:
         c.set_line_width(1.0)
         c.draw_rect(bx, by, bw, bh, fill=True, stroke=True)
 
-        # Centered monogram text inside badge
-        font_sz = 11.0 if len(badge_text) <= 2 else (9.0 if len(badge_text) == 3 else 7.5)
-        text_x = bx + (6.0 if len(badge_text) <= 2 else (4.0 if len(badge_text) == 3 else 2.5))
-        c.draw_text(badge_text, text_x, by + 10.0, font="/F2", size=font_sz, r=0.68, g=0.95, b=0.22)
+        if self.logo_img_data:
+            aspect = self.logo_img_data["w_px"] / max(1, self.logo_img_data["h_px"])
+            if aspect >= 1.0:
+                dw = 24.0
+                dh = 24.0 / aspect
+            else:
+                dh = 24.0
+                dw = 24.0 * aspect
+            ix = bx + (bw - dw) / 2.0
+            iy = by + (bh - dh) / 2.0
+            c.draw_image("ImLogo", ix, iy, dw, dh)
+        else:
+            # Centered monogram text inside badge
+            font_sz = 11.0 if len(badge_text) <= 2 else (9.0 if len(badge_text) == 3 else 7.5)
+            text_x = bx + (6.0 if len(badge_text) <= 2 else (4.0 if len(badge_text) == 3 else 2.5))
+            c.draw_text(badge_text, text_x, by + 10.0, font="/F2", size=font_sz, r=0.68, g=0.95, b=0.22)
 
         # Brand title & subtitle shifted right
         tx = bx + bw + 10.0
@@ -645,6 +729,17 @@ class AuditSingleEventPdfGenerator:
         font_f1_idx = add_obj("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
         font_f2_idx = add_obj("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>")
 
+        img_id = None
+        if self.logo_img_data:
+            img_obj = (
+                f"<< /Type /XObject /Subtype /Image /Width {self.logo_img_data['w_px']} "
+                f"/Height {self.logo_img_data['h_px']} /ColorSpace /DeviceRGB /BitsPerComponent 8 "
+                f"/Filter /FlateDecode /Length {self.logo_img_data['length']} >>\nstream\n".encode("latin1")
+                + self.logo_img_data["compressed"]
+                + b"\nendstream"
+            )
+            img_id = add_obj(img_obj)
+
         page_obj_ids = []
         for p in self.pages:
             stream_bytes = p.get_stream()
@@ -655,9 +750,10 @@ class AuditSingleEventPdfGenerator:
             )
             content_id = add_obj(stream_obj)
 
+            xobj_str = f"/XObject << /ImLogo {img_id} 0 R >> " if img_id else ""
             page_dict = (
                 f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {self.PAGE_WIDTH:.2f} {self.PAGE_HEIGHT:.2f}] "
-                f"/Contents {content_id} 0 R /Resources << /Font << /F1 {font_f1_idx} 0 R /F2 {font_f2_idx} 0 R >> >> >>"
+                f"/Contents {content_id} 0 R /Resources << /Font << /F1 {font_f1_idx} 0 R /F2 {font_f2_idx} 0 R >> {xobj_str}>> >>"
             )
             page_id = add_obj(page_dict)
             page_obj_ids.append(f"{page_id} 0 R")

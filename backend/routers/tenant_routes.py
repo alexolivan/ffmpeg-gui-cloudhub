@@ -656,6 +656,17 @@ def list_nodes(
     result = []
     for n in accessible_nodes:
         vitality = telemetry_collector.get_node_vitality(n.node_id, n.current_version)
+        icon_display = n.icon_data
+        if not icon_display:
+            t_payload = telemetry_collector.get_latest_payload(n.node_id)
+            if t_payload:
+                t_path = t_payload.get("logo_path")
+                t_text = t_payload.get("logo_text")
+                if t_path:
+                    icon_display = f"/proxy/{n.node_id}{t_path}"
+                elif t_text:
+                    icon_display = t_text.strip().upper()
+
         result.append(
             {
                 "id": n.id,
@@ -663,7 +674,7 @@ def list_nodes(
                 "name": n.name,
                 "org_id": n.org_id,
                 "group_id": n.group_id,
-                "icon_data": n.icon_data,
+                "icon_data": icon_display,
                 "current_version": n.current_version,
                 "last_seen_at": n.last_seen_at.isoformat() if n.last_seen_at else None,
                 "vitality": vitality,

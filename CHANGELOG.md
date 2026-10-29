@@ -5,6 +5,17 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.5] - 2026-10-29
+
+### Added
+- **Native PDF Logo Image Embedding (`backend/services/audit_pdf_generator.py`)**:
+  - Implemented pure-Python FlateDecode RGB Image XObject embedding in both consolidated audit reports (`AuditPdfReportGenerator`) and single-event forensic certificates (`AuditSingleEventPdfGenerator`).
+  - Added `_resolve_pdf_logo_bytes` in `backend/routers/settings_routes.py` to automatically load platform branding from disk (`login_logo_disk_path` or upload directory) or tenant icon data URLs.
+  - Automatically composites RGBA logos against the dark slate badge container and calculates aspect-ratio-preserving dimensions, with graceful fallback to monogram text.
+- **Edge Node Identity & Branding Synchronization (`backend/core/tunnel_server.py`)**:
+  - Implemented `_sync_node_identity_from_heartbeat` dynamically synchronizing appliance friendly name, custom logo (as proxied URL `/proxy/{node_id}/...`) or monogram abbreviation (`VS1`) directly from periodic telemetry heartbeats.
+  - Added live fallback in `GET /api/hub/nodes` to telemetry cache for newly connected appliances.
+
 ## [1.5.4] - 2026-10-29
 
 ### Added

@@ -43,6 +43,12 @@ class TelemetryCollector:
             if node_id in self._vitality_cache:
                 self._vitality_cache[node_id]["disconnected"] = True
 
+    def get_latest_payload(self, node_id: str) -> Optional[dict]:
+        """Retrieve most recent raw telemetry payload for a given node."""
+        with self._lock:
+            rec = self._vitality_cache.get(node_id)
+            return rec.get("payload") if rec else None
+
     def get_latest_upstream_version(self) -> Optional[str]:
         """Fetch latest ffmpeg-gui version from GitHub, cached for 6 hours."""
         now = time.time()
