@@ -60,6 +60,14 @@ class CreateUserRequest(BaseModel):
     group_ids: Optional[List[int]] = None
 
 
+class CreateUserGlobalRequest(BaseModel):
+    username: str = Field(..., min_length=2, max_length=100)
+    password: str = Field(..., min_length=6)
+    role: str = Field("group_operator", pattern="^(org_admin|group_operator)$")
+    org_id: Optional[int] = None
+    group_ids: Optional[List[int]] = None
+
+
 class UpdateUserRequest(BaseModel):
     password: Optional[str] = Field(None, min_length=6)
     role: Optional[str] = Field(None, pattern="^(org_admin|group_operator)$")
@@ -195,7 +203,7 @@ def update_organization(
         org.icon_data = req.icon_data
 
     db.commit()
-    return {"status": "ok", "organization": {"id": org.id, "name": org.name, "slug": org.slug}}
+    return {"status": "ok", "organization": {"id": org.id, "name": org.name, "slug": org.slug, "icon_data": org.icon_data}}
 
 
 @router.delete("/orgs/{org_id}")
@@ -318,6 +326,71 @@ def delete_group(
 # =========================================================================
 # Users and Group Permissions Endpoints
 # =========================================================================
+
+@router.get("/users")
+def list_all_users(
+    org_id: Optional[int] = None,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    query = db.query(User)
+    if user.role != "superadmin":
+        query = query.filter(User.org_id == user.org_id)
+    elif org_id is not None:
+        query = query.filter(User.org_id == org_id)
+
+    users = query.all()
+    org_map = {o.id: o.name for o in db.query(Organization).all()}
+
+    return [
+        {
+            "id": u.id,
+            "username": u.username,
+            "role": u.role,
+            "org_id": u.org_id,
+            "org_name": org_map.get(u.org_id, "Platform / Superadmin") if u.org_id else "Platform / Superadmin",
+            "group_ids": [p.group_id for p in u.group_permissions],
+            "created_at": u.created_at.isoformat() if u.created_at else None,
+        }
+        for u in users
+    ]
+
+
+@router.post("/users")
+def create_user_global(
+    req: CreateUserGlobalRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role == "superadmin":
+        target_org_id = req.org_id
+        if not target_org_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Organization ID is required to create a tenant user",
+            )
+    else:
+        target_org_id = current_user.org_id
+
+    org = db.query(Organization).filter(Organization.id == target_org_id).first()
+    if not org:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Organization #{target_org_id} not found",
+        )
+
+    return create_user(
+        org_id=target_org_id,
+        req=CreateUserRequest(
+            username=req.username,
+            password=req.password,
+            role=req.role,
+            group_ids=req.group_ids,
+        ),
+        current_user=current_user,
+        db=db,
+    )
+
 
 @router.get("/orgs/{org_id}/users")
 def list_users(

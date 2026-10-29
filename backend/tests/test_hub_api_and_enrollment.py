@@ -268,6 +268,67 @@ class TestHubApiAndEnrollment(unittest.TestCase):
         resp_bad = self.client.post("/api/edge/heartbeat", json=hb_body, headers=bad_headers)
         self.assertEqual(resp_bad.status_code, 401)
 
+    def test_org_update_and_user_endpoints(self):
+        token = self.superadmin_token
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # 1. Create Org with icon_data
+        create_org_resp = self.client.post(
+            "/api/hub/orgs",
+            json={
+                "name": "Channel Alpha",
+                "slug": "channel-alpha",
+                "icon_data": "CA",
+                "admin_password": "AlphaPassword123!",
+            },
+            headers=headers,
+        )
+        self.assertEqual(create_org_resp.status_code, 200)
+        org_id = create_org_resp.json()["organization"]["id"]
+
+        # 2. Update Org (Name and icon_data)
+        update_org_resp = self.client.put(
+            f"/api/hub/orgs/{org_id}",
+            json={"name": "Channel Alpha HD", "icon_data": "data:image/png;base64,iVBORw0KGgo="},
+            headers=headers,
+        )
+        self.assertEqual(update_org_resp.status_code, 200)
+        self.assertEqual(update_org_resp.json()["organization"]["name"], "Channel Alpha HD")
+        self.assertEqual(update_org_resp.json()["organization"]["icon_data"], "data:image/png;base64,iVBORw0KGgo=")
+
+        # 3. Create global user via POST /api/hub/users
+        create_user_resp = self.client.post(
+            "/api/hub/users",
+            json={
+                "username": "alpha_operator_1",
+                "password": "OperatorSecret123!",
+                "role": "group_operator",
+                "org_id": org_id,
+            },
+            headers=headers,
+        )
+        self.assertEqual(create_user_resp.status_code, 200)
+
+        # 4. Attempting to create superadmin via user endpoint fails validation
+        bad_role_resp = self.client.post(
+            "/api/hub/users",
+            json={
+                "username": "rogue_superadmin",
+                "password": "Password123!",
+                "role": "superadmin",
+                "org_id": org_id,
+            },
+            headers=headers,
+        )
+        self.assertEqual(bad_role_resp.status_code, 422)
+
+        # 5. List users via GET /api/hub/users
+        list_users_resp = self.client.get(f"/api/hub/users?org_id={org_id}", headers=headers)
+        self.assertEqual(list_users_resp.status_code, 200)
+        users = list_users_resp.json()
+        usernames = [u["username"] for u in users]
+        self.assertIn("alpha_operator_1", usernames)
+
 
 if __name__ == "__main__":
     unittest.main()

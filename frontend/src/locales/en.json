@@ -57,7 +57,9 @@
     "environment": "Environment:",
     "frontend": "Frontend:",
     "backend": "Backend:",
-    "schema": "Schema:"
+    "schema": "Schema:",
+    "imageSelected": "✓ Image set",
+    "clear": "Clear"
   },
   "nav": {
     "fleet": "Fleet",
@@ -385,6 +387,17 @@
     "usernameAndPassRequired": "Username and password are required.",
     "restrictGroups": "Restrict to Specific Groups (Optional)",
     "cannotDeleteSelf": "You cannot delete your own active user account.",
-    "confirmDeleteUser": "Are you sure you want to delete user \"{{username}}\"?"
+    "confirmDeleteUser": "Are you sure you want to delete user \"{{username}}\"?",
+    "monogramAbbr": "Monogram (2-4 chars)",
+    "customLogo": "Custom Logo Image",
+    "editTenantTitle": "Edit Tenant",
+    "tenantNameRequired": "Tenant name is required.",
+    "tenantSlugRequired": "Tenant slug / identifier is required.",
+    "adminPasswordRequired": "Admin password is required.",
+    "invalidImageType": "Please choose a valid image file (PNG, SVG, JPG, WebP).",
+    "imageTooLarge": "Image file is too large (maximum 1 MB).",
+    "assignTenant": "Tenant Organization",
+    "tenantRequired": "A tenant must be assigned for this user.",
+    "noUsersFound": "No users found for this tenant view."
   }
 }

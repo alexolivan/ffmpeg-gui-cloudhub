@@ -5,6 +5,32 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.3] - 2026-10-29
+
+### Added
+- **Tenant Edit Modal & Tenant Branding Management:**
+  - Added Edit Tenant action button (`EditIcon`) and modal in `TenantsTab.tsx`, allowing administrators to modify organization names and manage custom branding without having to delete and re-provision tenants.
+  - Added support for tenant custom logos (image file uploader / Data URL) and custom monogram abbreviations (2-4 uppercase characters).
+  - Dynamically renders tenant brand icons or initials directly inside tenant cards instead of generic placeholder emojis.
+- **Tenant-Scoped User Creation in Modal:**
+  - Embedded tenant organization selector directly inside the Create User modal for platform owners, defaulting to the currently selected sidebar tenant.
+  - Automatically loads and filters group restrictions (`restrictGroups`) according to the active tenant chosen inside the modal.
+- **Global User API Endpoints (`GET /api/hub/users` & `POST /api/hub/users`):**
+  - Added centralized multi-tenant user endpoints with strict RBAC: platform owners can query and create users across tenants, while tenant admins are strictly confined to their own organization scope.
+
+### Changed
+- **Removed Redundant Header Tenant Selector in Users Tab:**
+  - Removed the standalone tenant dropdown next to "Create User" button, unifying view filtering with the persistent global sidebar tenant context selector.
+- **Restricted Role Creation Permissions:**
+  - Removed the `superadmin` role option from the user creation modal; platform owners can only be provisioned via CLI, preventing accidental privilege escalation or misconfigurations.
+
+### Fixed
+- **Logo Drag & Drop and Global Drop Shield:**
+  - Implemented complete drag-and-drop event pipeline (`dragover`, `dragenter`, `dragleave`, `drop`) on logo upload zones in `GeneralSettingsTab.tsx` with active visual border cues.
+  - Added global window drag & drop event interception preventing browsers from hijacking the viewport and rendering dropped PNG/SVG images in full screen.
+- **Browser Credential Autocomplete Prevention in Tenant Creation:**
+  - Configured `autoComplete="off"` on tenant creation and user creation forms, alongside `autoComplete="new-password"` and isolated non-credential input IDs, preventing browser password managers from auto-filling superuser credentials into new tenant forms.
+
 ## [1.5.2] - 2026-10-29
 
 ### Added

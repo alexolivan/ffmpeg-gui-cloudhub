@@ -6,6 +6,7 @@ export interface User {
   username: string;
   role: UserRole;
   org_id: number | null;
+  org_name?: string;
   group_ids?: number[];
   created_at?: string;
 }

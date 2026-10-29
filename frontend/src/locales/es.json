@@ -57,7 +57,9 @@
     "environment": "Entorno:",
     "frontend": "Frontend:",
     "backend": "Backend:",
-    "schema": "Esquema:"
+    "schema": "Esquema:",
+    "imageSelected": "✓ Imagen establecida",
+    "clear": "Limpiar"
   },
   "nav": {
     "fleet": "Flota",
@@ -385,6 +387,17 @@
     "usernameAndPassRequired": "El usuario y la contraseña son obligatorios.",
     "restrictGroups": "Restringir a Grupos Específicos (Opcional)",
     "cannotDeleteSelf": "No puedes eliminar tu propia cuenta de usuario activa.",
-    "confirmDeleteUser": "¿Estás seguro de que deseas eliminar el usuario \"{{username}}\"?"
+    "confirmDeleteUser": "¿Estás seguro de que deseas eliminar el usuario \"{{username}}\"?",
+    "monogramAbbr": "Monograma (2-4 caracteres)",
+    "customLogo": "Imagen de logo personalizada",
+    "editTenantTitle": "Editar Tenant",
+    "tenantNameRequired": "El nombre del tenant es obligatorio.",
+    "tenantSlugRequired": "El slug / identificador es obligatorio.",
+    "adminPasswordRequired": "La contraseña del administrador es obligatoria.",
+    "invalidImageType": "Por favor selecciona un archivo de imagen válido (PNG, SVG, JPG, WebP).",
+    "imageTooLarge": "El archivo de imagen es demasiado grande (máximo 1 MB).",
+    "assignTenant": "Organización Tenant",
+    "tenantRequired": "Se debe asignar un tenant para este usuario.",
+    "noUsersFound": "No se encontraron usuarios para este tenant."
   }
 }

@@ -57,7 +57,9 @@
     "environment": "Entorn:",
     "frontend": "Frontend:",
     "backend": "Backend:",
-    "schema": "Esquema:"
+    "schema": "Esquema:",
+    "imageSelected": "✓ Imatge establerta",
+    "clear": "Netejar"
   },
   "nav": {
     "fleet": "Flota",
@@ -385,6 +387,17 @@
     "usernameAndPassRequired": "El nom d'usuari i la contrasenya són obligatoris.",
     "restrictGroups": "Restringir a Grups Específics (Opcional)",
     "cannotDeleteSelf": "No podeu eliminar el vostre propi compte d'usuari actiu.",
-    "confirmDeleteUser": "Segur que voleu eliminar l'usuari \"{{username}}\"?"
+    "confirmDeleteUser": "Segur que voleu eliminar l'usuari \"{{username}}\"?",
+    "monogramAbbr": "Monograma (2-4 caràcters)",
+    "customLogo": "Imatge de logotip personalitzada",
+    "editTenantTitle": "Editar Tenant",
+    "tenantNameRequired": "El nom del tenant és obligatori.",
+    "tenantSlugRequired": "El slug / identificador és obligatori.",
+    "adminPasswordRequired": "La contrasenya de l'administrador és obligatòria.",
+    "invalidImageType": "Si us plau tria un fitxer d'imatge vàlid (PNG, SVG, JPG, WebP).",
+    "imageTooLarge": "El fitxer d’imatge és massa gran (màxim 1 MB).",
+    "assignTenant": "Organització Tenant",
+    "tenantRequired": "Cal assignar un tenant per a aquest usuari.",
+    "noUsersFound": "No s’han trobat usuaris per a aquest tenant."
   }
 }

@@ -97,11 +97,25 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
 
   // Logo upload state
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isDraggingLogo, setIsDraggingLogo] = useState(false);
   const [logoImgError, setLogoImgError] = useState(false);
 
   useEffect(() => {
     setLogoImgError(false);
   }, [settings.login_logo_url]);
+
+  // Shield browser from navigating to dropped file anywhere on screen
+  useEffect(() => {
+    const preventFileDropNav = (e: DragEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('dragover', preventFileDropNav);
+    window.addEventListener('drop', preventFileDropNav);
+    return () => {
+      window.removeEventListener('dragover', preventFileDropNav);
+      window.removeEventListener('drop', preventFileDropNav);
+    };
+  }, []);
 
   // Log path test state
   const [pathTestStatus, setPathTestStatus] = useState<{
@@ -229,10 +243,15 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
     }
   };
 
-  // Handler: Interactive Logo Upload
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-    const file = e.target.files[0];
+  // Reusable file uploader for Logo (both Click and Drag & Drop)
+  const uploadLogoFile = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setStatusMsg({
+        type: 'error',
+        text: t('settings.branding.logoInvalidType', 'Please drop a valid image file (PNG, SVG, JPG, WebP).'),
+      });
+      return;
+    }
     const formData = new FormData();
     formData.append('file', file);
 
@@ -267,6 +286,12 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
     } finally {
       setIsUploadingLogo(false);
     }
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    uploadLogoFile(e.target.files[0]);
+    e.target.value = '';
   };
 
   // Handler: Remove Logo
@@ -596,7 +621,36 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
           </div>
 
           {/* Interactive Logo Upload Drag & Drop / Click Box */}
-          <div className="flex flex-col items-center justify-center border-2 border-dashed border-[var(--glass-border)] rounded-xl p-4 hover:border-brand-lime transition-all relative group cursor-pointer h-full min-h-[140px] bg-[var(--input-bg)]">
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsDraggingLogo(true);
+            }}
+            onDragEnter={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsDraggingLogo(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsDraggingLogo(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsDraggingLogo(false);
+              if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                uploadLogoFile(e.dataTransfer.files[0]);
+              }
+            }}
+            className={`flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-4 transition-all relative group cursor-pointer h-full min-h-[140px] ${
+              isDraggingLogo
+                ? 'border-brand-lime bg-brand-lime/10 ring-2 ring-brand-lime/40'
+                : 'border-[var(--glass-border)] hover:border-brand-lime bg-[var(--input-bg)]'
+            }`}
+          >
             <label className="absolute inset-0 cursor-pointer flex flex-col items-center justify-center w-full h-full z-10">
               <input
                 type="file"
