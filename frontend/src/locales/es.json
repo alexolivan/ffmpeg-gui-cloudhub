@@ -377,6 +377,8 @@
     "newGroupDesc": "Agrupa dispositivos en clústeres lógicos dentro de este tenant.",
     "groupName": "Nombre del Grupo",
     "groupNameRequired": "El nombre del grupo es obligatorio.",
+    "groupCreateError": "Error al crear el grupo.",
+    "groupUpdateError": "Error al actualizar el grupo.",
     "confirmDeleteGroup": "¿Estás seguro de que deseas eliminar el grupo \"{{name}}\"? Los dispositivos pasarán a no asignados.",
     "usersTitle": "Cuentas de Usuario y Control de Acceso",
     "usersSubtitle": "Administra operadores de sistema, administradores de tenant y ámbitos de acceso.",

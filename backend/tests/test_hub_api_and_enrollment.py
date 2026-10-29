@@ -329,6 +329,85 @@ class TestHubApiAndEnrollment(unittest.TestCase):
         usernames = [u["username"] for u in users]
         self.assertIn("alpha_operator_1", usernames)
 
+    def test_groups_api_and_duplicate_prevention(self):
+        headers = {"Authorization": f"Bearer {self.superadmin_token}"}
+
+        # 1. Create tenant for testing groups
+        create_org_resp = self.client.post(
+            "/api/hub/orgs",
+            json={
+                "name": "Group Studio Org",
+                "slug": "group-studio-org",
+                "admin_password": "StudioPassword123!",
+            },
+            headers=headers,
+        )
+        self.assertEqual(create_org_resp.status_code, 200)
+        org_id = create_org_resp.json()["organization"]["id"]
+
+        # 2. Create first group
+        grp1_resp = self.client.post(
+            f"/api/hub/orgs/{org_id}/groups",
+            json={"name": "Master Control", "icon_data": "MC"},
+            headers=headers,
+        )
+        self.assertEqual(grp1_resp.status_code, 200)
+        grp1_id = grp1_resp.json()["group"]["id"]
+
+        # 3. Create duplicate group with same name -> 409 Conflict
+        dup_resp = self.client.post(
+            f"/api/hub/orgs/{org_id}/groups",
+            json={"name": "Master Control", "icon_data": "DUP"},
+            headers=headers,
+        )
+        self.assertEqual(dup_resp.status_code, 409)
+        self.assertIn("already exists", dup_resp.json()["detail"])
+
+        # 4. Create second group with different name
+        grp2_resp = self.client.post(
+            f"/api/hub/orgs/{org_id}/groups",
+            json={"name": "Studio B", "icon_data": "STB"},
+            headers=headers,
+        )
+        self.assertEqual(grp2_resp.status_code, 200)
+        grp2_id = grp2_resp.json()["group"]["id"]
+
+        # 5. Update second group to have same name as first group -> 409 Conflict
+        update_dup_resp = self.client.put(
+            f"/api/hub/groups/{grp2_id}",
+            json={"name": "Master Control"},
+            headers=headers,
+        )
+        self.assertEqual(update_dup_resp.status_code, 409)
+
+        # 6. Unified list GET /api/hub/groups
+        all_groups_resp = self.client.get("/api/hub/groups", headers=headers)
+        self.assertEqual(all_groups_resp.status_code, 200)
+        all_groups = all_groups_resp.json()
+        names = [g["name"] for g in all_groups]
+        self.assertIn("Master Control", names)
+        self.assertIn("Studio B", names)
+
+        target_g = next(g for g in all_groups if g["id"] == grp1_id)
+        self.assertEqual(target_g["org_name"], "Group Studio Org")
+
+        # 7. Scoped list GET /api/hub/groups?org_id={org_id}
+        scoped_resp = self.client.get(f"/api/hub/groups?org_id={org_id}", headers=headers)
+        self.assertEqual(scoped_resp.status_code, 200)
+        scoped_groups = scoped_resp.json()
+        self.assertEqual(len(scoped_groups), 2)
+        for g in scoped_groups:
+            self.assertEqual(g["org_id"], org_id)
+
+        # 8. Check Default tenant fallback in GET /api/hub/orgs
+        orgs_resp = self.client.get("/api/hub/orgs", headers=headers)
+        self.assertEqual(orgs_resp.status_code, 200)
+        orgs = orgs_resp.json()
+        def_org = next((o for o in orgs if o["id"] == 1 or o["slug"] == "default"), None)
+        if def_org:
+            # Icon data should be platform monogram or logo URL, not null
+            self.assertIsNotNone(def_org["icon_data"])
+
 
 if __name__ == "__main__":
     unittest.main()

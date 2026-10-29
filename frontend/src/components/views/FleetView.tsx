@@ -42,9 +42,10 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
 
   const fetchData = async () => {
     try {
-      const [nodesRes, orgsRes] = await Promise.all([
+      const [nodesRes, orgsRes, groupsRes] = await Promise.all([
         fetch('/api/hub/nodes', { credentials: 'include' }),
         fetch('/api/hub/orgs', { credentials: 'include' }),
+        fetch('/api/hub/groups', { credentials: 'include' }),
       ]);
 
       if (nodesRes.ok) {
@@ -56,15 +57,9 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
         if (orgsData.length > 0 && !targetOrgId) {
           setTargetOrgId(orgsData[0].id);
         }
-
-        // Fetch groups for all orgs (or selected org)
-        const groupsPromises = orgsData.map((o) =>
-          fetch(`/api/hub/orgs/${o.id}/groups`, { credentials: 'include' })
-            .then((r) => (r.ok ? r.json() : []))
-            .catch(() => [])
-        );
-        const allGroupsArrays = await Promise.all(groupsPromises);
-        setGroups(allGroupsArrays.flat());
+      }
+      if (groupsRes.ok) {
+        setGroups(await groupsRes.json());
       }
     } catch (err) {
       console.error('Failed to fetch fleet data:', err);

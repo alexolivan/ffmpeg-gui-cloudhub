@@ -5,6 +5,21 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.6] - 2026-10-29
+
+### Added
+- **Unified Groups Endpoint & Global Tenant Scoping (`GET /api/hub/groups`, `GroupsTab.tsx`)**:
+  - Added `@router.get("/groups")` endpoint supporting optional `org_id` filtering and resolving `org_name` on each group.
+  - Resolved `GroupsTab.tsx` refresh issue by eliminating stale `activeOrgId` locks, immediately displaying newly created groups and rendering tenant badges (`🏢 {org_name}`) when viewing across all tenants.
+  - Updated `FleetView.tsx` to query `/api/hub/groups` concurrently in `Promise.all`.
+- **Duplicate Group Validation (`backend/routers/tenant_routes.py`)**:
+  - Added uniqueness check preventing duplicate group names within the same tenant (returning HTTP 409 Conflict with user-friendly error toast) on both creation and edition.
+- **Default Tenant Branding Inheritance (`TenantsTab.tsx`, `backend/routers/tenant_routes.py`)**:
+  - Default tenant automatically inherits the platform's custom brand logo or monogram abbreviation (`CH`), replacing generic `DE` letters.
+  - Corrected image URI detection in `TenantsTab.tsx` to handle root-relative endpoint paths (`/api/...`).
+- **Audit PDF Vector SVG Rasterization (`backend/services/audit_pdf_generator.py`)**:
+  - Added automatic SVG-to-PNG rasterization using FFmpeg's built-in `librsvg` rasterizer, allowing vector logos to cleanly embed as RGB Image XObjects in exported audit PDFs without raising PIL format errors.
+
 ## [1.5.5] - 2026-10-29
 
 ### Added

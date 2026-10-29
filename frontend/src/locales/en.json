@@ -377,6 +377,8 @@
     "newGroupDesc": "Group appliances together into logical clusters inside this tenant.",
     "groupName": "Group Name",
     "groupNameRequired": "Group name is required.",
+    "groupCreateError": "Failed to create group.",
+    "groupUpdateError": "Failed to update group.",
     "confirmDeleteGroup": "Are you sure you want to delete group \"{{name}}\"? Appliances will be moved to unassigned.",
     "usersTitle": "User Accounts & Access Control",
     "usersSubtitle": "Manage system operators, tenant administrators, and group access scopes.",

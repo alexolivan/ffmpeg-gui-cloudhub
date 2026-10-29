@@ -11,15 +11,14 @@ interface GroupsTabProps {
 export const GroupsTab: React.FC<GroupsTabProps> = ({ currentUser, selectedOrgId }) => {
   const { t } = useTranslation();
   const [orgs, setOrgs] = useState<Organization[]>([]);
-  const [activeOrgId, setActiveOrgId] = useState<number>(
-    currentUser.org_id || selectedOrgId || 1
-  );
   const [groups, setGroups] = useState<NodeGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Create Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createOrgId, setCreateOrgId] = useState<number>(activeOrgId);
+  const [createOrgId, setCreateOrgId] = useState<number>(
+    selectedOrgId || currentUser.org_id || 1
+  );
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupMonogram, setNewGroupMonogram] = useState('');
   const [newGroupIconData, setNewGroupIconData] = useState<string | null>(null);
@@ -43,19 +42,16 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ currentUser, selectedOrgId
       if (res.ok) {
         const data: Organization[] = await res.json();
         setOrgs(data);
-        if (data.length > 0 && !currentUser.org_id && !selectedOrgId) {
-          setActiveOrgId(data[0].id);
-        }
       }
     } catch (err) {
       console.error('Failed to load orgs:', err);
     }
   };
 
-  const fetchGroups = async (orgId: number) => {
+  const fetchGroups = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch(`/api/hub/orgs/${orgId}/groups`, { credentials: 'include' });
+      const res = await fetch('/api/hub/groups', { credentials: 'include' });
       if (res.ok) {
         setGroups(await res.json());
       }
@@ -68,19 +64,13 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ currentUser, selectedOrgId
 
   useEffect(() => {
     fetchOrgs();
+    fetchGroups();
   }, []);
 
-  useEffect(() => {
-    if (activeOrgId) {
-      fetchGroups(activeOrgId);
-    }
-  }, [activeOrgId]);
-
-  useEffect(() => {
-    if (selectedOrgId && isSuperadmin) {
-      setActiveOrgId(selectedOrgId);
-    }
-  }, [selectedOrgId]);
+  const filteredGroups = groups.filter((g) => {
+    if (!selectedOrgId) return true;
+    return g.org_id === selectedOrgId;
+  });
 
   const handleIconFileUpload = (file: File, isEdit: boolean) => {
     if (!file.type.startsWith('image/')) {
@@ -111,7 +101,7 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ currentUser, selectedOrgId
   };
 
   const openCreateModal = () => {
-    setCreateOrgId(activeOrgId);
+    setCreateOrgId(selectedOrgId || (orgs.length > 0 ? orgs[0].id : (currentUser.org_id || 1)));
     setNewGroupName('');
     setNewGroupMonogram('');
     setNewGroupIconData(null);
@@ -144,7 +134,7 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ currentUser, selectedOrgId
     setIsCreating(true);
     setCreateErrorMsg(null);
     try {
-      const targetOrg = isSuperadmin ? createOrgId : activeOrgId;
+      const targetOrg = isSuperadmin ? createOrgId : (currentUser.org_id || 1);
       const iconToSave = newGroupIconData || newGroupMonogram.trim().toUpperCase() || undefined;
       const res = await fetch(`/api/hub/orgs/${targetOrg}/groups`, {
         method: 'POST',
@@ -157,10 +147,10 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ currentUser, selectedOrgId
       });
       if (res.ok) {
         setShowCreateModal(false);
-        fetchGroups(activeOrgId);
+        fetchGroups();
       } else {
         const data = await res.json().catch(() => ({}));
-        setCreateErrorMsg(data.detail || 'Failed to create group.');
+        setCreateErrorMsg(data.detail || t('settings.groupCreateError', 'Failed to create group.'));
       }
     } catch (err: any) {
       setCreateErrorMsg(err.message || 'Error creating group.');
@@ -198,10 +188,10 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ currentUser, selectedOrgId
 
       if (res.ok) {
         setEditingGroup(null);
-        fetchGroups(activeOrgId);
+        fetchGroups();
       } else {
         const data = await res.json().catch(() => ({}));
-        setEditErrorMsg(data.detail || 'Failed to update group.');
+        setEditErrorMsg(data.detail || t('settings.groupUpdateError', 'Failed to update group.'));
       }
     } catch (err: any) {
       setEditErrorMsg(err.message || 'Error updating group.');
@@ -228,7 +218,7 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ currentUser, selectedOrgId
         credentials: 'include',
       });
       if (res.ok) {
-        fetchGroups(activeOrgId);
+        fetchGroups();
       }
     } catch (err) {
       console.error('Failed to delete group:', err);
@@ -290,7 +280,7 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ currentUser, selectedOrgId
         <div className="py-12 text-center text-xs font-mono text-[var(--text-secondary)]">
           {t('common.loading', 'Loading groups...')}
         </div>
-      ) : groups.length === 0 ? (
+      ) : filteredGroups.length === 0 ? (
         <div className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl p-12 text-center">
           <LayersIcon size={32} className="mx-auto text-[var(--text-secondary)] mb-2 opacity-50" />
           <h4 className="text-sm font-bold text-[var(--text-primary)] mb-1">
@@ -309,7 +299,7 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ currentUser, selectedOrgId
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {groups.map((grp) => (
+          {filteredGroups.map((grp) => (
             <div
               key={grp.id}
               className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl p-5 shadow-sm space-y-3 relative group"
@@ -319,9 +309,16 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ currentUser, selectedOrgId
                   {renderGroupIcon(grp)}
                   <div>
                     <h4 className="text-sm font-bold text-[var(--text-primary)]">{grp.name}</h4>
-                    <span className="text-[11px] text-[var(--text-secondary)] font-mono block">
-                      ID #{grp.id}
-                    </span>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[11px] text-[var(--text-secondary)] font-mono">
+                        ID #{grp.id}
+                      </span>
+                      {isSuperadmin && !selectedOrgId && grp.org_name && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-brand-lime/10 border border-brand-lime/20 text-brand-lime">
+                          🏢 {grp.org_name}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 

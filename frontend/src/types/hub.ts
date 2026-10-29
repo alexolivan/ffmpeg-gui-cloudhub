@@ -25,6 +25,7 @@ export interface Organization {
 export interface NodeGroup {
   id: number;
   org_id: number;
+  org_name?: string;
   name: string;
   icon_data?: string | null;
   nodes_count?: number;

@@ -261,7 +261,10 @@ export const TenantsTab: React.FC = () => {
             org.icon_data &&
             (org.icon_data.startsWith('data:image') ||
               org.icon_data.startsWith('http') ||
-              org.icon_data.startsWith('/uploads'));
+              org.icon_data.startsWith('/'));
+
+          const defaultFallbackMonogram =
+            org.id === 1 || org.slug === 'default' ? 'CH' : org.name.slice(0, 2).toUpperCase();
 
           return (
             <div
@@ -276,10 +279,13 @@ export const TenantsTab: React.FC = () => {
                         src={org.icon_data!}
                         alt={org.name}
                         className="w-full h-full object-contain p-1"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLElement).style.display = 'none';
+                        }}
                       />
                     ) : (
                       <span className="text-brand-lime font-black text-sm uppercase tracking-wider">
-                        {org.icon_data || org.name.slice(0, 2).toUpperCase()}
+                        {org.icon_data || defaultFallbackMonogram}
                       </span>
                     )}
                   </div>

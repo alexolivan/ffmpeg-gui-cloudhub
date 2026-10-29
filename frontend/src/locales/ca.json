@@ -377,6 +377,8 @@
     "newGroupDesc": "Agrupa dispositius en clústers lògics dins d'aquest tenant.",
     "groupName": "Nom del Grup",
     "groupNameRequired": "El nom del grup és obligatori.",
+    "groupCreateError": "Error en crear el grup.",
+    "groupUpdateError": "Error en actualitzar el grup.",
     "confirmDeleteGroup": "Segur que voleu eliminar el grup \"{{name}}\"? Els dispositius passaran a no assignats.",
     "usersTitle": "Comptes d'Usuari i Control d'Accés",
     "usersSubtitle": "Administra operadors de sistema, administradors de tenant i àmbits d'accés.",

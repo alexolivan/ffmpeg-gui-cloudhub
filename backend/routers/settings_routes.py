@@ -653,17 +653,34 @@ def _resolve_pdf_logo_bytes(db: Session, tenant_icon: Optional[str] = None) -> O
         except Exception:
             pass
 
+    # Clean disk path resolution (handling quotes, relative paths, and uploads dir fallback)
     rec_disk = db.query(SystemSettings).filter(SystemSettings.key == "login_logo_disk_path").first()
-    if rec_disk and rec_disk.value and os.path.exists(rec_disk.value):
-        try:
-            with open(rec_disk.value, "rb") as f:
-                return f.read()
-        except Exception:
-            pass
+    if rec_disk and rec_disk.value:
+        raw_val = rec_disk.value.strip().strip('"').strip("'")
+        candidates = [raw_val, os.path.join(UPLOAD_DIR, os.path.basename(raw_val))]
+        for c in candidates:
+            if c and os.path.isfile(c):
+                try:
+                    with open(c, "rb") as f:
+                        return f.read()
+                except Exception:
+                    pass
+
+    # Also check if login_logo_url is a base64 Data URL
+    rec_url = db.query(SystemSettings).filter(SystemSettings.key == "login_logo_url").first()
+    if rec_url and rec_url.value:
+        raw_url = rec_url.value.strip().strip('"')
+        if raw_url.startswith("data:image"):
+            try:
+                import base64
+                _, b64 = raw_url.split(",", 1)
+                return base64.b64decode(b64)
+            except Exception:
+                pass
 
     if os.path.isdir(UPLOAD_DIR):
         for fname in sorted(os.listdir(UPLOAD_DIR), reverse=True):
-            if fname.startswith("logo_") and fname.endswith(".png"):
+            if fname.startswith("logo_"):
                 p = os.path.join(UPLOAD_DIR, fname)
                 try:
                     with open(p, "rb") as f:

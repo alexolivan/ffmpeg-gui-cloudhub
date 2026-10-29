@@ -17,6 +17,7 @@ from backend.database.models import (
     EnrollmentToken,
     EnrolledNode,
     AuditLog,
+    SystemSettings,
 )
 from backend.core.auth_manager import AuthManager
 from backend.core.telemetry_collector import telemetry_collector
@@ -102,14 +103,24 @@ def list_organizations(
     else:
         orgs = db.query(Organization).filter(Organization.id == user.org_id).all()
 
+    # Load platform branding fallback for the Default tenant
+    plat_url_rec = db.query(SystemSettings).filter(SystemSettings.key == "login_logo_url").first()
+    plat_text_rec = db.query(SystemSettings).filter(SystemSettings.key == "login_logo_text").first()
+    plat_logo = plat_url_rec.value.strip('"') if plat_url_rec and plat_url_rec.value else None
+    plat_text = plat_text_rec.value.strip('"') if plat_text_rec and plat_text_rec.value else "CH"
+
     result = []
     for o in orgs:
+        icon_display = o.icon_data
+        if not icon_display and (o.id == 1 or o.slug == "default"):
+            icon_display = plat_logo or plat_text
+
         result.append(
             {
                 "id": o.id,
                 "name": o.name,
                 "slug": o.slug,
-                "icon_data": o.icon_data,
+                "icon_data": icon_display,
                 "groups_count": len(o.groups),
                 "nodes_count": len(o.nodes),
                 "users_count": len(o.users),
@@ -237,6 +248,38 @@ def delete_organization(
 # Node Groups Endpoints
 # =========================================================================
 
+@router.get("/groups")
+def list_all_groups(
+    org_id: Optional[int] = None,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List groups across accessible tenants, with optional tenant filtering and org_name resolution."""
+    query = db.query(NodeGroup)
+    if user.role != "superadmin":
+        query = query.filter(NodeGroup.org_id == user.org_id)
+        if user.role == "group_operator":
+            allowed_group_ids = [p.group_id for p in user.group_permissions]
+            query = query.filter(NodeGroup.id.in_(allowed_group_ids))
+    elif org_id is not None:
+        query = query.filter(NodeGroup.org_id == org_id)
+
+    groups = query.order_by(NodeGroup.name).all()
+    org_map = {o.id: o.name for o in db.query(Organization.id, Organization.name).all()}
+    return [
+        {
+            "id": g.id,
+            "org_id": g.org_id,
+            "org_name": org_map.get(g.org_id, f"Tenant #{g.org_id}"),
+            "name": g.name,
+            "icon_data": g.icon_data,
+            "nodes_count": len(g.nodes),
+            "created_at": g.created_at.isoformat() if g.created_at else None,
+        }
+        for g in groups
+    ]
+
+
 @router.get("/orgs/{org_id}/groups")
 def list_groups(
     org_id: int,
@@ -252,10 +295,13 @@ def list_groups(
         query = query.filter(NodeGroup.id.in_(allowed_group_ids))
 
     groups = query.order_by(NodeGroup.name).all()
+    org_obj = db.query(Organization).filter(Organization.id == org_id).first()
+    org_name = org_obj.name if org_obj else f"Tenant #{org_id}"
     return [
         {
             "id": g.id,
             "org_id": g.org_id,
+            "org_name": org_name,
             "name": g.name,
             "icon_data": g.icon_data,
             "nodes_count": len(g.nodes),
@@ -275,7 +321,21 @@ def create_group(
     if user.role != "superadmin" and (user.role != "org_admin" or user.org_id != org_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
-    group = NodeGroup(org_id=org_id, name=req.name.strip(), icon_data=req.icon_data)
+    clean_name = req.name.strip()
+    if not clean_name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Group name is required")
+
+    existing = db.query(NodeGroup).filter(
+        NodeGroup.org_id == org_id,
+        NodeGroup.name == clean_name
+    ).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"A group named '{clean_name}' already exists in this tenant",
+        )
+
+    group = NodeGroup(org_id=org_id, name=clean_name, icon_data=req.icon_data)
     db.add(group)
     db.commit()
     return {"status": "ok", "group": {"id": group.id, "name": group.name, "org_id": group.org_id}}
@@ -295,8 +355,26 @@ def update_group(
     if user.role != "superadmin" and (user.role != "org_admin" or user.org_id != group.org_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
+    target_org_id = req.org_id if (req.org_id is not None and user.role == "superadmin") else group.org_id
+    clean_name = req.name.strip() if req.name is not None else group.name
+
+    if not clean_name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Group name cannot be empty")
+
+    # Check for name collision in target org
+    existing = db.query(NodeGroup).filter(
+        NodeGroup.org_id == target_org_id,
+        NodeGroup.name == clean_name,
+        NodeGroup.id != group_id,
+    ).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"A group named '{clean_name}' already exists in this tenant",
+        )
+
     if req.name is not None:
-        group.name = req.name.strip()
+        group.name = clean_name
     if req.icon_data is not None:
         group.icon_data = req.icon_data
     if req.org_id is not None and user.role == "superadmin":

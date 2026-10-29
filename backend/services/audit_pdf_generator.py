@@ -79,6 +79,36 @@ class PDFCanvas:
         return zlib.compress(raw)
 
 
+def _svg_to_png_bytes(svg_bytes: bytes) -> Optional[bytes]:
+    """Converts SVG vector bytes to raster PNG bytes via system ffmpeg librsvg."""
+    import tempfile
+    import subprocess
+    import os
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".svg", delete=False) as f:
+            f.write(svg_bytes)
+            svg_path = f.name
+        png_path = svg_path + ".png"
+        try:
+            res = subprocess.run(
+                ["ffmpeg", "-y", "-i", svg_path, png_path],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+            )
+            if res.returncode == 0 and os.path.exists(png_path):
+                with open(png_path, "rb") as pf:
+                    return pf.read()
+        finally:
+            if os.path.exists(svg_path):
+                os.remove(svg_path)
+            if os.path.exists(png_path):
+                os.remove(png_path)
+    except Exception:
+        pass
+    return None
+
+
 def _prepare_pdf_logo(logo_bytes: Optional[bytes] = None, tenant_icon: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """Preprocesses logo image bytes into an optimized FlateDecode RGB payload."""
     if not logo_bytes and tenant_icon and str(tenant_icon).startswith("data:image"):
@@ -91,6 +121,13 @@ def _prepare_pdf_logo(logo_bytes: Optional[bytes] = None, tenant_icon: Optional[
 
     if not logo_bytes:
         return None
+
+    # Check if vector SVG, convert to PNG raster using ffmpeg librsvg
+    clean_lead = logo_bytes.lstrip()[:100].lower()
+    if b"<svg" in clean_lead or b"<?xml" in clean_lead:
+        png_converted = _svg_to_png_bytes(logo_bytes)
+        if png_converted:
+            logo_bytes = png_converted
 
     try:
         from PIL import Image
