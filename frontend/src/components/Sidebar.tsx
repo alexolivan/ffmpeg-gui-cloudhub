@@ -136,65 +136,74 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </span>
           </div>
 
-          {/* Expanded Sidebar Version Card (Desktop / lg:w-64) */}
+          {/* Expanded Sidebar Version Card (Desktop / lg:w-64 - Parity with ffmpeg-gui dashboard) */}
           <div className="hidden lg:block w-full px-3 mb-3">
-            <div className="p-2.5 rounded-xl bg-white/5 border border-[var(--glass-border)] space-y-1.5 shadow-xs">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span
-                    className={`w-2 h-2 rounded-full shrink-0 ${
-                      versionInfo?.update_available
-                        ? 'bg-amber-400 animate-ping'
-                        : versionInfo?.is_release
-                        ? 'bg-emerald-400'
-                        : 'bg-brand-lime'
-                    }`}
-                  />
-                  <span className="text-[11px] font-mono font-bold text-[var(--text-primary)]">
-                    v{versionInfo?.version || '1.5.0'}
-                  </span>
-                  {versionInfo?.db_schema_version && (
-                    <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-white/10 text-[var(--text-secondary)]">
-                      DB v{versionInfo.db_schema_version}
+            <div className="p-2.5 rounded-xl bg-white/5 border border-[var(--glass-border)] space-y-0.5 shadow-xs">
+              {/* Row 1: Environment */}
+              <div className="flex items-center justify-between py-1 border-b border-[var(--glass-border)]/50">
+                <span className="text-[10px] text-[var(--text-secondary)] font-medium">{t('common.environment', 'Environment:')}</span>
+                <div className="flex items-center gap-1">
+                  {versionInfo?.is_release ? (
+                    <span className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                      🟢 {t('common.envProduction', 'Production')}
+                    </span>
+                  ) : (
+                    <span
+                      className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 truncate max-w-[120px]"
+                      title={`Branch: ${versionInfo?.git_branch || 'devel'}, Commit: ${versionInfo?.git_commit || 'HEAD'}`}
+                    >
+                      🟣 {versionInfo?.git_branch || 'devel'} {versionInfo?.git_commit ? `(${versionInfo.git_commit.slice(0, 7)})` : ''}
                     </span>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={handleCheckUpdates}
-                  disabled={checkingUpdate}
-                  title={checkingUpdate ? t('common.checking', 'Checking...') : t('common.checkUpdates', 'Check for updates')}
-                  className="text-xs text-[var(--text-secondary)] hover:text-brand-lime transition-colors disabled:opacity-50 p-0.5 cursor-pointer"
-                >
-                  <span className={`inline-block ${checkingUpdate ? 'animate-spin' : ''}`}>↻</span>
-                </button>
               </div>
 
-              <div className="flex items-center justify-between gap-1 text-[10px] font-mono pt-0.5">
-                {versionInfo?.is_release ? (
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold truncate">
-                    🟢 {t('common.envProduction', 'Production')}
-                  </span>
-                ) : (
-                  <span
-                    className="px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 font-bold truncate max-w-[170px]"
-                    title={`Branch: ${versionInfo?.git_branch || 'devel'}, Commit: ${versionInfo?.git_commit || 'HEAD'}`}
-                  >
-                    🟣 {versionInfo?.git_branch || 'devel'} {versionInfo?.git_commit ? `(${versionInfo.git_commit})` : ''}
-                  </span>
-                )}
+              {/* Row 2: Frontend */}
+              <div className="flex items-center justify-between py-1 border-b border-[var(--glass-border)]/50">
+                <span className="text-[10px] text-[var(--text-secondary)] font-medium">{t('common.frontend', 'Frontend:')}</span>
+                <span className="font-mono font-bold text-brand-lime text-[10px]">
+                  v{versionInfo?.version || '1.5.1'}
+                </span>
+              </div>
 
-                {versionInfo?.update_available && versionInfo?.latest_release && (
-                  <a
-                    href={versionInfo.release_url || 'https://github.com/alexolivan/ffmpeg-gui-cloudhub/releases'}
-                    target="_blank"
-                    rel="noreferrer"
-                    title={`${t('common.updateAvailable', 'Update available')}: v${versionInfo.latest_release}`}
-                    className="px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold hover:bg-amber-500/20 transition-all text-[9px] shrink-0"
+              {/* Row 3: Backend & Update Check */}
+              <div className="flex items-center justify-between py-1 border-b border-[var(--glass-border)]/50">
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-[var(--text-secondary)] font-medium">{t('common.backend', 'Backend:')}</span>
+                  <button
+                    type="button"
+                    onClick={handleCheckUpdates}
+                    disabled={checkingUpdate}
+                    title={checkingUpdate ? t('common.checking', 'Checking...') : t('common.checkUpdates', 'Check for updates')}
+                    className="text-[10px] text-[var(--text-secondary)] hover:text-brand-lime transition-colors disabled:opacity-50 p-0.5 cursor-pointer"
                   >
-                    ▲ v{versionInfo.latest_release}
-                  </a>
-                )}
+                    <span className={`inline-block ${checkingUpdate ? 'animate-spin' : ''}`}>↻</span>
+                  </button>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {versionInfo?.update_available && versionInfo?.latest_release ? (
+                    <a
+                      href={versionInfo.release_url || 'https://github.com/alexolivan/ffmpeg-gui-cloudhub/releases'}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={`${t('common.updateAvailable', 'Update available')}: v${versionInfo.latest_release}`}
+                      className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-all flex items-center gap-0.5 animate-pulse"
+                    >
+                      ▲ v{versionInfo.latest_release}
+                    </a>
+                  ) : null}
+                  <span className={`font-mono font-bold text-[10px] ${versionInfo?.update_available ? 'text-amber-400' : 'text-brand-lime'}`}>
+                    v{versionInfo?.version || '1.5.1'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Row 4: Schema */}
+              <div className="flex items-center justify-between py-1">
+                <span className="text-[10px] text-[var(--text-secondary)] font-medium">{t('common.schema', 'Schema:')}</span>
+                <span className="font-mono font-bold text-brand-lime text-[10px]">
+                  v{versionInfo?.db_schema_version || '1.0.0'}
+                </span>
               </div>
             </div>
           </div>

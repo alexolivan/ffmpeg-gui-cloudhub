@@ -5,6 +5,27 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.2] - 2026-10-29
+
+### Added
+- **Single-Event Forensic Audit Certificate PDF Generator:**
+  - Implemented `AuditSingleEventPdfGenerator` in `backend/services/audit_pdf_generator.py` generating tamper-evident single-page forensic certificates for individual audit entries.
+  - Features corporate security header, metadata grid (Actor, Channel, Tenant, Target, Appliance Node, Client IP, Action Classification badge), unclipped multi-line formatted technical payload box, cryptographic SHA-256 integrity seal, issuing authority verification, and legal compliance notice.
+  - Added backend endpoint `GET /api/hub/audit-logs/{id}/export-pdf` with strict multi-tenant authorization.
+  - Added dedicated "Export Event PDF" action button in `selectedDetailLog` modal and quick "PDF" action icon in each audit log table row in `AuditLogsView.tsx`.
+- **Appliance Asset Proxy Referer Fallback (Server-Side Safety Net):**
+  - Added resilient server-side fallback endpoints in `backend/main.py` for `/uploads/{subpath}`, `/api/settings/software/{subpath}`, `/api/software/{subpath}`, and `/favicon` variants.
+  - Inspects client `Referer` header to detect originating proxied appliance session (`/proxy/{node_id}/`) and issues HTTP 307 Temporary Redirects, preventing SPA router 404s or index.html mis-serving when dynamic assets or background images bypass frontend shims.
+
+### Changed
+- **Sidebar Version Area Layout Parity with ffmpeg-gui:**
+  - Refactored platform owner version card in `Sidebar.tsx` into 4 clean homogeneous lines: `Environment:`, `Frontend:`, `Backend:` (with update checker `↻` and release pill `▲ v...`), and `Schema:`.
+  - Removed awkward nested tags for DB schema, fully matching the layout and typography of `ffmpeg-gui`'s dashboard telemetry card.
+- **Enhanced Appliance Reverse Proxy Client-Side JS Shim:**
+  - Expanded `JS_SHIM_TEMPLATE` in `backend/core/reverse_proxy.py` to intercept `HTMLImageElement.prototype.src`, `HTMLLinkElement.prototype.href`, and `Element.prototype.setAttribute`.
+  - Added dynamic `MutationObserver` on `document.documentElement` to rewrite un-shimmed `/uploads/`, `/api/`, and `/favicon` paths for dynamically rendered React components (e.g. `SoftwareEngineCard`, `EngineLogo`, `SettingsView` custom logo).
+  - Extended static HTML string rewriting in `proxy_http_endpoint` to rewrite `/uploads/` and `/favicon` links.
+
 ## [1.5.1] - 2026-10-29
 
 ### Fixed

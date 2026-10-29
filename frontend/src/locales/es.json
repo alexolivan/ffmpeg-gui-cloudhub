@@ -53,7 +53,11 @@
         "failsafeNotice": "Enlace seguro: Si la IP seleccionada cae o cambia, el sistema recurre automáticamente a 0.0.0.0 para evitar pérdida de acceso.",
         "specificIpWarning": "Aviso: El servicio solo será accesible a través de esta dirección IP específica ({{ip}}). Asegúrate de que el enrutamiento de red permita alcanzar esta dirección."
       }
-    }
+    },
+    "environment": "Entorno:",
+    "frontend": "Frontend:",
+    "backend": "Backend:",
+    "schema": "Esquema:"
   },
   "nav": {
     "fleet": "Flota",
@@ -152,7 +156,8 @@
     "date30d": "Últimos 30 Días",
     "dateCustom": "Rango Personalizado...",
     "startDate": "Fecha Inicio",
-    "endDate": "Fecha Fin"
+    "endDate": "Fecha Fin",
+    "exportEventPdf": "Exportar PDF del Evento"
   },
   "settings": {
     "title": "Ajustes de la Plataforma",

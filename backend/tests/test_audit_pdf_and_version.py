@@ -20,7 +20,7 @@ from backend.core.update_checker import (
     compare_semver,
     _parse_semver_tuple,
 )
-from backend.services.audit_pdf_generator import AuditPdfReportGenerator
+from backend.services.audit_pdf_generator import AuditPdfReportGenerator, AuditSingleEventPdfGenerator
 
 
 class TestAuditPdfAndVersion(unittest.TestCase):
@@ -339,6 +339,95 @@ class TestAuditPdfAndVersion(unittest.TestCase):
                 content = f.read()
             self.assertIn("Informational message for test_logging_setup_captures_info_level", content)
 
+
+
+    def test_single_event_pdf_generator(self):
+        sample_log = {
+            "id": 101,
+            "timestamp": "2026-10-29T10:00:00Z",
+            "channel": "cloudhub",
+            "username": "admin",
+            "action": "CONFIG_UPDATE",
+            "target_type": "settings",
+            "target_id": "general",
+            "node_id": "node-alpha",
+            "ip_address": "192.168.1.100",
+            "details": "Operator changed network interface to 0.0.0.0.\nPayload details: { 'ssl': True }",
+        }
+        gen = AuditSingleEventPdfGenerator(sample_log, {
+            "tenant_name": "Test Org",
+            "node_name": "Node Alpha",
+            "exported_by": "test_owner",
+            "app_version": "1.5.2",
+        })
+        pdf_bytes = gen.build_pdf()
+        self.assertTrue(pdf_bytes.startswith(b"%PDF-1.4"))
+        self.assertEqual(len(gen.pages), 1)
+        self.assertIn(b"%%EOF", pdf_bytes)
+
+    def test_export_single_audit_log_pdf_endpoint(self):
+        db = self.TestingSessionLocal()
+        entry = AuditLog(
+            timestamp=datetime.datetime(2026, 10, 29, 10, 30, 0),
+            org_id=self.org_id,
+            node_id="node-sample",
+            username="test_owner",
+            action="SERVICE_CREATE",
+            target_type="service",
+            target_id="15",
+            ip_address="127.0.0.1",
+            details="Created SRT listener service on port 9000",
+        )
+        db.add(entry)
+        db.commit()
+        db.refresh(entry)
+        entry_id = entry.id
+        db.close()
+
+        res = self.client.get(
+            f"/api/hub/audit-logs/{entry_id}/export-pdf",
+            headers=self.owner_headers,
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.headers.get("content-type"), "application/pdf")
+        disp = res.headers.get("content-disposition", "")
+        self.assertIn(f"audit_event_{entry_id}_service_create", disp)
+        self.assertTrue(res.content.startswith(b"%PDF-1.4"))
+
+    def test_proxy_referer_fallback_routes(self):
+        # 1. Without proxy Referer -> 404
+        res = self.client.get("/uploads/custom_logo.png")
+        self.assertEqual(res.status_code, 404)
+
+        # 2. With proxy Referer -> 307 Redirect to /proxy/{node_id}/uploads/...
+        res = self.client.get(
+            "/uploads/custom_logo.png",
+            headers={"referer": "https://vps1.ecohosting.es/proxy/my-encoder-01/settings"},
+            follow_redirects=False,
+        )
+        self.assertEqual(res.status_code, 307)
+        self.assertEqual(res.headers.get("location"), "/proxy/my-encoder-01/uploads/custom_logo.png")
+
+        # 3. Software engine icon with proxy Referer
+        res = self.client.get(
+            "/api/settings/software/ffmpeg/icon?t=12345",
+            headers={"referer": "https://vps1.ecohosting.es/proxy/my-encoder-01/settings/programs"},
+            follow_redirects=False,
+        )
+        self.assertEqual(res.status_code, 307)
+        self.assertEqual(
+            res.headers.get("location"),
+            "/proxy/my-encoder-01/api/settings/software/ffmpeg/icon?t=12345",
+        )
+
+        # 4. Favicon with proxy Referer
+        res = self.client.get(
+            "/favicon.svg",
+            headers={"referer": "https://vps1.ecohosting.es/proxy/my-encoder-01/"},
+            follow_redirects=False,
+        )
+        self.assertEqual(res.status_code, 307)
+        self.assertEqual(res.headers.get("location"), "/proxy/my-encoder-01/favicon.svg")
 
 if __name__ == "__main__":
     unittest.main()

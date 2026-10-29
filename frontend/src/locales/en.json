@@ -53,7 +53,11 @@
         "failsafeNotice": "Safe bind: If the selected IP is down or changes, the system safely falls back to 0.0.0.0 to prevent access loss.",
         "specificIpWarning": "Notice: The service will only be accessible through this specific IP address ({{ip}}). Ensure your network routing allows reaching this address."
       }
-    }
+    },
+    "environment": "Environment:",
+    "frontend": "Frontend:",
+    "backend": "Backend:",
+    "schema": "Schema:"
   },
   "nav": {
     "fleet": "Fleet",
@@ -152,7 +156,8 @@
     "date30d": "Last 30 Days",
     "dateCustom": "Custom Range...",
     "startDate": "Start Date",
-    "endDate": "End Date"
+    "endDate": "End Date",
+    "exportEventPdf": "Export Event PDF"
   },
   "settings": {
     "title": "Platform Settings",

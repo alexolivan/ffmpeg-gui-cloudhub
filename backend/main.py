@@ -260,6 +260,34 @@ def health():
     }
 
 
+# Appliance Reverse Proxy Fallback for un-shimmed or dynamic browser requests (uploads, icons, favicon)
+@app.get("/uploads/{subpath:path}")
+@app.post("/uploads/{subpath:path}")
+@app.get("/api/settings/software/{subpath:path}")
+@app.post("/api/settings/software/{subpath:path}")
+@app.get("/api/software/{subpath:path}")
+@app.get("/favicon.ico")
+@app.get("/favicon.svg")
+@app.get("/favicon.png")
+async def proxy_referer_fallback(request: Request):
+    """
+    Recovers appliance assets (logos, software engine icons, favicons) requested by
+    a proxied appliance web session when raw absolute paths bypass the JS shim.
+    Inspects Referer header to identify originating node_id and redirects (307).
+    """
+    import re
+    from fastapi.responses import RedirectResponse
+    referer = request.headers.get("referer", "")
+    match = re.search(r"/proxy/([^/?#]+)", referer)
+    if match:
+        node_id = match.group(1)
+        rel_path = request.url.path.lstrip("/")
+        query = f"?{request.url.query}" if request.url.query else ""
+        return RedirectResponse(url=f"/proxy/{node_id}/{rel_path}{query}", status_code=307)
+
+    return JSONResponse(status_code=404, content={"detail": "Not Found"})
+
+
 # Serve SPA frontend if build exists
 if os.path.isdir(FRONTEND_DIST_DIR):
     assets_dir = os.path.join(FRONTEND_DIST_DIR, "assets")

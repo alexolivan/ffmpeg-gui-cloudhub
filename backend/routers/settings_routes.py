@@ -1,6 +1,7 @@
 """System configuration, network binding, SSL management, and audit log inspection routes."""
 
 import os
+import re
 import json
 import uuid
 import signal
@@ -22,7 +23,7 @@ from backend.database.models import User, SystemSettings, AuditLog, Organization
 from backend.services.cert_manager import cert_manager
 from backend.core.network_inspector import get_network_interfaces
 from backend.core.update_checker import get_git_metadata, check_latest_release
-from backend.services.audit_pdf_generator import AuditPdfReportGenerator
+from backend.services.audit_pdf_generator import AuditPdfReportGenerator, AuditSingleEventPdfGenerator
 from backend.routers.auth_routes import get_current_user, require_roles
 
 logger = logging.getLogger("cloudhub.api.settings")
@@ -708,6 +709,79 @@ def export_audit_pdf(
 
     ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     filename = f"cloudhub_audit_report_{ts}.pdf"
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+        },
+    )
+
+
+@router.get("/audit-logs/{log_id}/export-pdf")
+def export_single_audit_log_pdf(
+    log_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Generates an official single-event compliance certificate PDF for a specific audit log record."""
+    log = db.query(AuditLog).filter(AuditLog.id == log_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Audit log record not found")
+
+    # Access control: non-superadmin users can only export events of their own organization
+    if current_user.role != "superadmin" and log.org_id != current_user.org_id:
+        raise HTTPException(status_code=403, detail="Access denied to this audit log record")
+
+    # Resolve tenant name
+    tenant_name = "Global Platform"
+    if log.org_id:
+        org = db.query(Organization).filter(Organization.id == log.org_id).first()
+        tenant_name = org.name if org else f"Tenant #{log.org_id}"
+
+    # Resolve node name
+    node_name = None
+    if log.node_id:
+        enrolled = db.query(EnrolledNode).filter(EnrolledNode.node_id == log.node_id).first()
+        node_name = enrolled.name if enrolled else log.node_id
+
+    log_dict = {
+        "id": log.id,
+        "timestamp": (
+            log.timestamp.replace(tzinfo=timezone.utc).isoformat()
+            if log.timestamp
+            else None
+        ),
+        "org_id": log.org_id,
+        "node_id": log.node_id,
+        "channel": getattr(log, "channel", "cloudhub"),
+        "username": log.username,
+        "action": log.action,
+        "target_type": log.target_type,
+        "target_id": log.target_id,
+        "ip_address": log.ip_address,
+        "details": log.details,
+    }
+
+    metadata = {
+        "tenant_name": tenant_name,
+        "node_name": node_name,
+        "exported_by": current_user.username,
+        "app_version": __version__,
+    }
+
+    generator = AuditSingleEventPdfGenerator(log_dict, metadata)
+    pdf_bytes = generator.build_pdf()
+
+    ts = (
+        log.timestamp.strftime("%Y%m%d_%H%M%S")
+        if log.timestamp
+        else datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    )
+    safe_action = re.sub(r"[^A-Za-z0-9_-]", "_", log.action.lower())
+    filename = f"audit_event_{log.id}_{safe_action}_{ts}.pdf"
 
     return Response(
         content=pdf_bytes,

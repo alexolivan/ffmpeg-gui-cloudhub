@@ -53,7 +53,11 @@
         "failsafeNotice": "Enllaç segur: Si la IP seleccionada cau o canvia, el sistema recorre automàticament a 0.0.0.0 per evitar pèrdua d'accés.",
         "specificIpWarning": "Avís: El servei només serà accessible a través d'aquesta adreça IP específica ({{ip}}). Assegureu-vos que l'enrutament de xarxa permeti arribar a aquesta adreça."
       }
-    }
+    },
+    "environment": "Entorn:",
+    "frontend": "Frontend:",
+    "backend": "Backend:",
+    "schema": "Esquema:"
   },
   "nav": {
     "fleet": "Flota",
@@ -152,7 +156,8 @@
     "date30d": "Darrers 30 Dies",
     "dateCustom": "Rang Personalitzat...",
     "startDate": "Data Inici",
-    "endDate": "Data Fi"
+    "endDate": "Data Fi",
+    "exportEventPdf": "Exportar PDF de l'Esdeveniment"
   },
   "settings": {
     "title": "Ajustos de la Plataforma",

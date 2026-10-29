@@ -19,28 +19,43 @@ JS_SHIM_TEMPLATE = """
 <script>
 (function() {
   const prefix = '__PROXY_PREFIX__';
+  window.__CLOUDHUB_PROXY_PREFIX__ = prefix;
+
+  function rewriteUrl(url) {
+    if (typeof url !== 'string') return url;
+    if (url.startsWith('/') && !url.startsWith(prefix) && !url.startsWith('//')) {
+      return prefix + url;
+    }
+    return url;
+  }
+
+  // 1. Fetch API Interceptor
   const origFetch = window.fetch;
   window.fetch = function(input, init) {
     if (typeof input === 'string') {
-      if (input.startsWith('/') && !input.startsWith(prefix)) {
-        input = prefix + input;
-      }
+      input = rewriteUrl(input);
     } else if (input instanceof Request) {
-      const u = new URL(input.url);
-      if (u.pathname.startsWith('/') && !u.pathname.startsWith(prefix)) {
-        u.pathname = prefix + u.pathname;
-        input = new Request(u.toString(), input);
-      }
+      try {
+        const u = new URL(input.url);
+        if (u.pathname.startsWith('/') && !u.pathname.startsWith(prefix)) {
+          u.pathname = prefix + u.pathname;
+          input = new Request(u.toString(), input);
+        }
+      } catch(e) {}
     }
     return origFetch.call(this, input, init);
   };
+
+  // 2. XMLHttpRequest Interceptor
   const origOpen = XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open = function(method, url) {
-    if (typeof url === 'string' && url.startsWith('/') && !url.startsWith(prefix)) {
-      arguments[1] = prefix + url;
+    if (typeof url === 'string') {
+      arguments[1] = rewriteUrl(url);
     }
     return origOpen.apply(this, arguments);
   };
+
+  // 3. WebSocket Interceptor
   const OrigWS = window.WebSocket;
   window.WebSocket = function(url, protocols) {
     try {
@@ -52,6 +67,102 @@ JS_SHIM_TEMPLATE = """
     } catch(e) {}
     return new OrigWS(url, protocols);
   };
+
+  // 4. HTMLImageElement.prototype.src Interceptor (Logos & Program Icons)
+  try {
+    const origImgSrcDesc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+    if (origImgSrcDesc && origImgSrcDesc.set) {
+      Object.defineProperty(HTMLImageElement.prototype, 'src', {
+        set: function(val) {
+          return origImgSrcDesc.set.call(this, rewriteUrl(val));
+        },
+        get: function() {
+          return origImgSrcDesc.get.call(this);
+        },
+        configurable: true
+      });
+    }
+  } catch(e) {}
+
+  // 5. HTMLLinkElement.prototype.href Interceptor (Dynamic Favicons)
+  try {
+    const origLinkHrefDesc = Object.getOwnPropertyDescriptor(HTMLLinkElement.prototype, 'href');
+    if (origLinkHrefDesc && origLinkHrefDesc.set) {
+      Object.defineProperty(HTMLLinkElement.prototype, 'href', {
+        set: function(val) {
+          return origLinkHrefDesc.set.call(this, rewriteUrl(val));
+        },
+        get: function() {
+          return origLinkHrefDesc.get.call(this);
+        },
+        configurable: true
+      });
+    }
+  } catch(e) {}
+
+  // 6. Element.prototype.setAttribute Interceptor
+  try {
+    const origSetAttr = Element.prototype.setAttribute;
+    Element.prototype.setAttribute = function(name, val) {
+      if ((name === 'src' || name === 'href') && typeof val === 'string') {
+        val = rewriteUrl(val);
+      }
+      return origSetAttr.call(this, name, val);
+    };
+  } catch(e) {}
+
+  // 7. MutationObserver to catch inline or dynamically mounted DOM nodes
+  try {
+    const patchElement = function(el) {
+      if (!el || el.nodeType !== 1) return;
+      if (el.tagName === 'IMG') {
+        const s = el.getAttribute('src');
+        if (s && s.startsWith('/') && !s.startsWith(prefix) && !s.startsWith('//')) {
+          el.setAttribute('src', prefix + s);
+        }
+      } else if (el.tagName === 'LINK') {
+        const h = el.getAttribute('href');
+        if (h && h.startsWith('/') && !h.startsWith(prefix) && !h.startsWith('//')) {
+          el.setAttribute('href', prefix + h);
+        }
+      }
+      if (el.querySelectorAll) {
+        const imgs = el.querySelectorAll('img[src^="/"]');
+        for (let i = 0; i < imgs.length; i++) {
+          const s = imgs[i].getAttribute('src');
+          if (s && !s.startsWith(prefix) && !s.startsWith('//')) {
+            imgs[i].setAttribute('src', prefix + s);
+          }
+        }
+        const links = el.querySelectorAll('link[href^="/"]');
+        for (let i = 0; i < links.length; i++) {
+          const h = links[i].getAttribute('href');
+          if (h && !h.startsWith(prefix) && !h.startsWith('//')) {
+            links[i].setAttribute('href', prefix + h);
+          }
+        }
+      }
+    };
+
+    const observer = new MutationObserver(function(mutations) {
+      for (let i = 0; i < mutations.length; i++) {
+        const m = mutations[i];
+        if (m.type === 'childList') {
+          for (let j = 0; j < m.addedNodes.length; j++) {
+            patchElement(m.addedNodes[j]);
+          }
+        }
+      }
+    });
+
+    if (document.documentElement) {
+      observer.observe(document.documentElement, { childList: true, subtree: true });
+    } else {
+      document.addEventListener('DOMContentLoaded', function() {
+        observer.observe(document.documentElement, { childList: true, subtree: true });
+      });
+    }
+  } catch(e) {}
 })();
 </script>
 """
@@ -278,6 +389,10 @@ async def proxy_http_endpoint(
             html_text = re.sub(r'src="/assets/', f'src="{proxy_prefix}/assets/', html_text)
             html_text = re.sub(r'href="/api/', f'href="{proxy_prefix}/api/', html_text)
             html_text = re.sub(r'src="/api/', f'src="{proxy_prefix}/api/', html_text)
+            html_text = re.sub(r'href="/uploads/', f'href="{proxy_prefix}/uploads/', html_text)
+            html_text = re.sub(r'src="/uploads/', f'src="{proxy_prefix}/uploads/', html_text)
+            html_text = re.sub(r'href="/favicon', f'href="{proxy_prefix}/favicon', html_text)
+            html_text = re.sub(r'src="/favicon', f'src="{proxy_prefix}/favicon', html_text)
 
             body_bytes = html_text.encode("utf-8")
         except Exception as err:

@@ -25,6 +25,7 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ currentUser, selec
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [exportingSingleId, setExportingSingleId] = useState<number | null>(null);
 
   const formatLocalDate = (d: Date): string => {
     const year = d.getFullYear();
@@ -145,6 +146,36 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ currentUser, selec
       alert(err.message || 'Error exporting PDF');
     } finally {
       setIsExportingPdf(false);
+    }
+  };
+
+  const handleExportSinglePdf = async (entry: AuditLogEntry) => {
+    setExportingSingleId(entry.id);
+    try {
+      const res = await fetch(`/api/hub/audit-logs/${entry.id}/export-pdf`, { credentials: 'include' });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.detail || 'Failed to generate single-event audit PDF');
+      }
+
+      const blob = await res.blob();
+      const disposition = res.headers.get('Content-Disposition') || '';
+      let filename = `audit_event_${entry.id}.pdf`;
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      if (match && match[1]) filename = match[1];
+
+      const downloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(downloadUrl);
+    } catch (err: any) {
+      alert(err.message || 'Error exporting event PDF');
+    } finally {
+      setExportingSingleId(null);
     }
   };
 
@@ -541,15 +572,33 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ currentUser, selec
                       {entry.ip_address || '—'}
                     </td>
                     <td className="py-3 px-4 text-right whitespace-nowrap">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedDetailLog(entry);
-                        }}
-                        className="text-[11px] text-brand-lime hover:underline cursor-pointer"
-                      >
-                        {t('audit.viewJson', 'View')}
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedDetailLog(entry);
+                          }}
+                          className="text-[11px] text-brand-lime hover:underline cursor-pointer"
+                        >
+                          {t('audit.viewJson', 'View')}
+                        </button>
+                        <span className="text-[var(--glass-border)]">•</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleExportSinglePdf(entry);
+                          }}
+                          disabled={exportingSingleId === entry.id}
+                          title={t('audit.exportEventPdf', 'Export Event PDF')}
+                          className="text-[11px] text-[var(--text-secondary)] hover:text-brand-lime transition-colors cursor-pointer flex items-center gap-0.5 disabled:opacity-50"
+                        >
+                          {exportingSingleId === entry.id ? (
+                            <span className="animate-spin text-[10px]">↻</span>
+                          ) : (
+                            <span className="font-mono text-[10px] font-bold">PDF</span>
+                          )}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -617,7 +666,19 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ currentUser, selec
               </div>
             </div>
 
-            <div className="flex justify-end pt-4">
+            <div className="flex items-center justify-between pt-4 border-t border-[var(--glass-border)]">
+              <button
+                onClick={() => handleExportSinglePdf(selectedDetailLog)}
+                disabled={exportingSingleId === selectedDetailLog.id}
+                className="px-3.5 py-1.5 rounded-xl bg-brand-lime/10 border border-brand-lime/30 text-brand-lime hover:bg-brand-lime/20 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <ExportIcon size={13} />
+                <span>
+                  {exportingSingleId === selectedDetailLog.id
+                    ? t('common.exporting', 'Exporting...')
+                    : t('audit.exportEventPdf', 'Export Event PDF')}
+                </span>
+              </button>
               <button
                 onClick={() => setSelectedDetailLog(null)}
                 className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-[var(--text-primary)] text-xs font-medium transition-all cursor-pointer"
