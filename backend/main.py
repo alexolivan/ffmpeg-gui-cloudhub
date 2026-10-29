@@ -27,8 +27,47 @@ FRONTEND_DIST_DIR = os.path.abspath(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle manager running schema creation on startup and starting maintenance."""
-    logger.info("Initializing ffmpeg-gui-cloudhub v%s (DB v%s)...", __version__, DB_SCHEMA_VERSION)
     init_db()
+    try:
+        from backend.database.db import SessionLocal
+        from backend.database.models import SystemSettings
+        import json
+        with SessionLocal() as db:
+            records = (
+                db.query(SystemSettings)
+                .filter(
+                    SystemSettings.key.in_(
+                        [
+                            "logging_mode",
+                            "logging_path",
+                            "logging_timestamp_tz",
+                            "logging_rotation_enabled",
+                            "logging_rotation_max_bytes",
+                            "logging_rotation_backup_count",
+                        ]
+                    )
+                )
+                .all()
+            )
+            cfg = {}
+            for r in records:
+                try:
+                    cfg[r.key] = json.loads(r.value)
+                except Exception:
+                    cfg[r.key] = r.value
+
+            setup_cloudhub_logging(
+                log_dir=str(cfg.get("logging_path", "data/logs")),
+                max_bytes=int(cfg.get("logging_rotation_max_bytes", 10485760)),
+                backup_count=int(cfg.get("logging_rotation_backup_count", 5)),
+                mode=str(cfg.get("logging_mode", "both")),
+                timestamp_tz=str(cfg.get("logging_timestamp_tz", "utc")),
+                rotation_enabled=bool(cfg.get("logging_rotation_enabled", True)),
+            )
+    except Exception as exc:
+        logger.debug("Could not initialize logging from DB: %s", exc)
+
+    logger.info("Initializing ffmpeg-gui-cloudhub v%s (DB v%s)...", __version__, DB_SCHEMA_VERSION)
     maintenance_scheduler.start()
     yield
     maintenance_scheduler.stop()

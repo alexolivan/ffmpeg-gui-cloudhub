@@ -69,11 +69,51 @@ def setup_cloudhub_logging(
     rotation_enabled: bool = True,
 ):
     """Configures server logging with gzipped rotation, timezone formatting, and graceful read-only fallback."""
+    import sys
     root_logger = logging.getLogger()
+    root_logger.setLevel(log_level)
 
-    # Remove existing GzippedRotatingFileHandlers to allow dynamic reconfiguration
+    # Ensure all cloudhub and uvicorn loggers inherit the correct level and propagate to root
+    for name in ("cloudhub", "uvicorn", "uvicorn.error"):
+        sub = logging.getLogger(name)
+        sub.setLevel(log_level)
+        sub.propagate = True
+
+    # 1. Configure Formatter
+    formatter = logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    )
+    if timestamp_tz == "utc":
+        import time
+        formatter.converter = time.gmtime
+
+    # 2. Configure Console (stdout/journalctl) Handler
+    use_console = mode in ("both", "journalctl")
+    existing_console = None
     for h in list(root_logger.handlers):
-        if isinstance(h, GzippedRotatingFileHandler):
+        if type(h) is logging.StreamHandler and not isinstance(h, logging.FileHandler):
+            existing_console = h
+            break
+
+    if use_console:
+        if existing_console:
+            existing_console.setFormatter(formatter)
+            existing_console.setLevel(log_level)
+        else:
+            console_h = logging.StreamHandler(sys.stdout)
+            console_h.setFormatter(formatter)
+            console_h.setLevel(log_level)
+            root_logger.addHandler(console_h)
+    elif existing_console:
+        root_logger.removeHandler(existing_console)
+        try:
+            existing_console.close()
+        except Exception:
+            pass
+
+    # 3. Configure File Handlers
+    for h in list(root_logger.handlers):
+        if isinstance(h, (GzippedRotatingFileHandler, logging.FileHandler)):
             root_logger.removeHandler(h)
             try:
                 h.close()
@@ -103,13 +143,6 @@ def setup_cloudhub_logging(
             os.environ["ACCESS_LOG_PATH"] = access_log_path
         except (PermissionError, OSError):
             os.environ.pop("ACCESS_LOG_PATH", None)
-
-        formatter = logging.Formatter(
-            "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-        )
-        if timestamp_tz == "utc":
-            import time
-            formatter.converter = time.gmtime
 
         handler = GzippedRotatingFileHandler(
             main_log_path,

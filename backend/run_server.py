@@ -18,12 +18,19 @@ from backend.core.network_inspector import resolve_bind_address
 logger = logging.getLogger("cloudhub.server")
 
 
-def _load_runtime_network_config(args) -> dict:
-    """Reads bind_address, http_port, https_port, and ssl_enabled from DB with CLI/env fallbacks."""
+def _load_runtime_config(args) -> dict:
+    """Reads network, SSL, and logging settings from DB with CLI/env fallbacks."""
     host = os.environ.get("CLOUDHUB_HOST", "0.0.0.0")
     http_port = int(os.environ.get("CLOUDHUB_PORT", "9000"))
     https_port = int(os.environ.get("CLOUDHUB_HTTPS_PORT", "9443"))
     ssl_enabled = False
+
+    logging_mode = "both"
+    logging_path = "data/logs"
+    logging_timestamp_tz = "utc"
+    logging_rotation_enabled = True
+    logging_rotation_max_bytes = 10 * 1024 * 1024
+    logging_rotation_backup_count = 5
 
     try:
         init_db()
@@ -32,7 +39,18 @@ def _load_runtime_network_config(args) -> dict:
                 db.query(SystemSettings)
                 .filter(
                     SystemSettings.key.in_(
-                        ["bind_address", "http_port", "https_port", "ssl_enabled"]
+                        [
+                            "bind_address",
+                            "http_port",
+                            "https_port",
+                            "ssl_enabled",
+                            "logging_mode",
+                            "logging_path",
+                            "logging_timestamp_tz",
+                            "logging_rotation_enabled",
+                            "logging_rotation_max_bytes",
+                            "logging_rotation_backup_count",
+                        ]
                     )
                 )
                 .all()
@@ -52,8 +70,21 @@ def _load_runtime_network_config(args) -> dict:
                 https_port = int(cfg["https_port"])
             if cfg.get("ssl_enabled") is not None:
                 ssl_enabled = bool(cfg["ssl_enabled"])
+
+            if cfg.get("logging_mode"):
+                logging_mode = str(cfg["logging_mode"])
+            if cfg.get("logging_path"):
+                logging_path = str(cfg["logging_path"])
+            if cfg.get("logging_timestamp_tz"):
+                logging_timestamp_tz = str(cfg["logging_timestamp_tz"])
+            if cfg.get("logging_rotation_enabled") is not None:
+                logging_rotation_enabled = bool(cfg["logging_rotation_enabled"])
+            if cfg.get("logging_rotation_max_bytes") is not None:
+                logging_rotation_max_bytes = int(cfg["logging_rotation_max_bytes"])
+            if cfg.get("logging_rotation_backup_count") is not None:
+                logging_rotation_backup_count = int(cfg["logging_rotation_backup_count"])
     except Exception as exc:
-        logger.warning("Could not read network settings from DB, using defaults: %s", exc)
+        logger.warning("Could not read settings from DB, using defaults: %s", exc)
 
     # Explicit CLI overrides take precedence when supplied
     if args.host is not None:
@@ -68,6 +99,12 @@ def _load_runtime_network_config(args) -> dict:
         "http_port": http_port,
         "https_port": https_port,
         "ssl_enabled": ssl_enabled,
+        "logging_mode": logging_mode,
+        "logging_path": logging_path,
+        "logging_timestamp_tz": logging_timestamp_tz,
+        "logging_rotation_enabled": logging_rotation_enabled,
+        "logging_rotation_max_bytes": logging_rotation_max_bytes,
+        "logging_rotation_backup_count": logging_rotation_backup_count,
     }
 
 
@@ -107,10 +144,17 @@ def main():
     )
 
     args = parser.parse_args()
-    setup_cloudhub_logging()
+    cfg = _load_runtime_config(args)
+    setup_cloudhub_logging(
+        log_dir=cfg["logging_path"],
+        max_bytes=cfg["logging_rotation_max_bytes"],
+        backup_count=cfg["logging_rotation_backup_count"],
+        mode=cfg["logging_mode"],
+        timestamp_tz=cfg["logging_timestamp_tz"],
+        rotation_enabled=cfg["logging_rotation_enabled"],
+    )
 
     if args.reload:
-        cfg = _load_runtime_network_config(args)
         uvicorn.run(
             "backend.main:app",
             host=cfg["host"],
@@ -118,11 +162,20 @@ def main():
             reload=True,
             proxy_headers=True,
             forwarded_allow_ips="*",
+            log_config=None,
         )
         return
 
     while True:
-        cfg = _load_runtime_network_config(args)
+        cfg = _load_runtime_config(args)
+        setup_cloudhub_logging(
+            log_dir=cfg["logging_path"],
+            max_bytes=cfg["logging_rotation_max_bytes"],
+            backup_count=cfg["logging_rotation_backup_count"],
+            mode=cfg["logging_mode"],
+            timestamp_tz=cfg["logging_timestamp_tz"],
+            rotation_enabled=cfg["logging_rotation_enabled"],
+        )
         host = cfg["host"]
         http_port = cfg["http_port"]
         https_port = cfg["https_port"]
@@ -176,6 +229,7 @@ def main():
                 ssl_certfile=ssl_certfile,
                 proxy_headers=True,
                 forwarded_allow_ips="*",
+                log_config=None,
             )
             active_servers.append(uvicorn.Server(https_config))
 
@@ -191,6 +245,7 @@ def main():
                     port=http_port,
                     proxy_headers=True,
                     forwarded_allow_ips="*",
+                    log_config=None,
                 )
                 active_servers.append(uvicorn.Server(http_config))
         else:
@@ -205,6 +260,7 @@ def main():
                 port=http_port,
                 proxy_headers=True,
                 forwarded_allow_ips="*",
+                log_config=None,
             )
             active_servers.append(uvicorn.Server(http_config))
 

@@ -8,7 +8,7 @@ from fastapi import APIRouter, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, Response
 
 from backend.database.db import SessionLocal
-from backend.database.models import User, EnrolledNode
+from backend.database.models import User, EnrolledNode, AuditLog
 from backend.core.auth_manager import AuthManager
 from backend.core.tunnel_server import tunnel_server
 
@@ -192,6 +192,29 @@ async def proxy_http_endpoint(
     query_str = str(request.url.query) if request.url.query else ""
     req_body = await request.body()
     req_headers = dict(request.headers)
+
+    # Audit remote session termination if operator logs out or disconnects
+    if request.method == "POST" and target_path in ("/logout", "/api/auth/logout", "/api/logout"):
+        try:
+            with SessionLocal() as db_audit:
+                appliance_label = node.name or node.node_id
+                client_ip = request.client.host if request.client else None
+                db_audit.add(
+                    AuditLog(
+                        username=username,
+                        org_id=node.org_id,
+                        node_id=node.node_id,
+                        channel="cloudhub",
+                        action="NODE_SESSION_END",
+                        target_type="node",
+                        target_id=node.node_id,
+                        ip_address=client_ip,
+                        details=f"Operator '{username}' closed remote session to appliance '{appliance_label}'",
+                    )
+                )
+                db_audit.commit()
+        except Exception as audit_err:
+            logger.debug("Failed to record NODE_SESSION_END audit log: %s", audit_err)
 
     try:
         status_code, resp_headers, body_bytes = await tunnel_server.forward_http(

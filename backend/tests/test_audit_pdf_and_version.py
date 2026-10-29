@@ -10,6 +10,8 @@ from sqlalchemy.orm import sessionmaker
 
 from backend.main import app
 from backend.database.db import get_db, Base
+import backend.database.db as db_module
+import backend.core.reverse_proxy as reverse_proxy_module
 from backend.database.models import User, Organization, EnrolledNode, AuditLog
 from backend.core.auth_manager import AuthManager
 from backend.core.update_checker import (
@@ -28,12 +30,16 @@ class TestAuditPdfAndVersion(unittest.TestCase):
         cls.db_path = os.path.join(cls.temp_dir.name, "test_audit_version.db")
         cls.engine = create_engine(
             f"sqlite:///{cls.db_path}",
-            connect_args={"check_same_thread": False},
+            connect_args={"check_same_thread": False, "timeout": 30},
         )
         cls.TestingSessionLocal = sessionmaker(
             autocommit=False, autoflush=False, bind=cls.engine
         )
         Base.metadata.create_all(bind=cls.engine)
+        cls.orig_session_local = db_module.SessionLocal
+        db_module.SessionLocal = cls.TestingSessionLocal
+        cls.orig_rp_session_local = reverse_proxy_module.SessionLocal
+        reverse_proxy_module.SessionLocal = cls.TestingSessionLocal
 
         def override_get_db():
             db = cls.TestingSessionLocal()
@@ -47,6 +53,8 @@ class TestAuditPdfAndVersion(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        db_module.SessionLocal = cls.orig_session_local
+        reverse_proxy_module.SessionLocal = cls.orig_rp_session_local
         app.dependency_overrides.clear()
         cls.temp_dir.cleanup()
 
@@ -71,16 +79,22 @@ class TestAuditPdfAndVersion(unittest.TestCase):
         db.refresh(self.superadmin)
         db.refresh(self.org)
 
+        self.superadmin_id = self.superadmin.id
+        self.superadmin_password_hash = self.superadmin.password_hash
+        self.org_id = self.org.id
+
         # Seed tenant admin
         self.tenant_admin = User(
             username="tenant_admin_user",
             password_hash=AuthManager.hash_password("TenantPass123!"),
             role="org_admin",
-            org_id=self.org.id,
+            org_id=self.org_id,
         )
         db.add(self.tenant_admin)
         db.commit()
         db.refresh(self.tenant_admin)
+        self.tenant_admin_id = self.tenant_admin.id
+        self.tenant_admin_password_hash = self.tenant_admin.password_hash
 
         # Seed Audit Logs
         self.now = datetime.datetime.now(datetime.timezone.utc)
@@ -91,19 +105,19 @@ class TestAuditPdfAndVersion(unittest.TestCase):
         db.add_all([
             AuditLog(
                 timestamp=self.t1.replace(tzinfo=None),
-                org_id=self.org.id,
+                org_id=self.org_id,
                 node_id="encoder-node-01",
                 channel="cloudhub",
                 username="test_owner",
                 action="TENANT_CREATE",
                 target_type="organization",
-                target_id=str(self.org.id),
+                target_id=str(self.org_id),
                 ip_address="127.0.0.1",
                 details="Created initial organization",
             ),
             AuditLog(
                 timestamp=self.t2.replace(tzinfo=None),
-                org_id=self.org.id,
+                org_id=self.org_id,
                 node_id="encoder-node-01",
                 channel="local_gui",
                 username="operator_carlos",
@@ -115,13 +129,13 @@ class TestAuditPdfAndVersion(unittest.TestCase):
             ),
             AuditLog(
                 timestamp=self.t3.replace(tzinfo=None),
-                org_id=self.org.id,
+                org_id=self.org_id,
                 node_id="encoder-node-02",
                 channel="cloudhub",
                 username="test_owner",
                 action="AUTH_LOGIN_SUCCESS",
                 target_type="user",
-                target_id=str(self.superadmin.id),
+                target_id=str(self.superadmin_id),
                 ip_address="203.0.113.4",
                 details="Successful WebUI login from office network",
             ),
@@ -129,8 +143,8 @@ class TestAuditPdfAndVersion(unittest.TestCase):
         db.commit()
 
         # Session tokens
-        self.owner_token = AuthManager.create_session(self.superadmin.id, self.superadmin.password_hash)
-        self.tenant_token = AuthManager.create_session(self.tenant_admin.id, self.tenant_admin.password_hash)
+        self.owner_token = AuthManager.create_session(self.superadmin_id, self.superadmin_password_hash)
+        self.tenant_token = AuthManager.create_session(self.tenant_admin_id, self.tenant_admin_password_hash)
         self.owner_headers = {"Authorization": f"Bearer {self.owner_token}"}
         self.tenant_headers = {"Authorization": f"Bearer {self.tenant_token}"}
         db.close()
@@ -228,6 +242,102 @@ class TestAuditPdfAndVersion(unittest.TestCase):
         self.assertTrue(pdf_bytes.startswith(b"%PDF-1.4"))
         self.assertGreater(len(gen.pages), 1)
         self.assertIn(b"%%EOF", pdf_bytes)
+
+    def test_audit_single_day_filter_excludes_previous_days(self):
+        db = self.TestingSessionLocal()
+        db.query(AuditLog).delete()
+        # Entry on 2026-10-28
+        db.add(AuditLog(
+            timestamp=datetime.datetime(2026, 10, 28, 14, 30, 0),
+            org_id=self.org_id,
+            node_id="node-a",
+            username="test_owner",
+            action="YESTERDAY_EVENT",
+            target_type="system",
+            details="Yesterday log",
+        ))
+        # Entry on 2026-10-29
+        db.add(AuditLog(
+            timestamp=datetime.datetime(2026, 10, 29, 10, 15, 0),
+            org_id=self.org_id,
+            node_id="node-a",
+            username="test_owner",
+            action="TODAY_EVENT",
+            target_type="system",
+            details="Today log",
+        ))
+        db.commit()
+        db.close()
+
+        # Query single day "2026-10-29"
+        res = self.client.get(
+            "/api/hub/audit-logs?start_date=2026-10-29&end_date=2026-10-29",
+            headers=self.owner_headers,
+        )
+        self.assertEqual(res.status_code, 200)
+        logs = res.json()
+        actions = [l["action"] for l in logs]
+        self.assertIn("TODAY_EVENT", actions)
+        self.assertNotIn("YESTERDAY_EVENT", actions)
+
+    def test_node_session_start_audit_logging(self):
+        db = self.TestingSessionLocal()
+        node = EnrolledNode(
+            node_id="node-test-sso",
+            org_id=self.org_id,
+            name="Studio Node 1",
+            tunnel_secret="secret123",
+        )
+        db.add(node)
+        db.commit()
+        db.close()
+
+        res = self.client.get("/api/hub/nodes/node-test-sso/sso-url", headers=self.owner_headers)
+        self.assertEqual(res.status_code, 200)
+
+        db = self.TestingSessionLocal()
+        audit_entry = (
+            db.query(AuditLog)
+            .filter(AuditLog.action == "NODE_SESSION_START", AuditLog.node_id == "node-test-sso")
+            .first()
+        )
+        self.assertIsNotNone(audit_entry)
+        self.assertEqual(audit_entry.username, "test_owner")
+        self.assertIn("Studio Node 1", audit_entry.details)
+        db.close()
+
+        # Test disconnect / logout via proxy route
+        self.client.post("/proxy/node-test-sso/api/auth/logout", headers=self.owner_headers)
+
+        db = self.TestingSessionLocal()
+        disconnect_entry = (
+            db.query(AuditLog)
+            .filter(AuditLog.action == "NODE_SESSION_END", AuditLog.node_id == "node-test-sso")
+            .first()
+        )
+        self.assertIsNotNone(disconnect_entry)
+        self.assertEqual(disconnect_entry.username, "test_owner")
+        self.assertIn("closed remote session", disconnect_entry.details)
+        db.close()
+
+    def test_logging_setup_captures_info_level(self):
+        import logging
+        from backend.services.maintenance_scheduler import setup_cloudhub_logging
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_log_file = os.path.join(tmpdir, "cloudhub.log")
+            setup_cloudhub_logging(log_dir=test_log_file, mode="both", log_level=logging.INFO)
+
+            test_logger = logging.getLogger("cloudhub.unit_test")
+            test_logger.info("Informational message for test_logging_setup_captures_info_level")
+
+            for h in logging.getLogger().handlers:
+                h.flush()
+
+            self.assertTrue(os.path.exists(test_log_file))
+            with open(test_log_file, "r", encoding="utf-8") as f:
+                content = f.read()
+            self.assertIn("Informational message for test_logging_setup_captures_info_level", content)
 
 
 if __name__ == "__main__":

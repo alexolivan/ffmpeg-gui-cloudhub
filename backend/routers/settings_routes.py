@@ -612,7 +612,11 @@ def list_audit_logs(
     return [
         {
             "id": l.id,
-            "timestamp": l.timestamp.isoformat() if l.timestamp else None,
+            "timestamp": (
+                l.timestamp.replace(tzinfo=timezone.utc).isoformat()
+                if l.timestamp
+                else None
+            ),
             "org_id": l.org_id,
             "node_id": l.node_id,
             "channel": getattr(l, "channel", "cloudhub"),
@@ -674,7 +678,11 @@ def export_audit_pdf(
     log_dicts = [
         {
             "id": l.id,
-            "timestamp": l.timestamp.isoformat() if l.timestamp else None,
+            "timestamp": (
+                l.timestamp.replace(tzinfo=timezone.utc).isoformat()
+                if l.timestamp
+                else None
+            ),
             "org_id": l.org_id,
             "node_id": l.node_id,
             "channel": getattr(l, "channel", "cloudhub"),

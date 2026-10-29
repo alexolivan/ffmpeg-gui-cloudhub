@@ -5,6 +5,22 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-10-29
+
+### Fixed
+- **Audit Logs Date Filtering & Local Timezone Calculation:**
+  - Resolved date preset bug in `AuditLogsView.tsx` where `.toISOString().slice(0, 10)` converted local midnight into UTC of previous day in positive UTC offsets (e.g. CET/CEST), incorrectly leaking yesterday's events into the "Today" filter.
+  - Implemented local calendar formatter `formatLocalDate` ensuring single-day presets (`today`) and multi-day presets (`7d`, `30d`) accurately scope to the user's active local day.
+  - Ensured API serialization formats `AuditLog.timestamp` with explicit UTC ISO designator (`Z`) for consistent browser parsing via `toLocaleString()`.
+- **Operator Remote Session Auditing (Connect & Disconnect):**
+  - Added operational audit event `NODE_SESSION_START` upon SSO URL generation (`/api/hub/nodes/{node_id}/sso-url`), capturing operator username, target appliance ID, and client IP.
+  - Added operational audit event `NODE_SESSION_END` upon remote session termination / logout (`/proxy/{node_id}/logout` and `/api/auth/logout`), properly completing the session lifecycle audit trail.
+- **Server Logging Persistence & Uvicorn Configuration (`cloudhub.log`):**
+  - Resolved root logger level issue in `setup_cloudhub_logging` where default Python `WARNING` level prevented all `logger.info()` messages from being written to `cloudhub.log`.
+  - Configured propagation and explicit log level inheritance on `"cloudhub"`, `"uvicorn"`, and `"uvicorn.error"` loggers.
+  - Resolved Uvicorn logging overwrite in `backend/run_server.py` by supplying `log_config=None` to `uvicorn.Config` and loading DB settings on startup and warm reload cycles, preventing Uvicorn from destroying the rotating file handler.
+  - Synchronized `backend/main.py` lifespan to initialize logging handlers from DB configuration on server startup.
+
 ## [1.5.0] - 2026-10-28
 
 ### Added

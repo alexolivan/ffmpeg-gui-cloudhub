@@ -4,7 +4,7 @@ import secrets
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Any
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -621,6 +621,7 @@ def delete_node(
 @router.get("/nodes/{node_id}/sso-url")
 def get_node_sso_url(
     node_id: str,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -637,6 +638,23 @@ def get_node_sso_url(
         username=current_user.username,
         ttl_seconds=60,
     )
+
+    client_ip = request.client.host if request.client else None
+    appliance_label = node.name or node.node_id
+    db.add(
+        AuditLog(
+            username=current_user.username,
+            org_id=node.org_id,
+            node_id=node.node_id,
+            channel="cloudhub",
+            action="NODE_SESSION_START",
+            target_type="node",
+            target_id=node.node_id,
+            ip_address=client_ip,
+            details=f"Operator '{current_user.username}' opened remote session to appliance '{appliance_label}'",
+        )
+    )
+    db.commit()
 
     sso_path = f"/proxy/{node.node_id}/?sso_assertion={assertion}"
     return {

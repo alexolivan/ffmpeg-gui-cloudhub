@@ -26,6 +26,13 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ currentUser, selec
   const [endDate, setEndDate] = useState<string>('');
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
+  const formatLocalDate = (d: Date): string => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const handleDatePresetChange = (preset: string) => {
     setDatePreset(preset);
     const now = new Date();
@@ -33,21 +40,24 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ currentUser, selec
       setStartDate('');
       setEndDate('');
     } else if (preset === 'today') {
-      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-      setStartDate(todayStart.toISOString().slice(0, 10));
-      setEndDate(now.toISOString().slice(0, 10));
+      const todayStr = formatLocalDate(now);
+      setStartDate(todayStr);
+      setEndDate(todayStr);
     } else if (preset === '24h') {
       const d24 = new Date(now.getTime() - 24 * 3600 * 1000);
-      setStartDate(d24.toISOString().slice(0, 16));
-      setEndDate(now.toISOString().slice(0, 16));
+      setStartDate(d24.toISOString());
+      setEndDate(now.toISOString());
     } else if (preset === '7d') {
       const d7 = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
-      setStartDate(d7.toISOString().slice(0, 10));
-      setEndDate(now.toISOString().slice(0, 10));
+      setStartDate(formatLocalDate(d7));
+      setEndDate(formatLocalDate(now));
     } else if (preset === '30d') {
       const d30 = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
-      setStartDate(d30.toISOString().slice(0, 10));
-      setEndDate(now.toISOString().slice(0, 10));
+      setStartDate(formatLocalDate(d30));
+      setEndDate(formatLocalDate(now));
+    } else if (preset === 'custom') {
+      if (startDate.length > 10) setStartDate(startDate.slice(0, 10));
+      if (endDate.length > 10) setEndDate(endDate.slice(0, 10));
     }
   };
 
@@ -178,8 +188,10 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ currentUser, selec
 
   const formatTimestamp = (iso: string) => {
     try {
-      const d = new Date(iso);
-      return d.toLocaleString();
+      if (!iso) return '—';
+      const normalized = !iso.endsWith('Z') && !iso.includes('+') ? `${iso}Z` : iso;
+      const d = new Date(normalized);
+      return isNaN(d.getTime()) ? iso : d.toLocaleString();
     } catch {
       return iso;
     }
@@ -418,7 +430,7 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ currentUser, selec
             <div className="flex items-center gap-1.5 animate-in fade-in duration-200">
               <input
                 type="date"
-                value={startDate}
+                value={startDate.length > 10 ? startDate.slice(0, 10) : startDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 className="bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-2.5 py-1 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime"
                 title={t('audit.startDate', 'Start Date')}
@@ -426,7 +438,7 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ currentUser, selec
               <span className="text-xs text-[var(--text-secondary)]">→</span>
               <input
                 type="date"
-                value={endDate}
+                value={endDate.length > 10 ? endDate.slice(0, 10) : endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 className="bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-2.5 py-1 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime"
                 title={t('audit.endDate', 'End Date')}
