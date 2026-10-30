@@ -328,6 +328,30 @@ class TestHubApiAndEnrollment(unittest.TestCase):
         users = list_users_resp.json()
         usernames = [u["username"] for u in users]
         self.assertIn("alpha_operator_1", usernames)
+        op_user = next(u for u in users if u["username"] == "alpha_operator_1")
+
+        # 6. Update user (rename username) via PUT /api/hub/users/{id}
+        rename_resp = self.client.put(
+            f"/api/hub/users/{op_user['id']}",
+            json={"username": "alpha_operator_renamed"},
+            headers=headers,
+        )
+        self.assertEqual(rename_resp.status_code, 200)
+
+        # 7. Verify updated username is reflected
+        verify_resp = self.client.get(f"/api/hub/users?org_id={org_id}", headers=headers)
+        renamed_users = [u["username"] for u in verify_resp.json()]
+        self.assertIn("alpha_operator_renamed", renamed_users)
+        self.assertNotIn("alpha_operator_1", renamed_users)
+
+        # 8. Duplicate username conflict check -> 409
+        admin_id = create_org_resp.json()["admin_user"]["id"]
+        dup_resp = self.client.put(
+            f"/api/hub/users/{admin_id}",
+            json={"username": "alpha_operator_renamed"},
+            headers=headers,
+        )
+        self.assertEqual(dup_resp.status_code, 409)
 
     def test_groups_api_and_duplicate_prevention(self):
         headers = {"Authorization": f"Bearer {self.superadmin_token}"}

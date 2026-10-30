@@ -37,6 +37,8 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
 
   // Edit User State
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editRawUsername, setEditRawUsername] = useState('');
+  const [editUsePrefix, setEditUsePrefix] = useState(true);
   const [editRole, setEditRole] = useState<UserRole>('group_operator');
   const [editPassword, setEditPassword] = useState('');
   const [editOrgId, setEditOrgId] = useState<number>(0);
@@ -46,6 +48,18 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
   const [editErrorMsg, setEditErrorMsg] = useState<string | null>(null);
 
   const isSuperadmin = currentUser.role === 'superadmin';
+
+  const targetOrgSlug = useMemo(() => {
+    const targetOrgId = isSuperadmin ? modalOrgId : currentUser.org_id;
+    const found = orgs.find((o) => o.id === targetOrgId);
+    return found?.slug || '';
+  }, [isSuperadmin, modalOrgId, currentUser.org_id, orgs]);
+
+  const editOrgSlug = useMemo(() => {
+    const targetOrgId = isSuperadmin ? editOrgId : currentUser.org_id;
+    const found = orgs.find((o) => o.id === targetOrgId);
+    return found?.slug || '';
+  }, [isSuperadmin, editOrgId, currentUser.org_id, orgs]);
 
   const fetchUsers = async () => {
     setIsLoading(true);
@@ -62,7 +76,6 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
   };
 
   const fetchOrgs = async () => {
-    if (!isSuperadmin) return;
     try {
       const res = await fetch('/api/hub/orgs', { credentials: 'include' });
       if (res.ok) {
@@ -141,18 +154,40 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
     setEditingUser(user);
     setEditRole(user.role);
     setEditPassword('');
-    setEditOrgId(user.org_id && user.org_id !== 1 ? user.org_id : (realOrgs[0]?.id ?? 0));
+    const targetOrgId = user.org_id && user.org_id !== 1 ? user.org_id : (realOrgs[0]?.id ?? 0);
+    setEditOrgId(targetOrgId);
     setEditSelectedGroupIds(user.group_ids || []);
     setEditErrorMsg(null);
+
+    const targetOrg = orgs.find((o) => o.id === targetOrgId);
+    const slug = targetOrg?.slug || '';
+    if (slug && user.username.startsWith(`${slug}_`)) {
+      setEditRawUsername(user.username.slice(slug.length + 1));
+      setEditUsePrefix(true);
+    } else {
+      setEditRawUsername(user.username);
+      setEditUsePrefix(false);
+    }
   };
 
   const handleUpdateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingUser) return;
+
+    const targetOrg = orgs.find((o) => o.id === (isSuperadmin ? editOrgId : currentUser.org_id));
+    const slug = targetOrg?.slug || '';
+    const finalUsername = editUsePrefix && slug ? `${slug}_${editRawUsername.trim()}` : editRawUsername.trim();
+
+    if (!finalUsername) {
+      setEditErrorMsg('Username is required.');
+      return;
+    }
+
     setIsUpdatingUser(true);
     setEditErrorMsg(null);
 
     const payload: Record<string, any> = {
+      username: finalUsername,
       role: editRole,
       group_ids: editRole === 'group_operator' ? editSelectedGroupIds : [],
     };
@@ -187,14 +222,18 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newUsername.trim() || !newPassword.trim()) {
-      setErrorMsg('Username and password are required.');
-      return;
-    }
-
     const targetOrgId = isSuperadmin ? modalOrgId : currentUser.org_id;
     if (!targetOrgId || targetOrgId === 1) {
       setErrorMsg('Please select a valid tenant organization.');
+      return;
+    }
+
+    const targetOrg = orgs.find((o) => o.id === targetOrgId);
+    const slug = targetOrg?.slug || '';
+    const finalUsername = slug ? `${slug}_${newUsername.trim()}` : newUsername.trim();
+
+    if (!newUsername.trim() || !newPassword.trim()) {
+      setErrorMsg('Username and password are required.');
       return;
     }
 
@@ -207,7 +246,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          username: newUsername.trim(),
+          username: finalUsername,
           password: newPassword,
           role: newRole,
           org_id: targetOrgId,
@@ -690,6 +729,35 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
               )}
 
               <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5 font-mono">
+                  {t('settings.username', 'Username')}
+                </label>
+                <div className="flex items-center">
+                  {editUsePrefix && editOrgSlug && (
+                    <span className="inline-flex items-center px-3 py-2 rounded-l-xl border border-r-0 border-[var(--glass-border)] bg-white/5 text-brand-lime font-mono font-bold text-xs select-none">
+                      {editOrgSlug}_
+                    </span>
+                  )}
+                  <input
+                    type="text"
+                    name="edit_user_name_input"
+                    autoComplete="off"
+                    value={editRawUsername}
+                    onChange={(e) => setEditRawUsername(e.target.value.toLowerCase().replace(/[^\w-]/g, ''))}
+                    placeholder="username"
+                    className={`flex-1 bg-[var(--input-bg)] border border-[var(--glass-border)] ${
+                      editUsePrefix && editOrgSlug ? 'rounded-r-xl' : 'rounded-xl'
+                    } px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime font-mono`}
+                  />
+                </div>
+                {editUsePrefix && editOrgSlug && (
+                  <span className="text-[10px] text-[var(--text-secondary)] mt-1 block">
+                    Login ID: <code className="text-brand-lime font-mono font-bold">{editOrgSlug}_{editRawUsername || 'username'}</code>
+                  </span>
+                )}
+              </div>
+
+              <div>
                 <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                   {t('settings.role', 'User Role')}
                 </label>
@@ -818,18 +886,32 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
               )}
 
               <div>
-                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5 font-mono">
                   {t('settings.username', 'Username')}
                 </label>
-                <input
-                  type="text"
-                  name="create_user_name_unique"
-                  autoComplete="off"
-                  value={newUsername}
-                  onChange={(e) => setNewUsername(e.target.value)}
-                  placeholder="e.g. operator_john"
-                  className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime font-mono"
-                />
+                <div className="flex items-center">
+                  {targetOrgSlug && (
+                    <span className="inline-flex items-center px-3 py-2 rounded-l-xl border border-r-0 border-[var(--glass-border)] bg-white/5 text-brand-lime font-mono font-bold text-xs select-none">
+                      {targetOrgSlug}_
+                    </span>
+                  )}
+                  <input
+                    type="text"
+                    name="create_user_name_unique"
+                    autoComplete="off"
+                    value={newUsername}
+                    onChange={(e) => setNewUsername(e.target.value.toLowerCase().replace(/[^\w-]/g, ''))}
+                    placeholder="operador"
+                    className={`flex-1 bg-[var(--input-bg)] border border-[var(--glass-border)] ${
+                      targetOrgSlug ? 'rounded-r-xl' : 'rounded-xl'
+                    } px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime font-mono`}
+                  />
+                </div>
+                {targetOrgSlug && (
+                  <span className="text-[10px] text-[var(--text-secondary)] mt-1 block">
+                    Login ID: <code className="text-brand-lime font-mono font-bold">{targetOrgSlug}_{newUsername || 'username'}</code>
+                  </span>
+                )}
               </div>
 
               <div>

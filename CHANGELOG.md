@@ -5,6 +5,18 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.12] - 2026-10-30
+
+### Added
+- **Tenant Seed Namespace Prefixing for Users (`UsersTab.tsx`, `ca.json`, `en.json`, `es.json`)**:
+  - Implemented immutable visual tenant seed prefix badges (`[ {slug}_ ]`) in User creation and editing modals for tenant users.
+  - Prevents username collisions across tenants and ensures consistent UNIX-style namespace separation while allowing operators to have familiar suffixes (e.g. `operador`).
+- **Customizable Admin Username in Tenant Creation (`TenantsTab.tsx`, `ca.json`, `en.json`, `es.json`)**:
+  - The Superadmin / Platform Owner can now customize the initial tenant administrator username during tenant creation (defaulting dynamically to `admin_{slug}`).
+- **Editable Usernames with Conflict Prevention (`tenant_routes.py`, `test_hub_api_and_enrollment.py`)**:
+  - `PUT /api/hub/users/{id}` now accepts `username` updates, validating for uniqueness across the platform and returning `409 Conflict` on duplicates.
+  - Generates audit log event `UPDATE_USER` tracking old and new usernames.
+
 ## [1.5.11] - 2026-10-30
 
 ### Changed

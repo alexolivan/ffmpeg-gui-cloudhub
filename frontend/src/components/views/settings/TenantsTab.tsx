@@ -14,6 +14,8 @@ export const TenantsTab: React.FC = () => {
   const [newOrgSlug, setNewOrgSlug] = useState('');
   const [newOrgMonogram, setNewOrgMonogram] = useState('');
   const [newOrgIconData, setNewOrgIconData] = useState<string | null>(null);
+  const [newAdminUsername, setNewAdminUsername] = useState('');
+  const [isCustomAdminUsername, setIsCustomAdminUsername] = useState(false);
   const [newAdminPass, setNewAdminPass] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [createErrorMsg, setCreateErrorMsg] = useState<string | null>(null);
@@ -52,6 +54,9 @@ export const TenantsTab: React.FC = () => {
       .replace(/[\s_-]+/g, '-')
       .replace(/^-+|-+$/g, '');
     setNewOrgSlug(slug);
+    if (!isCustomAdminUsername) {
+      setNewAdminUsername(slug ? `admin_${slug}` : '');
+    }
     if (!newOrgMonogram || newOrgMonogram.length <= 2) {
       const initials = val
         .trim()
@@ -115,6 +120,7 @@ export const TenantsTab: React.FC = () => {
     setCreateErrorMsg(null);
     try {
       const iconToSave = newOrgIconData || newOrgMonogram.trim().toUpperCase() || undefined;
+      const adminUserToSave = newAdminUsername.trim() || `admin_${newOrgSlug.trim().toLowerCase()}`;
       const res = await fetch('/api/hub/orgs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -123,6 +129,7 @@ export const TenantsTab: React.FC = () => {
           name: newOrgName.trim(),
           slug: newOrgSlug.trim().toLowerCase(),
           icon_data: iconToSave,
+          admin_username: adminUserToSave,
           admin_password: newAdminPass.trim(),
         }),
       });
@@ -132,6 +139,8 @@ export const TenantsTab: React.FC = () => {
         setNewOrgSlug('');
         setNewOrgMonogram('');
         setNewOrgIconData(null);
+        setNewAdminUsername('');
+        setIsCustomAdminUsername(false);
         setNewAdminPass('');
         fetchOrgs();
       } else {
@@ -393,14 +402,20 @@ export const TenantsTab: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5 font-mono">
-                  Slug / Identifier
+                  Slug / Seed Identifier
                 </label>
                 <input
                   type="text"
                   name="org_slug_new"
                   autoComplete="off"
                   value={newOrgSlug}
-                  onChange={(e) => setNewOrgSlug(e.target.value.toLowerCase())}
+                  onChange={(e) => {
+                    const slugVal = e.target.value.toLowerCase().replace(/[^\w-]/g, '');
+                    setNewOrgSlug(slugVal);
+                    if (!isCustomAdminUsername) {
+                      setNewAdminUsername(slugVal ? `admin_${slugVal}` : '');
+                    }
+                  }}
                   placeholder="e.g. acme-broadcast"
                   className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime font-mono"
                 />
@@ -474,22 +489,45 @@ export const TenantsTab: React.FC = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
-                  Initial Tenant Admin Password
-                </label>
-                <input
-                  type="password"
-                  name="org_admin_pwd_new"
-                  autoComplete="new-password"
-                  value={newAdminPass}
-                  onChange={(e) => setNewAdminPass(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime font-mono"
-                />
-                <span className="text-[10px] text-[var(--text-secondary)] mt-1 block">
-                  Admin username will be: <code className="text-brand-lime font-mono">admin_{newOrgSlug || 'slug'}</code>
-                </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5 font-mono">
+                    {t('settings.adminUsername', 'Admin Username')}
+                  </label>
+                  <input
+                    type="text"
+                    name="org_admin_user_new"
+                    autoComplete="off"
+                    value={newAdminUsername}
+                    onChange={(e) => {
+                      setIsCustomAdminUsername(true);
+                      setNewAdminUsername(e.target.value.trim());
+                    }}
+                    placeholder={`admin_${newOrgSlug || 'slug'}`}
+                    className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime font-mono"
+                  />
+                  <span className="text-[10px] text-[var(--text-secondary)] mt-1 block">
+                    {t('settings.adminUsernameHint', 'Suggested from seed; customizable.')}
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                    {t('settings.adminPassword', 'Initial Admin Password')}
+                  </label>
+                  <input
+                    type="password"
+                    name="org_admin_pwd_new"
+                    autoComplete="new-password"
+                    value={newAdminPass}
+                    onChange={(e) => setNewAdminPass(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime font-mono"
+                  />
+                  <span className="text-[10px] text-[var(--text-secondary)] mt-1 block">
+                    {t('auth.minChars', 'Minimum 6 characters')}
+                  </span>
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3">

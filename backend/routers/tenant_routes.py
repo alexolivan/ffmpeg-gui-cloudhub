@@ -71,6 +71,7 @@ class CreateUserGlobalRequest(BaseModel):
 
 
 class UpdateUserRequest(BaseModel):
+    username: Optional[str] = Field(None, min_length=2, max_length=100)
     password: Optional[str] = Field(None, min_length=6)
     role: Optional[str] = Field(None, pattern="^(org_admin|group_operator)$")
     org_id: Optional[int] = None
@@ -598,6 +599,32 @@ def update_user(
         current_user.role != "org_admin" or current_user.org_id != target_user.org_id
     ):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    if req.username:
+        new_username = req.username.strip()
+        if new_username != target_user.username:
+            existing = (
+                db.query(User)
+                .filter(User.username == new_username, User.id != user_id)
+                .first()
+            )
+            if existing:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"User with username '{new_username}' already exists",
+                )
+            old_username = target_user.username
+            target_user.username = new_username
+            db.add(
+                AuditLog(
+                    username=current_user.username,
+                    org_id=target_user.org_id,
+                    action="UPDATE_USER",
+                    target_type="user",
+                    target_id=str(target_user.id),
+                    details=f"Renamed user ID {target_user.id} from '{old_username}' to '{new_username}'",
+                )
+            )
 
     if req.password:
         target_user.password_hash = AuthManager.hash_password(req.password)
