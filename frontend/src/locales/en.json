@@ -410,6 +410,22 @@
     "imageTooLarge": "Image file is too large (maximum 1 MB).",
     "assignTenant": "Tenant Organization",
     "tenantRequired": "A tenant must be assigned for this user.",
-    "noUsersFound": "No users found for this tenant view."
+    "noUsersFound": "No users found for this tenant view.",
+    "clusterScope": "Cluster scope",
+    "addGroupToTenant": "Add Group",
+    "platformOwners": "Platform Administrators (Owners)",
+    "tenantAdmins": "Tenant Administrators",
+    "operatorsTitle": "Operators & Appliance Scopes",
+    "permissionScope": "Governance Scope",
+    "fullTenantGovernance": "Full Tenant Administration",
+    "allRoles": "All Roles",
+    "adminsOnly": "Administrators",
+    "operatorsOnly": "Operators",
+    "searchUsersPlaceholder": "Search users by username...",
+    "noUsersInTenant": "No users created in this tenant yet.",
+    "user": "user",
+    "users": "users",
+    "group": "group",
+    "groups": "groups"
   }
 }

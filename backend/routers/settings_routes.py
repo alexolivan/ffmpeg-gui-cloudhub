@@ -611,7 +611,7 @@ def list_audit_logs(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     search: Optional[str] = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(["superadmin", "org_admin", "tenant_admin"])),
     db: Session = Depends(get_db),
 ):
     """Query audit logs filtered by organization permissions, date range, origin, and node."""
@@ -649,22 +649,32 @@ def _resolve_pdf_logo_bytes(db: Session, tenant_icon: Optional[str] = None) -> O
         try:
             import base64
             _, b64 = tenant_icon.split(",", 1)
-            return base64.b64decode(b64)
-        except Exception:
-            pass
+            raw = base64.b64decode(b64)
+            logger.info("Resolved PDF logo from tenant icon data URL (%d bytes)", len(raw))
+            return raw
+        except Exception as e:
+            logger.warning("Failed decoding tenant icon data URL: %s", e)
 
     # Clean disk path resolution (handling quotes, relative paths, and uploads dir fallback)
     rec_disk = db.query(SystemSettings).filter(SystemSettings.key == "login_logo_disk_path").first()
     if rec_disk and rec_disk.value:
         raw_val = rec_disk.value.strip().strip('"').strip("'")
-        candidates = [raw_val, os.path.join(UPLOAD_DIR, os.path.basename(raw_val))]
+        candidates = [
+            raw_val,
+            os.path.abspath(raw_val),
+            os.path.join(UPLOAD_DIR, os.path.basename(raw_val)),
+        ]
         for c in candidates:
             if c and os.path.isfile(c):
                 try:
                     with open(c, "rb") as f:
-                        return f.read()
-                except Exception:
-                    pass
+                        data = f.read()
+                    logger.info("Resolved PDF logo from disk '%s' (%d bytes)", c, len(data))
+                    return data
+                except Exception as e:
+                    logger.warning("Error reading logo file '%s': %s", c, e)
+    else:
+        logger.debug("No login_logo_disk_path configured")
 
     # Also check if login_logo_url is a base64 Data URL
     rec_url = db.query(SystemSettings).filter(SystemSettings.key == "login_logo_url").first()
@@ -674,9 +684,11 @@ def _resolve_pdf_logo_bytes(db: Session, tenant_icon: Optional[str] = None) -> O
             try:
                 import base64
                 _, b64 = raw_url.split(",", 1)
-                return base64.b64decode(b64)
-            except Exception:
-                pass
+                raw = base64.b64decode(b64)
+                logger.info("Resolved PDF logo from login_logo_url data URL (%d bytes)", len(raw))
+                return raw
+            except Exception as e:
+                logger.warning("Failed decoding login_logo_url: %s", e)
 
     if os.path.isdir(UPLOAD_DIR):
         for fname in sorted(os.listdir(UPLOAD_DIR), reverse=True):
@@ -684,9 +696,13 @@ def _resolve_pdf_logo_bytes(db: Session, tenant_icon: Optional[str] = None) -> O
                 p = os.path.join(UPLOAD_DIR, fname)
                 try:
                     with open(p, "rb") as f:
-                        return f.read()
-                except Exception:
-                    pass
+                        data = f.read()
+                    logger.info("Resolved PDF logo fallback '%s' (%d bytes)", p, len(data))
+                    return data
+                except Exception as e:
+                    logger.warning("Error reading fallback logo '%s': %s", p, e)
+
+    logger.warning("No logo image bytes could be resolved for PDF header")
     return None
 
 
@@ -699,7 +715,7 @@ def export_audit_pdf(
     end_date: Optional[str] = None,
     search: Optional[str] = None,
     limit: int = 1500,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(["superadmin", "org_admin", "tenant_admin"])),
     db: Session = Depends(get_db),
 ):
     """Generates a downloadable corporate PDF report of filtered audit logs."""
@@ -801,7 +817,7 @@ def export_audit_pdf(
 @router.get("/audit-logs/{log_id}/export-pdf")
 def export_single_audit_log_pdf(
     log_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(["superadmin", "org_admin", "tenant_admin"])),
     db: Session = Depends(get_db),
 ):
     """Generates an official single-event compliance certificate PDF for a specific audit log record."""

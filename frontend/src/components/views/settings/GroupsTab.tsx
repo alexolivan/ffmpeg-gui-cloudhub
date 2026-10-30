@@ -255,6 +255,55 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ currentUser, selectedOrgId
     );
   };
 
+  const orgMap = React.useMemo(() => {
+    const map = new Map<number, Organization>();
+    orgs.forEach((o) => map.set(o.id, o));
+    return map;
+  }, [orgs]);
+
+  const renderGroupCard = (grp: NodeGroup) => (
+    <div
+      key={grp.id}
+      className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl p-5 shadow-sm space-y-3 relative group"
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-3">
+          {renderGroupIcon(grp)}
+          <div>
+            <h4 className="text-sm font-bold text-[var(--text-primary)]">{grp.name}</h4>
+            <span className="text-[11px] text-[var(--text-secondary)] font-mono block mt-0.5">
+              {grp.nodes_count ?? 0} {t('common.nodes', 'Appliances')}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={() => openEditModal(grp)}
+            className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-brand-lime hover:bg-brand-lime/10 transition-all cursor-pointer"
+            title={t('common.edit', 'Edit Group')}
+          >
+            <EditIcon size={15} />
+          </button>
+          <button
+            onClick={() => handleDeleteGroup(grp)}
+            className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+            title={t('common.delete', 'Delete Group')}
+          >
+            <TrashIcon size={15} />
+          </button>
+        </div>
+      </div>
+
+      <div className="pt-2 border-t border-[var(--glass-border)] flex items-center justify-between text-xs font-mono">
+        <span className="text-[var(--text-secondary)] text-[11px]">{t('settings.clusterScope', 'Cluster scope')}:</span>
+        <span className="text-brand-lime font-bold text-[11px] truncate max-w-[150px]">
+          {grp.org_name || (orgMap.get(grp.org_id)?.name ?? t('common.default', 'Default'))}
+        </span>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-6 max-w-4xl">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -297,55 +346,52 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ currentUser, selectedOrgId
             <span>{t('settings.createGroupBtn', 'Create Group')}</span>
           </button>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredGroups.map((grp) => (
-            <div
-              key={grp.id}
-              className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl p-5 shadow-sm space-y-3 relative group"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  {renderGroupIcon(grp)}
-                  <div>
-                    <h4 className="text-sm font-bold text-[var(--text-primary)]">{grp.name}</h4>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[11px] text-[var(--text-secondary)] font-mono">
-                        ID #{grp.id}
-                      </span>
-                      {isSuperadmin && !selectedOrgId && grp.org_name && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-brand-lime/10 border border-brand-lime/20 text-brand-lime">
-                          🏢 {grp.org_name}
-                        </span>
-                      )}
-                    </div>
+      ) : isSuperadmin && !selectedOrgId ? (
+        /* Hierarchical 2-Level Tenant Accordion / Section for All Tenants View */
+        <div className="space-y-6">
+          {orgs.map((org) => {
+            const orgGroups = groups.filter((g) => g.org_id === org.id);
+            if (orgGroups.length === 0) return null;
+            return (
+              <div
+                key={org.id}
+                className="space-y-3 p-4 rounded-2xl bg-white/[0.02] border border-[var(--glass-border)]"
+              >
+                <div className="flex items-center justify-between pb-2 border-b border-[var(--glass-border)]">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-base">🏢</span>
+                    <h4 className="text-sm font-bold text-[var(--text-primary)]">{org.name}</h4>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-brand-lime/10 border border-brand-lime/20 text-brand-lime font-bold">
+                      {orgGroups.length} {orgGroups.length === 1 ? t('settings.group', 'group') : t('settings.groups', 'groups')}
+                    </span>
                   </div>
-                </div>
-
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
-                    onClick={() => openEditModal(grp)}
-                    className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-brand-lime hover:bg-brand-lime/10 transition-all cursor-pointer"
-                    title={t('common.edit', 'Edit Group')}
+                    onClick={() => {
+                      setCreateOrgId(org.id);
+                      setNewGroupName('');
+                      setNewGroupMonogram('');
+                      setNewGroupIconData(null);
+                      setCreateErrorMsg(null);
+                      setShowCreateModal(true);
+                    }}
+                    className="text-xs font-bold text-brand-lime hover:underline flex items-center gap-1 cursor-pointer"
                   >
-                    <EditIcon size={15} />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteGroup(grp)}
-                    className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
-                    title={t('common.delete', 'Delete Group')}
-                  >
-                    <TrashIcon size={15} />
+                    <PlusIcon size={13} />
+                    <span>{t('settings.addGroupToTenant', 'Add Group')}</span>
                   </button>
                 </div>
-              </div>
 
-              <div className="pt-2 border-t border-[var(--glass-border)] flex items-center justify-between text-xs font-mono">
-                <span className="text-[var(--text-secondary)]">{t('common.nodes', 'Appliances')}:</span>
-                <span className="font-bold text-[var(--text-primary)]">{grp.nodes_count ?? 0}</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {orgGroups.map((grp) => renderGroupCard(grp))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
+        </div>
+      ) : (
+        /* Scoped Single-Tenant View */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredGroups.map((grp) => renderGroupCard(grp))}
         </div>
       )}
 

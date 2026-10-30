@@ -444,7 +444,8 @@ def list_all_users(
         query = query.filter(User.org_id == org_id)
 
     users = query.all()
-    org_map = {o.id: o.name for o in db.query(Organization).all()}
+    org_map = {o.id: o.name for o in db.query(Organization.id, Organization.name).all()}
+    group_map = {g.id: g.name for g in db.query(NodeGroup.id, NodeGroup.name).all()}
 
     return [
         {
@@ -454,6 +455,8 @@ def list_all_users(
             "org_id": u.org_id,
             "org_name": org_map.get(u.org_id, "Platform / Superadmin") if u.org_id else "Platform / Superadmin",
             "group_ids": [p.group_id for p in u.group_permissions],
+            "group_names": [group_map.get(p.group_id, f"Group #{p.group_id}") for p in u.group_permissions if p.group_id in group_map],
+            "groups": [{"id": p.group_id, "name": group_map.get(p.group_id, f"Group #{p.group_id}")} for p in u.group_permissions if p.group_id in group_map],
             "created_at": u.created_at.isoformat() if u.created_at else None,
         }
         for u in users
@@ -506,13 +509,20 @@ def list_users(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
     users = db.query(User).filter(User.org_id == org_id).all()
+    org_obj = db.query(Organization).filter(Organization.id == org_id).first()
+    org_name = org_obj.name if org_obj else f"Tenant #{org_id}"
+    group_map = {g.id: g.name for g in db.query(NodeGroup.id, NodeGroup.name).filter(NodeGroup.org_id == org_id).all()}
+
     return [
         {
             "id": u.id,
             "username": u.username,
             "role": u.role,
             "org_id": u.org_id,
+            "org_name": org_name,
             "group_ids": [p.group_id for p in u.group_permissions],
+            "group_names": [group_map.get(p.group_id, f"Group #{p.group_id}") for p in u.group_permissions if p.group_id in group_map],
+            "groups": [{"id": p.group_id, "name": group_map.get(p.group_id, f"Group #{p.group_id}")} for p in u.group_permissions if p.group_id in group_map],
             "created_at": u.created_at.isoformat() if u.created_at else None,
         }
         for u in users

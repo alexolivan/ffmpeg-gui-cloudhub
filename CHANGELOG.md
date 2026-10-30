@@ -5,6 +5,25 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.7] - 2026-10-30
+
+### Added
+- **PDF Logo Diagnostics Suite (`bin/diagnose_pdf_logo.py`)**:
+  - Added standalone CLI diagnostic tool to inspect database logo configurations, file accessibility, image byte headers, FFmpeg librsvg rasterization support, and PIL image decoding directly on host/VPS without disrupting services.
+  - Added explicit diagnostics and warning logs in `_resolve_pdf_logo_bytes` (`backend/routers/settings_routes.py`) and `_prepare_pdf_logo` (`backend/services/audit_pdf_generator.py`) detailing SVG rasterization failures and resolution paths.
+- **Hierarchical Governance Organization for Users & Groups (`frontend/src/components/views/settings/`)**:
+  - **GroupsTab**: Organized groups into a clean 2-level hierarchy by Tenant (`🏢 {org.name}`) when viewed across "All Tenants" by platform administrators.
+  - **UsersTab**: Replaced flat user card grid with a structured hierarchy:
+    - Superadmin "All Tenants" view groups users by Platform Owners (`👑 Platform Administrators (Owners)`) and per-tenant sections (`🏢 {org.name}`).
+    - Within each tenant, distinctly separates `🛡️ Tenant Administrators` from `👷 Operators & Cluster Scopes`.
+    - Added user search filtering by username/tenant and role filter tabs (`All Roles`, `Administrators`, `Operators`).
+    - Enriched operator cards with resolved cluster group scope badges (`🏷️ {group_name}` or `✓ All / Full Access`), completely eliminating raw numeric database IDs (`Group #ID`, `(ID #user.id)`).
+
+### Fixed
+- **Operator Audit Log RBAC Access Restriction (`backend/routers/settings_routes.py`, `frontend/src/`)**:
+  - Restricted `GET /api/hub/audit-logs`, `GET /api/hub/audit-logs/export-pdf`, and `GET /api/hub/audit-logs/{id}/export-pdf` to `superadmin`, `org_admin`, and `tenant_admin` roles, returning HTTP 403 Forbidden for operator accounts.
+  - Hidden the Audit Log navigation tab in `Sidebar.tsx` and prevented access in `App.tsx` for operator accounts.
+
 ## [1.5.6] - 2026-10-29
 
 ### Added

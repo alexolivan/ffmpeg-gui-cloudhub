@@ -159,9 +159,12 @@ export const App: React.FC = () => {
           <FleetView currentUser={currentUser} selectedOrgId={selectedOrgId} />
         )}
 
-        {activeView === 'audit' && (
-          <AuditLogsView currentUser={currentUser} selectedOrgId={selectedOrgId} />
-        )}
+        {activeView === 'audit' &&
+          (currentUser.role === 'superadmin' ||
+            currentUser.role === 'org_admin' ||
+            currentUser.role === 'tenant_admin') && (
+            <AuditLogsView currentUser={currentUser} selectedOrgId={selectedOrgId} />
+          )}
 
         {activeView === 'settings' &&
           (currentUser.role === 'superadmin' ||

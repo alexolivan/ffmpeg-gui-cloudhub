@@ -7,9 +7,12 @@ alternating row styling, and dynamic page numbering.
 
 import datetime
 import html
+import logging
 import re
 import zlib
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger("cloudhub.pdf")
 
 
 def _escape_pdf_str(text: Any) -> str:
@@ -90,22 +93,34 @@ def _svg_to_png_bytes(svg_bytes: bytes) -> Optional[bytes]:
             svg_path = f.name
         png_path = svg_path + ".png"
         try:
+            cmd = ["ffmpeg", "-y", "-i", svg_path, png_path]
             res = subprocess.run(
-                ["ffmpeg", "-y", "-i", svg_path, png_path],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 timeout=5,
             )
             if res.returncode == 0 and os.path.exists(png_path):
                 with open(png_path, "rb") as pf:
-                    return pf.read()
+                    converted = pf.read()
+                logger.info("Successfully converted SVG to PNG via ffmpeg (%d bytes)", len(converted))
+                return converted
+            else:
+                stderr_text = res.stderr.decode("utf-8", errors="replace")[:300]
+                logger.warning("ffmpeg SVG to PNG conversion failed (code %d): %s", res.returncode, stderr_text)
+        except FileNotFoundError:
+            logger.error("ffmpeg command not found in PATH on this system. Cannot convert SVG to PNG.")
+        except Exception as e:
+            logger.error("Error executing ffmpeg for SVG conversion: %s", e)
         finally:
             if os.path.exists(svg_path):
-                os.remove(svg_path)
+                try: os.remove(svg_path)
+                except Exception: pass
             if os.path.exists(png_path):
-                os.remove(png_path)
-    except Exception:
-        pass
+                try: os.remove(png_path)
+                except Exception: pass
+    except Exception as e:
+        logger.error("Error managing tempfiles for SVG rasterization: %s", e)
     return None
 
 
@@ -116,18 +131,24 @@ def _prepare_pdf_logo(logo_bytes: Optional[bytes] = None, tenant_icon: Optional[
             import base64
             _, b64 = tenant_icon.split(",", 1)
             logo_bytes = base64.b64decode(b64)
-        except Exception:
-            pass
+            logger.info("Decoded base64 tenant_icon for PDF logo preparation (%d bytes)", len(logo_bytes))
+        except Exception as e:
+            logger.warning("Failed decoding tenant_icon for PDF logo preparation: %s", e)
 
     if not logo_bytes:
+        logger.debug("No logo_bytes provided to _prepare_pdf_logo; will use monogram fallback")
         return None
 
     # Check if vector SVG, convert to PNG raster using ffmpeg librsvg
     clean_lead = logo_bytes.lstrip()[:100].lower()
     if b"<svg" in clean_lead or b"<?xml" in clean_lead:
+        logger.info("Detected SVG vector logo (%d bytes); rasterizing via ffmpeg...", len(logo_bytes))
         png_converted = _svg_to_png_bytes(logo_bytes)
         if png_converted:
             logo_bytes = png_converted
+        else:
+            logger.warning("SVG conversion returned None; falling back to monogram text badge")
+            return None
 
     try:
         from PIL import Image
@@ -143,13 +164,15 @@ def _prepare_pdf_logo(logo_bytes: Optional[bytes] = None, tenant_icon: Optional[
         w_px, h_px = bg.size
         rgb_raw = bg.tobytes()
         compressed = zlib.compress(rgb_raw)
+        logger.info("Successfully generated PDF logo image XObject: %dx%d, %d compressed bytes", w_px, h_px, len(compressed))
         return {
             "w_px": w_px,
             "h_px": h_px,
             "compressed": compressed,
             "length": len(compressed),
         }
-    except Exception:
+    except Exception as e:
+        logger.error("PIL failed processing logo image bytes: %s", e)
         return None
 
 

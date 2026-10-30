@@ -292,7 +292,7 @@ export const TenantsTab: React.FC = () => {
                   <div>
                     <h4 className="text-sm font-bold text-[var(--text-primary)]">{org.name}</h4>
                     <span className="text-[11px] text-[var(--text-secondary)] font-mono block">
-                      slug: {org.slug} • ID #{org.id}
+                      slug: {org.slug}
                     </span>
                   </div>
                 </div>
@@ -509,7 +509,7 @@ export const TenantsTab: React.FC = () => {
               {t('settings.editTenantTitle', 'Edit Tenant')}
             </h3>
             <p className="text-xs text-[var(--text-secondary)] mb-4">
-              slug: <span className="text-brand-lime font-mono">{editingOrg.slug}</span> (ID #{editingOrg.id})
+              slug: <span className="text-brand-lime font-mono">{editingOrg.slug}</span>
             </p>
 
             {editErrorMsg && (

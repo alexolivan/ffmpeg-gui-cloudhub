@@ -410,6 +410,22 @@
     "imageTooLarge": "El fitxer d’imatge és massa gran (màxim 1 MB).",
     "assignTenant": "Organització Tenant",
     "tenantRequired": "Cal assignar un tenant per a aquest usuari.",
-    "noUsersFound": "No s’han trobat usuaris per a aquest tenant."
+    "noUsersFound": "No s’han trobat usuaris per a aquest tenant.",
+    "clusterScope": "Abast del clúster",
+    "addGroupToTenant": "Afegir Grup",
+    "platformOwners": "Administradors de la Plataforma (Owners)",
+    "tenantAdmins": "Administradors del Tenant",
+    "operatorsTitle": "Operadors i Abastos de Dispositius",
+    "permissionScope": "Abast de Governança",
+    "fullTenantGovernance": "Administració Total del Tenant",
+    "allRoles": "Tots els Rols",
+    "adminsOnly": "Administradors",
+    "operatorsOnly": "Operadors",
+    "searchUsersPlaceholder": "Cercar usuaris per nom...",
+    "noUsersInTenant": "Encara no hi ha usuaris creats en aquest tenant.",
+    "user": "usuari",
+    "users": "usuaris",
+    "group": "grup",
+    "groups": "grups"
   }
 }

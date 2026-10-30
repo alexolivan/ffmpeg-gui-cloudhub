@@ -429,5 +429,32 @@ class TestAuditPdfAndVersion(unittest.TestCase):
         self.assertEqual(res.status_code, 307)
         self.assertEqual(res.headers.get("location"), "/proxy/my-encoder-01/favicon.svg")
 
+    def test_operator_role_forbidden_from_audit_logs(self):
+        db = self.TestingSessionLocal()
+        operator = User(
+            username="operator_jim",
+            password_hash=AuthManager.hash_password("OperatorPass123!"),
+            role="group_operator",
+            org_id=self.org_id,
+        )
+        db.add(operator)
+        db.commit()
+        db.refresh(operator)
+        op_token = AuthManager.create_session(operator.id, operator.password_hash)
+        op_headers = {"Authorization": f"Bearer {op_token}"}
+        db.close()
+
+        # 1. Accessing audit log listing -> 403
+        res = self.client.get("/api/hub/audit-logs", headers=op_headers)
+        self.assertEqual(res.status_code, 403)
+
+        # 2. Accessing audit log PDF export -> 403
+        res = self.client.get("/api/hub/audit-logs/export-pdf", headers=op_headers)
+        self.assertEqual(res.status_code, 403)
+
+        # 3. Accessing single audit log PDF export -> 403
+        res = self.client.get("/api/hub/audit-logs/1/export-pdf", headers=op_headers)
+        self.assertEqual(res.status_code, 403)
+
 if __name__ == "__main__":
     unittest.main()

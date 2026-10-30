@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { User, Organization, NodeGroup, UserRole } from '../../../types/hub';
 import { PlusIcon, TrashIcon, UsersIcon, EditIcon } from '../../Icons';
@@ -12,8 +12,13 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
   const { t } = useTranslation();
   const [users, setUsers] = useState<User[]>([]);
   const [orgs, setOrgs] = useState<Organization[]>([]);
+  const [allGroups, setAllGroups] = useState<NodeGroup[]>([]);
   const [modalGroups, setModalGroups] = useState<NodeGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Search & Role Filter State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'admins' | 'operators'>('all');
 
   // Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -67,10 +72,31 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
     }
   };
 
+  const fetchAllGroups = async () => {
+    try {
+      const res = await fetch('/api/hub/groups', { credentials: 'include' });
+      if (res.ok) {
+        setAllGroups(await res.json());
+      }
+    } catch (err) {
+      console.error('Failed to load groups dictionary:', err);
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
     fetchOrgs();
+    fetchAllGroups();
   }, []);
+
+  // Map of group_id -> group_name for fast lookup
+  const groupMap = useMemo(() => {
+    const map: Record<number, string> = {};
+    allGroups.forEach((g) => {
+      map[g.id] = g.name;
+    });
+    return map;
+  }, [allGroups]);
 
   // Sync modalOrgId when selectedOrgId changes in sidebar
   useEffect(() => {
@@ -103,39 +129,35 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
           .catch(() => setEditGroupsList([]));
       }
     }
-  }, [editingUser, editOrgId, isSuperadmin, currentUser.org_id]);
+  }, [editingUser, editOrgId, currentUser.org_id, isSuperadmin]);
 
-  const openEditUserModal = (u: User) => {
-    setEditingUser(u);
-    setEditRole(u.role);
+  const openEditUserModal = (user: User) => {
+    setEditingUser(user);
+    setEditRole(user.role);
     setEditPassword('');
-    setEditOrgId(u.org_id || 1);
-    setEditSelectedGroupIds(u.group_ids || []);
+    setEditOrgId(user.org_id || (orgs[0]?.id ?? 1));
+    setEditSelectedGroupIds(user.group_ids || []);
     setEditErrorMsg(null);
   };
 
   const handleUpdateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingUser) return;
-    if (editPassword && editPassword.trim().length < 6) {
-      setEditErrorMsg(t('auth.passwordLengthError', 'Password must be at least 6 characters.'));
-      return;
-    }
-
     setIsUpdatingUser(true);
     setEditErrorMsg(null);
-    try {
-      const payload: any = {
-        role: editRole,
-        group_ids: editRole === 'group_operator' ? editSelectedGroupIds : [],
-      };
-      if (editPassword.trim()) {
-        payload.password = editPassword.trim();
-      }
-      if (isSuperadmin) {
-        payload.org_id = editOrgId;
-      }
 
+    const payload: Record<string, any> = {
+      role: editRole,
+      group_ids: editRole === 'group_operator' ? editSelectedGroupIds : [],
+    };
+    if (isSuperadmin && editOrgId) {
+      payload.org_id = editOrgId;
+    }
+    if (editPassword && editPassword.trim()) {
+      payload.password = editPassword;
+    }
+
+    try {
       const res = await fetch(`/api/hub/users/${editingUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -160,22 +182,15 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUsername.trim() || !newPassword.trim()) {
-      setErrorMsg(t('settings.usernameAndPassRequired', 'Username and password are required.'));
-      return;
-    }
-    if (newPassword.trim().length < 6) {
-      setErrorMsg(t('auth.passwordLengthError', 'Password must be at least 6 characters.'));
-      return;
-    }
-
-    const targetOrgId = isSuperadmin ? modalOrgId : currentUser.org_id;
-    if (!targetOrgId) {
-      setErrorMsg(t('settings.tenantRequired', 'A tenant must be assigned for this user.'));
+      setErrorMsg('Username and password are required.');
       return;
     }
 
     setIsCreating(true);
     setErrorMsg(null);
+
+    const targetOrgId = isSuperadmin ? modalOrgId : currentUser.org_id;
+
     try {
       const res = await fetch('/api/hub/users', {
         method: 'POST',
@@ -183,7 +198,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
         credentials: 'include',
         body: JSON.stringify({
           username: newUsername.trim(),
-          password: newPassword.trim(),
+          password: newPassword,
           role: newRole,
           org_id: targetOrgId,
           group_ids: newRole === 'group_operator' ? selectedGroupIds : [],
@@ -236,16 +251,161 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
     }
   };
 
-  // Filter users based on sidebar tenant filter
-  const filteredUsers = users.filter((u) => {
-    if (isSuperadmin) {
-      if (selectedOrgId) {
-        return u.org_id === selectedOrgId;
+  // ── Scoping and Filters ──
+  const tenantScopedUsers = useMemo(() => {
+    return users.filter((u) => {
+      if (isSuperadmin) {
+        if (selectedOrgId) {
+          return u.org_id === selectedOrgId;
+        }
+        return true; // Show all users when 'All Tenants' is active
       }
-      return true; // Show all users when 'All Tenants' is active
+      return u.org_id === currentUser.org_id;
+    });
+  }, [users, isSuperadmin, selectedOrgId, currentUser.org_id]);
+
+  const filteredUsers = useMemo(() => {
+    return tenantScopedUsers.filter((u) => {
+      // Search query filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchesName = u.username.toLowerCase().includes(q);
+        const matchesOrg = u.org_name?.toLowerCase().includes(q);
+        if (!matchesName && !matchesOrg) return false;
+      }
+
+      // Role filter
+      if (roleFilter === 'admins') {
+        if (u.role !== 'superadmin' && u.role !== 'org_admin') return false;
+      } else if (roleFilter === 'operators') {
+        if (u.role !== 'group_operator') return false;
+      }
+
+      return true;
+    });
+  }, [tenantScopedUsers, searchQuery, roleFilter]);
+
+  // ── Render Individual User Card ──
+  const renderUserCard = (u: User) => {
+    // Resolve group names
+    const resolvedGroupNames: string[] = [];
+    if (u.groups && u.groups.length > 0) {
+      u.groups.forEach((g) => resolvedGroupNames.push(g.name));
+    } else if (u.group_names && u.group_names.length > 0) {
+      resolvedGroupNames.push(...u.group_names);
+    } else if (u.group_ids && u.group_ids.length > 0) {
+      u.group_ids.forEach((gid) => {
+        resolvedGroupNames.push(groupMap[gid] || `Group #${gid}`);
+      });
     }
-    return u.org_id === currentUser.org_id;
-  });
+
+    return (
+      <div
+        key={u.id}
+        className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl p-5 shadow-sm space-y-3 relative group hover:border-brand-lime/30 transition-all"
+      >
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                u.role === 'superadmin'
+                  ? 'bg-amber-500/10 border border-amber-500/30 text-amber-400'
+                  : u.role === 'org_admin'
+                  ? 'bg-brand-lime/10 border border-brand-lime/30 text-brand-lime'
+                  : 'bg-white/5 border border-[var(--glass-border)] text-[var(--text-secondary)]'
+              }`}
+            >
+              <UsersIcon size={20} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-bold text-[var(--text-primary)] font-mono">{u.username}</h4>
+                <span
+                  className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold tracking-wider uppercase ${
+                    u.role === 'superadmin'
+                      ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                      : u.role === 'org_admin'
+                      ? 'bg-brand-lime/10 text-brand-lime border border-brand-lime/30'
+                      : 'bg-white/10 text-[var(--text-secondary)] border border-[var(--glass-border)]'
+                  }`}
+                >
+                  {u.role === 'superadmin'
+                    ? 'Owner'
+                    : u.role === 'org_admin'
+                    ? 'Tenant Admin'
+                    : 'Operator'}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-[11px] text-[var(--text-secondary)] font-mono flex items-center gap-1">
+                  {u.role === 'superadmin' ? (
+                    <>👑 {t('settings.platformOwners', 'Platform Superadmin')}</>
+                  ) : (
+                    <>🏢 {u.org_name || 'Tenant Organization'}</>
+                  )}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {u.id !== currentUser.id && u.role !== 'superadmin' && (
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={() => openEditUserModal(u)}
+                className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-brand-lime hover:bg-white/5 transition-all cursor-pointer"
+                title={t('common.edit', 'Edit User')}
+              >
+                <EditIcon size={15} />
+              </button>
+              <button
+                onClick={() => handleDeleteUser(u)}
+                className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+                title={t('common.delete', 'Delete User')}
+              >
+                <TrashIcon size={15} />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {u.role === 'org_admin' && (
+          <div className="pt-2 border-t border-[var(--glass-border)] text-xs">
+            <span className="text-[10px] text-[var(--text-secondary)] block uppercase font-mono mb-1 font-bold tracking-wider">
+              {t('settings.permissionScope', 'Permission Scope')}:
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-mono text-brand-lime bg-brand-lime/10 border border-brand-lime/20">
+              🛡️ {t('settings.fullTenantGovernance', 'Full Tenant Scope')}
+            </span>
+          </div>
+        )}
+
+        {u.role === 'group_operator' && (
+          <div className="pt-2 border-t border-[var(--glass-border)] text-xs">
+            <span className="text-[10px] text-[var(--text-secondary)] block uppercase font-mono mb-1.5 font-bold tracking-wider">
+              {t('settings.clusterScope', 'Cluster & Group Scope')}:
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {resolvedGroupNames.length > 0 ? (
+                resolvedGroupNames.map((name, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-mono font-medium bg-brand-lime/10 border border-brand-lime/25 text-brand-lime"
+                  >
+                    🏷️ {name}
+                  </span>
+                ))
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-mono italic text-[var(--text-secondary)] bg-white/5 border border-[var(--glass-border)]">
+                  ✓ {t('settings.allGroupsOrFull', 'All / Full Access')}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -255,9 +415,13 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
     );
   }
 
+  // Group users hierarchically for All Tenants view
+  const platformOwners = filteredUsers.filter((u) => u.role === 'superadmin');
+
   return (
     <div className="space-y-6 max-w-4xl">
-      <div className="flex items-center justify-between">
+      {/* ── Header & Action Controls ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h3 className="text-sm font-bold text-[var(--text-primary)]">
             {t('settings.usersTitle', 'User Accounts & Access Control')}
@@ -277,100 +441,212 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
             setModalOrgId(selectedOrgId || (orgs[0]?.id ?? 1));
             setShowCreateModal(true);
           }}
-          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-brand-lime text-black font-bold text-xs tracking-wide hover:bg-brand-lime/90 transition-all shadow-sm cursor-pointer"
+          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-brand-lime text-black font-bold text-xs tracking-wide hover:bg-brand-lime/90 transition-all shadow-sm cursor-pointer self-start sm:self-auto"
         >
           <PlusIcon size={16} />
           <span>{t('settings.createUserBtn', 'Create User')}</span>
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filteredUsers.length === 0 ? (
-          <div className="col-span-full py-12 text-center text-xs font-mono text-[var(--text-secondary)] border border-dashed border-[var(--glass-border)] rounded-2xl">
-            {t('settings.noUsersFound', 'No users found for this tenant view.')}
-          </div>
-        ) : (
-          filteredUsers.map((u) => (
-            <div
-              key={u.id}
-              className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl p-5 shadow-sm space-y-3 relative group"
+      {/* ── Search & Role Filters ── */}
+      <div className="flex flex-col sm:flex-row items-center gap-3 bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl p-2.5 shadow-sm">
+        <div className="relative flex-1 w-full">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t('settings.searchUsersPlaceholder', 'Filter users by username or tenant...')}
+            className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-1.5 text-xs text-[var(--text-primary)] placeholder-[var(--text-secondary)]/50 focus:outline-none focus:ring-1 focus:ring-brand-lime font-mono"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white/5 border border-[var(--glass-border)] flex items-center justify-center text-brand-lime">
-                    <UsersIcon size={20} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-sm font-bold text-[var(--text-primary)] font-mono">{u.username}</h4>
-                      <span
-                        className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold tracking-wider uppercase ${
-                          u.role === 'superadmin'
-                            ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
-                            : u.role === 'org_admin'
-                            ? 'bg-brand-lime/10 text-brand-lime border border-brand-lime/30'
-                            : 'bg-white/10 text-[var(--text-secondary)] border border-[var(--glass-border)]'
-                        }`}
-                      >
-                        {u.role === 'superadmin' ? 'Owner' : u.role === 'org_admin' ? 'Tenant Admin' : 'Operator'}
-                      </span>
-                    </div>
+              ✕
+            </button>
+          )}
+        </div>
 
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[11px] text-[var(--text-secondary)] font-mono">
-                        {u.org_name || (u.org_id ? `Tenant #${u.org_id}` : 'Platform Superadmin')}
-                      </span>
-                    </div>
+        <div className="flex items-center gap-1 self-stretch sm:self-auto justify-end">
+          <button
+            onClick={() => setRoleFilter('all')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+              roleFilter === 'all'
+                ? 'bg-brand-lime text-black font-bold shadow-sm'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/5'
+            }`}
+          >
+            {t('settings.allRoles', 'All Roles')}
+          </button>
+          <button
+            onClick={() => setRoleFilter('admins')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+              roleFilter === 'admins'
+                ? 'bg-brand-lime text-black font-bold shadow-sm'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/5'
+            }`}
+          >
+            {t('settings.adminsOnly', 'Administrators')}
+          </button>
+          <button
+            onClick={() => setRoleFilter('operators')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+              roleFilter === 'operators'
+                ? 'bg-brand-lime text-black font-bold shadow-sm'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/5'
+            }`}
+          >
+            {t('settings.operatorsOnly', 'Operators')}
+          </button>
+        </div>
+      </div>
+
+      {/* ── Hierarchical Content Sections ── */}
+      {filteredUsers.length === 0 ? (
+        <div className="py-12 text-center text-xs font-mono text-[var(--text-secondary)] border border-dashed border-[var(--glass-border)] rounded-2xl">
+          {t('settings.noUsersFound', 'No users found matching current filters.')}
+        </div>
+      ) : isSuperadmin && !selectedOrgId ? (
+        /* Superadmin viewing All Tenants: Hierarchical 2-Level View */
+        <div className="space-y-8">
+          {/* Platform Owners Section */}
+          {platformOwners.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-[var(--glass-border)]">
+                <div className="flex items-center gap-2">
+                  <span className="text-amber-400 text-sm">👑</span>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)] font-mono">
+                    {t('settings.platformOwners', 'Platform Administrators (Owners)')}
+                  </h4>
+                </div>
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/25">
+                  {platformOwners.length} {platformOwners.length === 1 ? t('settings.user', 'user') : t('settings.users', 'users')}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {platformOwners.map(renderUserCard)}
+              </div>
+            </div>
+          )}
+
+          {/* Per-Tenant Sections */}
+          {orgs.map((org) => {
+            const orgUsers = filteredUsers.filter((u) => u.org_id === org.id);
+            if (orgUsers.length === 0 && searchQuery.trim()) return null;
+
+            const orgAdmins = orgUsers.filter((u) => u.role === 'org_admin');
+            const orgOperators = orgUsers.filter((u) => u.role === 'group_operator');
+
+            return (
+              <div key={org.id} className="space-y-4 pt-2">
+                <div className="flex items-center justify-between pb-2 border-b border-[var(--glass-border)]">
+                  <div className="flex items-center gap-2">
+                    <span className="text-brand-lime text-sm">🏢</span>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)] font-mono">
+                      {org.name}
+                    </h4>
+                    <span className="text-[10px] font-mono text-[var(--text-secondary)]">({org.slug})</span>
                   </div>
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-white/5 text-[var(--text-secondary)] border border-[var(--glass-border)]">
+                    {orgUsers.length} {orgUsers.length === 1 ? t('settings.user', 'user') : t('settings.users', 'users')}
+                  </span>
                 </div>
 
-                {u.id !== currentUser.id && u.role !== 'superadmin' && (
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => openEditUserModal(u)}
-                      className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-brand-lime hover:bg-white/5 transition-all cursor-pointer"
-                      title={t('common.edit', 'Edit User')}
-                    >
-                      <EditIcon size={15} />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteUser(u)}
-                      className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
-                      title={t('common.delete', 'Delete User')}
-                    >
-                      <TrashIcon size={15} />
-                    </button>
+                {orgUsers.length === 0 ? (
+                  <div className="py-6 text-center text-xs font-mono text-[var(--text-secondary)] border border-dashed border-[var(--glass-border)] rounded-xl">
+                    {t('settings.noUsersInTenant', 'No users registered in this tenant.')}
+                  </div>
+                ) : (
+                  <div className="space-y-5 pl-2">
+                    {/* Tenant Administrators Sub-section */}
+                    {orgAdmins.length > 0 && (
+                      <div className="space-y-2.5">
+                        <div className="flex items-center gap-2 text-[11px] font-mono font-bold text-[var(--text-secondary)]">
+                          <span>🛡️</span>
+                          <span>{t('settings.tenantAdmins', 'Tenant Administrators')}</span>
+                          <span className="text-[10px] font-normal text-[var(--text-secondary)]/60">
+                            ({orgAdmins.length})
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {orgAdmins.map(renderUserCard)}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Operators & Cluster Scopes Sub-section */}
+                    {orgOperators.length > 0 && (
+                      <div className="space-y-2.5">
+                        <div className="flex items-center gap-2 text-[11px] font-mono font-bold text-[var(--text-secondary)]">
+                          <span>👷</span>
+                          <span>{t('settings.operatorsTitle', 'Operators & Cluster Scopes')}</span>
+                          <span className="text-[10px] font-normal text-[var(--text-secondary)]/60">
+                            ({orgOperators.length})
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {orgOperators.map(renderUserCard)}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* Scoped Tenant View: Partitioned into Admins and Operators */
+        <div className="space-y-6">
+          {(() => {
+            const tenantAdmins = filteredUsers.filter((u) => u.role === 'org_admin' || u.role === 'superadmin');
+            const tenantOperators = filteredUsers.filter((u) => u.role === 'group_operator');
 
-              {u.role === 'group_operator' && (
-                <div className="pt-2 border-t border-[var(--glass-border)] text-xs">
-                  <span className="text-[10px] text-[var(--text-secondary)] block uppercase font-mono mb-1">
-                    {t('settings.assignedGroups', 'Assigned Groups')}:
-                  </span>
-                  <div className="flex flex-wrap gap-1">
-                    {u.group_ids && u.group_ids.length > 0 ? (
-                      u.group_ids.map((gid) => (
-                        <span
-                          key={gid}
-                          className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-white/5 border border-[var(--glass-border)] text-[var(--text-secondary)]"
-                        >
-                          Group #{gid}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-[10px] text-[var(--text-secondary)] italic font-mono">
-                        {t('settings.allGroupsOrFull', 'All / Full Access')}
+            return (
+              <>
+                {tenantAdmins.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-[var(--glass-border)]">
+                      <div className="flex items-center gap-2">
+                        <span className="text-brand-lime text-sm">🛡️</span>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)] font-mono">
+                          {t('settings.tenantAdmins', 'Tenant Administrators')}
+                        </h4>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-brand-lime/10 text-brand-lime border border-brand-lime/25">
+                        {tenantAdmins.length}
                       </span>
-                    )}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {tenantAdmins.map(renderUserCard)}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          ))
-        )}
-      </div>
+                )}
+
+                {tenantOperators.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-[var(--glass-border)]">
+                      <div className="flex items-center gap-2">
+                        <span className="text-brand-lime text-sm">👷</span>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)] font-mono">
+                          {t('settings.operatorsTitle', 'Operators & Cluster Scopes')}
+                        </h4>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-white/5 text-[var(--text-secondary)] border border-[var(--glass-border)]">
+                        {tenantOperators.length}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {tenantOperators.map(renderUserCard)}
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </div>
+      )}
 
       {/* ── Edit User Modal ── */}
       {editingUser && (
@@ -386,7 +662,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
               {t('settings.editUserTitle', 'Edit User Account')}
             </h3>
             <p className="text-xs text-[var(--text-secondary)] mb-4 font-mono">
-              user: <span className="text-brand-lime font-bold">{editingUser.username}</span> (ID #{editingUser.id})
+              user: <span className="text-brand-lime font-bold">{editingUser.username}</span>
             </p>
 
             {editErrorMsg && (

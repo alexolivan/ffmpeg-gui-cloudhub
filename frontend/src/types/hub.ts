@@ -8,6 +8,8 @@ export interface User {
   org_id: number | null;
   org_name?: string;
   group_ids?: number[];
+  group_names?: string[];
+  groups?: Array<{ id: number; name: string }>;
   created_at?: string;
 }
 

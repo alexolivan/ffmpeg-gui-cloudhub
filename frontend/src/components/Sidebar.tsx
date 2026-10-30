@@ -33,17 +33,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const activeOrg = organizations.find((o) => o.id === selectedOrgId);
   const userOrg = organizations.find((o) => o.id === currentUser.org_id);
 
+  const canViewGovernance =
+    currentUser.role === 'superadmin' ||
+    currentUser.role === 'org_admin' ||
+    currentUser.role === 'tenant_admin';
+
   const items = [
     { id: 'fleet', icon: <FleetIcon size={20} />, label: t('nav.fleet', 'Fleet') },
-    { id: 'audit', icon: <AuditIcon size={20} />, label: t('nav.audit', 'Audit Log') },
   ];
 
-  if (currentUser.role === 'superadmin' || currentUser.role === 'org_admin' || currentUser.role === 'tenant_admin') {
-    items.push({
-      id: 'settings',
-      icon: <GearIcon size={20} />,
-      label: t('nav.settings', 'Settings'),
-    });
+  if (canViewGovernance) {
+    items.push({ id: 'audit', icon: <AuditIcon size={20} />, label: t('nav.audit', 'Audit Log') });
+    items.push({ id: 'settings', icon: <GearIcon size={20} />, label: t('nav.settings', 'Settings') });
   }
 
   const roleLabel =

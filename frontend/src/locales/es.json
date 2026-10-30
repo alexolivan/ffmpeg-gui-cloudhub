@@ -410,6 +410,22 @@
     "imageTooLarge": "El archivo de imagen es demasiado grande (máximo 1 MB).",
     "assignTenant": "Organización Tenant",
     "tenantRequired": "Se debe asignar un tenant para este usuario.",
-    "noUsersFound": "No se encontraron usuarios para este tenant."
+    "noUsersFound": "No se encontraron usuarios para este tenant.",
+    "clusterScope": "Alcance del cluster",
+    "addGroupToTenant": "Añadir Grupo",
+    "platformOwners": "Administradores de la Plataforma (Owners)",
+    "tenantAdmins": "Administradores del Tenant",
+    "operatorsTitle": "Operadores y Alcances de Dispositivos",
+    "permissionScope": "Alcance de Gobernanza",
+    "fullTenantGovernance": "Administración Total del Tenant",
+    "allRoles": "Todos los Roles",
+    "adminsOnly": "Administradores",
+    "operatorsOnly": "Operadores",
+    "searchUsersPlaceholder": "Buscar usuarios por nombre...",
+    "noUsersInTenant": "Aún no hay usuarios creados en este tenant.",
+    "user": "usuario",
+    "users": "usuarios",
+    "group": "grupo",
+    "groups": "grupos"
   }
 }
