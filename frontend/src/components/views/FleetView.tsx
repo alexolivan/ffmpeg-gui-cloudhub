@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { User, EnrolledNode, Organization, NodeGroup } from '../../types/hub';
 import { GroupAccordionSection } from '../cards/GroupAccordionSection';
 import { SearchIcon, PlusIcon, RefreshIcon, FleetIcon, LayersIcon } from '../Icons';
+import { copyToClipboard } from '../../utils/clipboard';
 
 interface FleetViewProps {
   currentUser: User;
@@ -26,6 +27,7 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [tokenCopied, setTokenCopied] = useState(false);
+  const [cmdCopied, setCmdCopied] = useState(false);
 
   // Edit Node Modal
   const [editingNode, setEditingNode] = useState<EnrolledNode | null>(null);
@@ -147,11 +149,26 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
     }
   };
 
-  const handleCopyToken = () => {
+  const getEnrollCmd = () => {
+    return `./bin/ffmpeg-gui-admin enroll-cloudhub ${window.location.origin} ${generatedToken || ''}`;
+  };
+
+  const handleCopyCommand = async () => {
     if (!generatedToken) return;
-    navigator.clipboard.writeText(generatedToken);
-    setTokenCopied(true);
-    setTimeout(() => setTokenCopied(false), 3000);
+    const ok = await copyToClipboard(getEnrollCmd());
+    if (ok) {
+      setCmdCopied(true);
+      setTimeout(() => setCmdCopied(false), 3000);
+    }
+  };
+
+  const handleCopyToken = async () => {
+    if (!generatedToken) return;
+    const ok = await copyToClipboard(generatedToken);
+    if (ok) {
+      setTokenCopied(true);
+      setTimeout(() => setTokenCopied(false), 3000);
+    }
   };
 
   // Handle Node Edit Modal
@@ -471,23 +488,56 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
                   </div>
                 </div>
 
-                <div className="bg-white/5 p-3 rounded-xl border border-[var(--glass-border)] text-xs text-[var(--text-secondary)] space-y-1">
-                  <span className="font-semibold text-[var(--text-primary)] block">
-                    {t('fleet.enrollmentCliCommand', 'Run on appliance shell:')}
-                  </span>
-                  <pre className="font-mono text-[11px] bg-black/40 p-2 rounded text-zinc-300 overflow-x-auto">
-                    ./bin/ffmpeg-gui-admin enroll-cloudhub {window.location.origin} {generatedToken}
-                  </pre>
+                <div className="bg-white/5 p-3.5 rounded-xl border border-[var(--glass-border)] text-xs text-[var(--text-secondary)] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-[var(--text-primary)]">
+                      {t('fleet.enrollmentCliCommand', 'Run on appliance shell:')}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleCopyCommand}
+                      className="px-2.5 py-1 rounded-lg bg-brand-lime/20 border border-brand-lime/40 text-brand-lime font-mono text-[11px] font-bold hover:bg-brand-lime/30 transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      {cmdCopied ? (
+                        <>
+                          <span>✓</span>
+                          <span>{t('common.copied', 'Copied!')}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>📋</span>
+                          <span>{t('fleet.copyCommand', 'Copy Command')}</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <div
+                    onClick={handleCopyCommand}
+                    title={t('fleet.clickToCopy', 'Click to copy')}
+                    className="font-mono text-[11px] bg-black/50 p-3 rounded-lg text-brand-lime/90 border border-brand-lime/20 whitespace-pre-wrap break-all leading-relaxed select-all cursor-pointer hover:border-brand-lime/50 transition-colors"
+                  >
+                    {getEnrollCmd()}
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-3 pt-2">
+                <div className="flex items-center justify-end gap-2.5 pt-2">
                   <button
+                    type="button"
                     onClick={handleCopyToken}
-                    className="px-4 py-2 rounded-xl bg-brand-lime text-black font-bold text-xs tracking-wide hover:bg-brand-lime/90 transition-all cursor-pointer"
+                    className="px-3.5 py-2 rounded-xl bg-white/5 border border-[var(--glass-border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium text-xs tracking-wide transition-all cursor-pointer"
                   >
-                    {tokenCopied ? t('common.copied', 'Copied!') : t('common.copyToken', 'Copy Token')}
+                    {tokenCopied ? t('common.copied', 'Copied!') : t('fleet.copyTokenOnly', 'Copy Token Only')}
                   </button>
                   <button
+                    type="button"
+                    onClick={handleCopyCommand}
+                    className="px-4 py-2 rounded-xl bg-brand-lime text-black font-bold text-xs tracking-wide hover:bg-brand-lime/90 transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>{cmdCopied ? '✓' : '📋'}</span>
+                    <span>{cmdCopied ? t('common.copied', 'Copied!') : t('fleet.copyCommand', 'Copy Command')}</span>
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setShowTokenModal(false)}
                     className="px-4 py-2 rounded-xl bg-white/10 text-[var(--text-primary)] font-medium text-xs hover:bg-white/15 transition-all cursor-pointer"
                   >

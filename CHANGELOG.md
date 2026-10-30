@@ -5,6 +5,15 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.14] - 2026-10-30
+
+### Changed
+- **Enrollment Command Modal UI/UX & Universal Clipboard (`FleetView.tsx`, `clipboard.ts`)**:
+  - Eliminated horizontal scrollbar in enrollment CLI command box with word wrapping (`whitespace-pre-wrap break-all`).
+  - Added dedicated one-click "Copy Command" button and click-to-copy interaction on the command box itself.
+  - Integrated universal clipboard utility with automatic textarea fallback (`document.execCommand('copy')`) ensuring copy works reliably even in non-secure HTTP / LAN contexts.
+  - Added multi-language keys (`fleet.copyCommand`, `fleet.copyTokenOnly`, `fleet.clickToCopy`) in English, Spanish, and Catalan.
+
 ## [1.5.13] - 2026-10-30
 
 ### Added
