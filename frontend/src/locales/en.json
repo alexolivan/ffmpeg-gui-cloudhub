@@ -426,6 +426,11 @@
     "user": "user",
     "users": "users",
     "group": "group",
-    "groups": "groups"
+    "groups": "groups",
+    "noTenantsConfiguredTitle": "No Tenant Organizations Configured",
+    "noTenantsConfiguredDesc": "User accounts belong to tenant organizations (for Tenant Administrators and Operators). As Superadmin, you operate standalone. Create a tenant in the Tenants tab to start delegating access.",
+    "standaloneClusters": "Platform & Standalone Clusters",
+    "platformStandaloneOption": "Platform / Standalone (Superadmin)",
+    "noTenantsFoundDesc": "No tenant organizations have been created yet. Click \"Create Tenant\" to establish isolated client environments."
   }
 }

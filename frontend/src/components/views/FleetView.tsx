@@ -507,11 +507,16 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
                       onChange={(e) => setTargetOrgId(Number(e.target.value))}
                       className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime cursor-pointer"
                     >
-                      {orgs.map((o) => (
-                        <option key={o.id} value={o.id} className="bg-[#18181b] text-white">
-                          {o.name}
-                        </option>
-                      ))}
+                      <option value={1} className="bg-[#18181b] text-white">
+                        👑 {t('settings.platformStandaloneOption', 'Platform / Standalone (Superadmin)')}
+                      </option>
+                      {orgs
+                        .filter((o) => o.slug !== 'default' && o.id !== 1)
+                        .map((o) => (
+                          <option key={o.id} value={o.id} className="bg-[#18181b] text-white">
+                            🏢 {o.name} ({o.slug})
+                          </option>
+                        ))}
                     </select>
                   </div>
                 )}
@@ -615,11 +620,16 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
                     }}
                     className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime cursor-pointer font-mono"
                   >
-                    {orgs.map((o) => (
-                      <option key={o.id} value={o.id} className="bg-[#18181b] text-white">
-                        {o.name} ({o.slug})
-                      </option>
-                    ))}
+                    <option value={1} className="bg-[#18181b] text-white">
+                      👑 {t('settings.platformStandaloneOption', 'Platform / Standalone (Superadmin)')}
+                    </option>
+                    {orgs
+                      .filter((o) => o.slug !== 'default' && o.id !== 1)
+                      .map((o) => (
+                        <option key={o.id} value={o.id} className="bg-[#18181b] text-white">
+                          🏢 {o.name} ({o.slug})
+                        </option>
+                      ))}
                   </select>
                 </div>
               )}

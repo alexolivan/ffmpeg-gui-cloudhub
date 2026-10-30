@@ -5,6 +5,20 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.9] - 2026-10-30
+
+### Changed
+- **Harmonized Multi-Tenant vs Standalone Governance (`UsersTab.tsx`, `tenant_routes.py`)**:
+  - Removed redundant "Platform Administrators (Owners)" card section from Settings > Users, as the superadmin is root and managed exclusively in Settings > General.
+  - Excluded the virtual `Default` tenant (`slug="default"`) from Settings > Users. In the mental and business model, user accounts (tenant admins and operators) exist strictly inside customer tenant organizations.
+  - Backend now strictly rejects (`HTTP 400 Bad Request`) any user creation or reassignment to the virtual Default tenant.
+  - Added dedicated empty state in Settings > Users explaining standalone operation when no tenants are configured yet.
+- **Polished Virtual Default Tenant UI Occurrences (`Sidebar.tsx`, `TenantsTab.tsx`, `GroupsTab.tsx`, `FleetView.tsx`)**:
+  - **Sidebar**: Excluded virtual Default tenant from the tenant context dropdown switcher; now only toggles between "All Tenants" (standalone + all tenants) and real customer tenants.
+  - **TenantsTab**: Excluded virtual Default tenant card from the tenants directory, rendering only user-created tenant organizations and showing clean empty state when none exist.
+  - **GroupsTab**: Renamed virtual Default tenant sections and dropdown options to `👑 Platform & Standalone Clusters` / `Platform / Standalone (Superadmin)`, clearly identifying cluster groups created by the superadmin for his own standalone appliances.
+  - **FleetView**: In Enroll Appliance and Edit Appliance modals, labeled standalone cluster assignment as `👑 Platform / Standalone (Superadmin)` instead of `Default`.
+
 ## [1.5.8] - 2026-10-30
 
 ### Fixed

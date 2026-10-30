@@ -32,6 +32,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const activeOrg = organizations.find((o) => o.id === selectedOrgId);
   const userOrg = organizations.find((o) => o.id === currentUser.org_id);
+  const realOrgs = React.useMemo(
+    () => organizations.filter((o) => o.slug !== 'default' && o.id !== 1),
+    [organizations]
+  );
 
   const canViewGovernance =
     currentUser.role === 'superadmin' ||
@@ -238,7 +242,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <option value="all" className="bg-[#18181b] text-white">
                 🌐 {t('common.allTenants', 'All Tenants')}
               </option>
-              {organizations.map((org) => (
+              {realOrgs.map((org) => (
                 <option key={org.id} value={org.id} className="bg-[#18181b] text-white">
                   🏢 {org.name}
                 </option>

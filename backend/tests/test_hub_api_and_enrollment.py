@@ -408,6 +408,44 @@ class TestHubApiAndEnrollment(unittest.TestCase):
             # Icon data should be platform monogram or logo URL, not null
             self.assertIsNotNone(def_org["icon_data"])
 
+    def test_cannot_assign_user_to_default_tenant(self):
+        token = self.superadmin_token
+        headers = {"Authorization": f"Bearer {token}"}
+
+        with self.SessionFactory() as db:
+            default_org = Organization(name="Default Virtual Org", slug="default")
+            db.add(default_org)
+            db.commit()
+            db.refresh(default_org)
+            def_org_id = default_org.id
+
+        # 1. POST /api/hub/users with default org fails
+        resp = self.client.post(
+            "/api/hub/users",
+            json={
+                "username": "illegal_op",
+                "password": "Password123!",
+                "role": "group_operator",
+                "org_id": def_org_id,
+            },
+            headers=headers,
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("virtual Default tenant", resp.json()["detail"])
+
+        # 2. POST /api/hub/orgs/{id}/users with default org fails
+        resp2 = self.client.post(
+            f"/api/hub/orgs/{def_org_id}/users",
+            json={
+                "username": "illegal_op2",
+                "password": "Password123!",
+                "role": "group_operator",
+            },
+            headers=headers,
+        )
+        self.assertEqual(resp2.status_code, 400)
+        self.assertIn("virtual Default tenant", resp2.json()["detail"])
+
 
 if __name__ == "__main__":
     unittest.main()

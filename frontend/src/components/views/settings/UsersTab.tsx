@@ -16,13 +16,18 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
   const [modalGroups, setModalGroups] = useState<NodeGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Filter out the virtual 'default' tenant from the tenant organizations list
+  const realOrgs = useMemo(() => {
+    return orgs.filter((o) => o.slug !== 'default' && o.id !== 1);
+  }, [orgs]);
+
   // Search & Role Filter State
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'admins' | 'operators'>('all');
 
   // Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [modalOrgId, setModalOrgId] = useState<number>(selectedOrgId || 1);
+  const [modalOrgId, setModalOrgId] = useState<number>(0);
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState<UserRole>('group_operator');
@@ -34,7 +39,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editRole, setEditRole] = useState<UserRole>('group_operator');
   const [editPassword, setEditPassword] = useState('');
-  const [editOrgId, setEditOrgId] = useState<number>(1);
+  const [editOrgId, setEditOrgId] = useState<number>(0);
   const [editSelectedGroupIds, setEditSelectedGroupIds] = useState<number[]>([]);
   const [editGroupsList, setEditGroupsList] = useState<NodeGroup[]>([]);
   const [isUpdatingUser, setIsUpdatingUser] = useState(false);
@@ -63,9 +68,6 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
       if (res.ok) {
         const orgsData: Organization[] = await res.json();
         setOrgs(orgsData);
-        if (orgsData.length > 0 && !selectedOrgId) {
-          setModalOrgId(orgsData[0].id);
-        }
       }
     } catch (err) {
       console.error('Failed to load orgs for users:', err);
@@ -98,23 +100,25 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
     return map;
   }, [allGroups]);
 
-  // Sync modalOrgId when selectedOrgId changes in sidebar
+  // Sync modalOrgId when selectedOrgId or realOrgs change
   useEffect(() => {
-    if (selectedOrgId) {
+    if (selectedOrgId && selectedOrgId !== 1) {
       setModalOrgId(selectedOrgId);
-    } else if (orgs.length > 0) {
-      setModalOrgId(orgs[0].id);
+    } else if (realOrgs.length > 0) {
+      setModalOrgId(realOrgs[0].id);
     }
-  }, [selectedOrgId, orgs]);
+  }, [selectedOrgId, realOrgs]);
 
   // Load groups for the target tenant inside the create modal
   useEffect(() => {
     const targetOrg = isSuperadmin ? modalOrgId : currentUser.org_id;
-    if (targetOrg) {
+    if (targetOrg && targetOrg !== 1) {
       fetch(`/api/hub/orgs/${targetOrg}/groups`, { credentials: 'include' })
         .then((r) => (r.ok ? r.json() : []))
         .then(setModalGroups)
         .catch(() => setModalGroups([]));
+    } else {
+      setModalGroups([]);
     }
   }, [modalOrgId, currentUser.org_id, isSuperadmin]);
 
@@ -122,11 +126,13 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
   useEffect(() => {
     if (editingUser) {
       const targetOrg = isSuperadmin ? editOrgId : currentUser.org_id;
-      if (targetOrg) {
+      if (targetOrg && targetOrg !== 1) {
         fetch(`/api/hub/orgs/${targetOrg}/groups`, { credentials: 'include' })
           .then((r) => (r.ok ? r.json() : []))
           .then(setEditGroupsList)
           .catch(() => setEditGroupsList([]));
+      } else {
+        setEditGroupsList([]);
       }
     }
   }, [editingUser, editOrgId, currentUser.org_id, isSuperadmin]);
@@ -135,7 +141,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
     setEditingUser(user);
     setEditRole(user.role);
     setEditPassword('');
-    setEditOrgId(user.org_id || (orgs[0]?.id ?? 1));
+    setEditOrgId(user.org_id && user.org_id !== 1 ? user.org_id : (realOrgs[0]?.id ?? 0));
     setEditSelectedGroupIds(user.group_ids || []);
     setEditErrorMsg(null);
   };
@@ -150,7 +156,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
       role: editRole,
       group_ids: editRole === 'group_operator' ? editSelectedGroupIds : [],
     };
-    if (isSuperadmin && editOrgId) {
+    if (isSuperadmin && editOrgId && editOrgId !== 1) {
       payload.org_id = editOrgId;
     }
     if (editPassword && editPassword.trim()) {
@@ -186,10 +192,14 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
       return;
     }
 
+    const targetOrgId = isSuperadmin ? modalOrgId : currentUser.org_id;
+    if (!targetOrgId || targetOrgId === 1) {
+      setErrorMsg('Please select a valid tenant organization.');
+      return;
+    }
+
     setIsCreating(true);
     setErrorMsg(null);
-
-    const targetOrgId = isSuperadmin ? modalOrgId : currentUser.org_id;
 
     try {
       const res = await fetch('/api/hub/users', {
@@ -251,14 +261,17 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
     }
   };
 
-  // ── Scoping and Filters ──
+  // ── Scoping and Filters (Strictly Tenant Users - Root Superadmin is Excluded) ──
   const tenantScopedUsers = useMemo(() => {
     return users.filter((u) => {
+      // Exclude root superadmin from tenant users management
+      if (u.role === 'superadmin') return false;
+
       if (isSuperadmin) {
-        if (selectedOrgId) {
+        if (selectedOrgId && selectedOrgId !== 1) {
           return u.org_id === selectedOrgId;
         }
-        return true; // Show all users when 'All Tenants' is active
+        return true; // Show all users belonging to real tenants
       }
       return u.org_id === currentUser.org_id;
     });
@@ -276,7 +289,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
 
       // Role filter
       if (roleFilter === 'admins') {
-        if (u.role !== 'superadmin' && u.role !== 'org_admin') return false;
+        if (u.role !== 'org_admin') return false;
       } else if (roleFilter === 'operators') {
         if (u.role !== 'group_operator') return false;
       }
@@ -308,9 +321,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
           <div className="flex items-center gap-3">
             <div
               className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                u.role === 'superadmin'
-                  ? 'bg-amber-500/10 border border-amber-500/30 text-amber-400'
-                  : u.role === 'org_admin'
+                u.role === 'org_admin'
                   ? 'bg-brand-lime/10 border border-brand-lime/30 text-brand-lime'
                   : 'bg-white/5 border border-[var(--glass-border)] text-[var(--text-secondary)]'
               }`}
@@ -322,34 +333,24 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
                 <h4 className="text-sm font-bold text-[var(--text-primary)] font-mono">{u.username}</h4>
                 <span
                   className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold tracking-wider uppercase ${
-                    u.role === 'superadmin'
-                      ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
-                      : u.role === 'org_admin'
+                    u.role === 'org_admin'
                       ? 'bg-brand-lime/10 text-brand-lime border border-brand-lime/30'
                       : 'bg-white/10 text-[var(--text-secondary)] border border-[var(--glass-border)]'
                   }`}
                 >
-                  {u.role === 'superadmin'
-                    ? 'Owner'
-                    : u.role === 'org_admin'
-                    ? 'Tenant Admin'
-                    : 'Operator'}
+                  {u.role === 'org_admin' ? 'Tenant Admin' : 'Operator'}
                 </span>
               </div>
 
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-[11px] text-[var(--text-secondary)] font-mono flex items-center gap-1">
-                  {u.role === 'superadmin' ? (
-                    <>👑 {t('settings.platformOwners', 'Platform Superadmin')}</>
-                  ) : (
-                    <>🏢 {u.org_name || 'Tenant Organization'}</>
-                  )}
+                  🏢 {u.org_name || 'Tenant Organization'}
                 </span>
               </div>
             </div>
           </div>
 
-          {u.id !== currentUser.id && u.role !== 'superadmin' && (
+          {u.id !== currentUser.id && (
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 onClick={() => openEditUserModal(u)}
@@ -415,9 +416,6 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
     );
   }
 
-  // Group users hierarchically for All Tenants view
-  const platformOwners = filteredUsers.filter((u) => u.role === 'superadmin');
-
   return (
     <div className="space-y-6 max-w-4xl">
       {/* ── Header & Action Controls ── */}
@@ -433,15 +431,20 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
 
         <button
           onClick={() => {
+            if (isSuperadmin && realOrgs.length === 0) {
+              alert(t('settings.noTenantsConfiguredDesc', 'Please create a tenant in the Tenants tab before provisioning users.'));
+              return;
+            }
             setErrorMsg(null);
             setNewUsername('');
             setNewPassword('');
             setSelectedGroupIds([]);
             setNewRole('group_operator');
-            setModalOrgId(selectedOrgId || (orgs[0]?.id ?? 1));
+            setModalOrgId(selectedOrgId && selectedOrgId !== 1 ? selectedOrgId : (realOrgs[0]?.id ?? 0));
             setShowCreateModal(true);
           }}
-          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-brand-lime text-black font-bold text-xs tracking-wide hover:bg-brand-lime/90 transition-all shadow-sm cursor-pointer self-start sm:self-auto"
+          disabled={isSuperadmin && realOrgs.length === 0}
+          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-brand-lime text-black font-bold text-xs tracking-wide hover:bg-brand-lime/90 transition-all shadow-sm cursor-pointer self-start sm:self-auto disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <PlusIcon size={16} />
           <span>{t('settings.createUserBtn', 'Create User')}</span>
@@ -502,36 +505,28 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
         </div>
       </div>
 
-      {/* ── Hierarchical Content Sections ── */}
-      {filteredUsers.length === 0 ? (
+      {/* ── Content Sections ── */}
+      {isSuperadmin && realOrgs.length === 0 ? (
+        /* Empty State: Superadmin with No Real Tenants Configured */
+        <div className="py-12 px-6 text-center border border-dashed border-[var(--glass-border)] rounded-2xl bg-[var(--bg-card)]/50 space-y-3">
+          <div className="w-12 h-12 mx-auto rounded-2xl bg-white/5 border border-[var(--glass-border)] flex items-center justify-center text-[var(--text-secondary)]">
+            <UsersIcon size={24} />
+          </div>
+          <h4 className="text-sm font-bold text-[var(--text-primary)]">
+            {t('settings.noTenantsConfiguredTitle', 'No Tenant Organizations Configured')}
+          </h4>
+          <p className="text-xs text-[var(--text-secondary)] max-w-md mx-auto">
+            {t('settings.noTenantsConfiguredDesc', 'User accounts belong to tenant organizations (for Tenant Administrators and Operators). As Superadmin, you operate standalone. Create a tenant in the Tenants tab to start delegating access.')}
+          </p>
+        </div>
+      ) : filteredUsers.length === 0 ? (
         <div className="py-12 text-center text-xs font-mono text-[var(--text-secondary)] border border-dashed border-[var(--glass-border)] rounded-2xl">
           {t('settings.noUsersFound', 'No users found matching current filters.')}
         </div>
-      ) : isSuperadmin && !selectedOrgId ? (
-        /* Superadmin viewing All Tenants: Hierarchical 2-Level View */
+      ) : isSuperadmin && (!selectedOrgId || selectedOrgId === 1) ? (
+        /* Superadmin viewing All Tenants: Hierarchical View grouped strictly by Real Tenants */
         <div className="space-y-8">
-          {/* Platform Owners Section */}
-          {platformOwners.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between pb-2 border-b border-[var(--glass-border)]">
-                <div className="flex items-center gap-2">
-                  <span className="text-amber-400 text-sm">👑</span>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)] font-mono">
-                    {t('settings.platformOwners', 'Platform Administrators (Owners)')}
-                  </h4>
-                </div>
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/25">
-                  {platformOwners.length} {platformOwners.length === 1 ? t('settings.user', 'user') : t('settings.users', 'users')}
-                </span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {platformOwners.map(renderUserCard)}
-              </div>
-            </div>
-          )}
-
-          {/* Per-Tenant Sections */}
-          {orgs.map((org) => {
+          {realOrgs.map((org) => {
             const orgUsers = filteredUsers.filter((u) => u.org_id === org.id);
             if (orgUsers.length === 0 && searchQuery.trim()) return null;
 
@@ -597,10 +592,10 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
           })}
         </div>
       ) : (
-        /* Scoped Tenant View: Partitioned into Admins and Operators */
+        /* Scoped Tenant View: Partitioned into Admins and Operators for the Active Tenant */
         <div className="space-y-6">
           {(() => {
-            const tenantAdmins = filteredUsers.filter((u) => u.role === 'org_admin' || u.role === 'superadmin');
+            const tenantAdmins = filteredUsers.filter((u) => u.role === 'org_admin');
             const tenantOperators = filteredUsers.filter((u) => u.role === 'group_operator');
 
             return (
@@ -672,7 +667,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
             )}
 
             <form onSubmit={handleUpdateUser} autoComplete="off" className="space-y-4">
-              {isSuperadmin && orgs.length > 0 && (
+              {isSuperadmin && realOrgs.length > 0 && (
                 <div>
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                     {t('settings.assignTenant', 'Tenant Organization')}
@@ -685,7 +680,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
                     }}
                     className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime cursor-pointer font-mono"
                   >
-                    {orgs.map((o) => (
+                    {realOrgs.map((o) => (
                       <option key={o.id} value={o.id} className="bg-[#18181b] text-white">
                         {o.name} ({o.slug})
                       </option>
@@ -800,7 +795,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
 
             <form onSubmit={handleCreateUser} autoComplete="off" className="space-y-4">
               {/* Tenant selector inside modal for superadmin */}
-              {isSuperadmin && orgs.length > 0 && (
+              {isSuperadmin && realOrgs.length > 0 && (
                 <div>
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                     {t('settings.assignTenant', 'Tenant Organization')}
@@ -813,7 +808,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
                     }}
                     className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime cursor-pointer font-mono"
                   >
-                    {orgs.map((o) => (
+                    {realOrgs.map((o) => (
                       <option key={o.id} value={o.id} className="bg-[#18181b] text-white">
                         {o.name} ({o.slug})
                       </option>

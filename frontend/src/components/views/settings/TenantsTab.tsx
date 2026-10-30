@@ -256,21 +256,38 @@ export const TenantsTab: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {orgs.map((org) => {
-          const isImg =
-            org.icon_data &&
-            (org.icon_data.startsWith('data:image') ||
-              org.icon_data.startsWith('http') ||
-              org.icon_data.startsWith('/'));
+        {(() => {
+          const realOrgs = orgs.filter((o) => o.slug !== 'default' && o.id !== 1);
+          if (realOrgs.length === 0) {
+            return (
+              <div className="col-span-full py-12 px-6 text-center border border-dashed border-[var(--glass-border)] rounded-2xl bg-[var(--bg-card)]/50 space-y-3">
+                <div className="w-12 h-12 mx-auto rounded-2xl bg-white/5 border border-[var(--glass-border)] flex items-center justify-center text-[var(--text-secondary)]">
+                  <LayersIcon size={24} />
+                </div>
+                <h4 className="text-sm font-bold text-[var(--text-primary)]">
+                  {t('settings.noTenantsFound', 'No Tenants Defined')}
+                </h4>
+                <p className="text-xs text-[var(--text-secondary)] max-w-md mx-auto">
+                  {t('settings.noTenantsFoundDesc', 'No tenant organizations have been created yet. Click "Create Tenant" to establish isolated client environments.')}
+                </p>
+              </div>
+            );
+          }
 
-          const defaultFallbackMonogram =
-            org.id === 1 || org.slug === 'default' ? 'CH' : org.name.slice(0, 2).toUpperCase();
+          return realOrgs.map((org) => {
+            const isImg =
+              org.icon_data &&
+              (org.icon_data.startsWith('data:image') ||
+                org.icon_data.startsWith('http') ||
+                org.icon_data.startsWith('/'));
 
-          return (
-            <div
-              key={org.id}
-              className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl p-5 shadow-sm space-y-3 relative group"
-            >
+            const fallbackMonogram = org.name.slice(0, 2).toUpperCase();
+
+            return (
+              <div
+                key={org.id}
+                className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl p-5 shadow-sm space-y-3 relative group"
+              >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-white/5 border border-[var(--glass-border)] flex items-center justify-center overflow-hidden">
@@ -285,7 +302,7 @@ export const TenantsTab: React.FC = () => {
                       />
                     ) : (
                       <span className="text-brand-lime font-black text-sm uppercase tracking-wider">
-                        {org.icon_data || defaultFallbackMonogram}
+                        {org.icon_data || fallbackMonogram}
                       </span>
                     )}
                   </div>
@@ -331,7 +348,8 @@ export const TenantsTab: React.FC = () => {
               </div>
             </div>
           );
-        })}
+        });
+      })()}
       </div>
 
       {/* ── Create Tenant Modal ── */}

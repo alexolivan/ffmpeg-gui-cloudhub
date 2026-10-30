@@ -426,6 +426,11 @@
     "user": "usuario",
     "users": "usuarios",
     "group": "grupo",
-    "groups": "grupos"
+    "groups": "grupos",
+    "noTenantsConfiguredTitle": "No hay organizaciones de tenant creadas",
+    "noTenantsConfiguredDesc": "Las cuentas de usuario pertenecen a organizaciones de tenant (para administradores de tenant y operadores). Como Superadmin, operas en modo independiente. Crea un tenant en la pestaña Tenants para empezar a delegar accesos.",
+    "standaloneClusters": "Clusters y Grupos de la Plataforma (Standalone)",
+    "platformStandaloneOption": "Plataforma / Standalone (Superadmin)",
+    "noTenantsFoundDesc": "Aún no se han creado organizaciones de tenant. Haz clic en \"Crear Tenant\" para establecer entornos de cliente aislados."
   }
 }

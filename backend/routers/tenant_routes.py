@@ -486,6 +486,12 @@ def create_user_global(
             detail=f"Organization #{target_org_id} not found",
         )
 
+    if org.slug == "default":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Users cannot be assigned to the virtual Default tenant. Please select a user-created tenant organization.",
+        )
+
     return create_user(
         org_id=target_org_id,
         req=CreateUserRequest(
@@ -541,6 +547,13 @@ def create_user(
     ):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
+    org_rec = db.query(Organization).filter(Organization.id == org_id).first()
+    if org_rec and org_rec.slug == "default":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Users cannot be assigned to the virtual Default tenant. Please select a user-created tenant organization.",
+        )
+
     username_clean = req.username.strip()
     existing = db.query(User).filter(User.username == username_clean).first()
     if existing:
@@ -592,9 +605,13 @@ def update_user(
         target_user.role = req.role
     if req.org_id is not None and current_user.role == "superadmin":
         target_org = db.query(Organization).filter(Organization.id == req.org_id).first()
-        if target_org:
-            target_user.org_id = target_org.id
-            db.query(UserGroupPermission).filter(UserGroupPermission.user_id == target_user.id).delete()
+        if not target_org or target_org.slug == "default":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Users cannot be assigned to the virtual Default tenant. Please select a user-created tenant organization.",
+            )
+        target_user.org_id = target_org.id
+        db.query(UserGroupPermission).filter(UserGroupPermission.user_id == target_user.id).delete()
 
     if req.group_ids is not None:
         db.query(UserGroupPermission).filter(UserGroupPermission.user_id == user_id).delete()

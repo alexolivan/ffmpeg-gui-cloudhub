@@ -298,7 +298,9 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ currentUser, selectedOrgId
       <div className="pt-2 border-t border-[var(--glass-border)] flex items-center justify-between text-xs font-mono">
         <span className="text-[var(--text-secondary)] text-[11px]">{t('settings.clusterScope', 'Cluster scope')}:</span>
         <span className="text-brand-lime font-bold text-[11px] truncate max-w-[150px]">
-          {grp.org_name || (orgMap.get(grp.org_id)?.name ?? t('common.default', 'Default'))}
+          {grp.org_id === 1 || grp.org_name === 'Default'
+            ? t('settings.platformStandaloneOption', 'Platform / Standalone')
+            : (grp.org_name || orgMap.get(grp.org_id)?.name || 'Tenant')}
         </span>
       </div>
     </div>
@@ -352,6 +354,7 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ currentUser, selectedOrgId
           {orgs.map((org) => {
             const orgGroups = groups.filter((g) => g.org_id === org.id);
             if (orgGroups.length === 0) return null;
+            const isStandalone = org.id === 1 || org.slug === 'default';
             return (
               <div
                 key={org.id}
@@ -359,8 +362,13 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ currentUser, selectedOrgId
               >
                 <div className="flex items-center justify-between pb-2 border-b border-[var(--glass-border)]">
                   <div className="flex items-center gap-2.5">
-                    <span className="text-base">🏢</span>
-                    <h4 className="text-sm font-bold text-[var(--text-primary)]">{org.name}</h4>
+                    <span className="text-base">{isStandalone ? '👑' : '🏢'}</span>
+                    <h4 className="text-sm font-bold text-[var(--text-primary)]">
+                      {isStandalone ? t('settings.standaloneClusters', 'Platform & Standalone Clusters') : org.name}
+                    </h4>
+                    {!isStandalone && (
+                      <span className="text-[10px] font-mono text-[var(--text-secondary)]">({org.slug})</span>
+                    )}
                     <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-brand-lime/10 border border-brand-lime/20 text-brand-lime font-bold">
                       {orgGroups.length} {orgGroups.length === 1 ? t('settings.group', 'group') : t('settings.groups', 'groups')}
                     </span>
@@ -430,11 +438,16 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ currentUser, selectedOrgId
                     onChange={(e) => setCreateOrgId(Number(e.target.value))}
                     className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime font-medium cursor-pointer"
                   >
-                    {orgs.map((o) => (
-                      <option key={o.id} value={o.id} className="bg-[#18181b] text-white">
-                        🏢 {o.name}
-                      </option>
-                    ))}
+                    <option value={1} className="bg-[#18181b] text-white">
+                      👑 {t('settings.platformStandaloneOption', 'Platform / Standalone (Superadmin)')}
+                    </option>
+                    {orgs
+                      .filter((o) => o.slug !== 'default' && o.id !== 1)
+                      .map((o) => (
+                        <option key={o.id} value={o.id} className="bg-[#18181b] text-white">
+                          🏢 {o.name} ({o.slug})
+                        </option>
+                      ))}
                   </select>
                 </div>
               )}
@@ -574,11 +587,16 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ currentUser, selectedOrgId
                     onChange={(e) => setEditOrgId(Number(e.target.value))}
                     className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime font-medium cursor-pointer"
                   >
-                    {orgs.map((o) => (
-                      <option key={o.id} value={o.id} className="bg-[#18181b] text-white">
-                        🏢 {o.name}
-                      </option>
-                    ))}
+                    <option value={1} className="bg-[#18181b] text-white">
+                      👑 {t('settings.platformStandaloneOption', 'Platform / Standalone (Superadmin)')}
+                    </option>
+                    {orgs
+                      .filter((o) => o.slug !== 'default' && o.id !== 1)
+                      .map((o) => (
+                        <option key={o.id} value={o.id} className="bg-[#18181b] text-white">
+                          🏢 {o.name} ({o.slug})
+                        </option>
+                      ))}
                   </select>
                 </div>
               )}
