@@ -353,6 +353,81 @@ class TestHubApiAndEnrollment(unittest.TestCase):
         )
         self.assertEqual(dup_resp.status_code, 409)
 
+        # 9. Prepare users for tenant slug cascade rename test
+        self.client.put(
+            f"/api/hub/users/{op_user['id']}",
+            json={"username": "channel-alpha_op1"},
+            headers=headers,
+        )
+
+        # 10. Create second org to test slug collision
+        create_beta_resp = self.client.post(
+            "/api/hub/orgs",
+            json={
+                "name": "Channel Beta",
+                "slug": "channel-beta",
+                "admin_password": "BetaPassword123!",
+            },
+            headers=headers,
+        )
+        self.assertEqual(create_beta_resp.status_code, 200)
+
+        # 11. Slug collision check: trying to set existing slug -> 409
+        collision_resp = self.client.put(
+            f"/api/hub/orgs/{org_id}",
+            json={"slug": "channel-beta"},
+            headers=headers,
+        )
+        self.assertEqual(collision_resp.status_code, 409)
+
+        # 12. Cannot modify default org slug -> 400
+        with self.SessionFactory() as db:
+            default_org = Organization(name="Default Virtual", slug="default")
+            db.add(default_org)
+            db.commit()
+            default_org_id = default_org.id
+
+        default_org_resp = self.client.put(
+            f"/api/hub/orgs/{default_org_id}",
+            json={"slug": "new-default"},
+            headers=headers,
+        )
+        self.assertEqual(default_org_resp.status_code, 400)
+
+        # 13. Tenant Admin cannot modify slug -> 403
+        beta_admin_token = create_beta_resp.json()["admin_user"]
+        # Login as beta admin to get token
+        login_resp = self.client.post(
+            "/api/hub/auth/login",
+            json={"username": "admin_channel-beta", "password": "BetaPassword123!"},
+        )
+        self.assertEqual(login_resp.status_code, 200)
+        beta_headers = {"Authorization": f"Bearer {login_resp.json()['token']}"}
+        beta_org_id = create_beta_resp.json()["organization"]["id"]
+        forbidden_slug_resp = self.client.put(
+            f"/api/hub/orgs/{beta_org_id}",
+            json={"slug": "hacked-slug"},
+            headers=beta_headers,
+        )
+        self.assertEqual(forbidden_slug_resp.status_code, 403)
+
+        # 14. Superadmin successfully updates tenant slug with cascade to users
+        cascade_slug_resp = self.client.put(
+            f"/api/hub/orgs/{org_id}",
+            json={"slug": "channel-prime"},
+            headers=headers,
+        )
+        self.assertEqual(cascade_slug_resp.status_code, 200)
+        self.assertEqual(cascade_slug_resp.json()["organization"]["slug"], "channel-prime")
+
+        # Verify users in this org cascaded
+        after_users_resp = self.client.get(f"/api/hub/users?org_id={org_id}", headers=headers)
+        after_usernames = [u["username"] for u in after_users_resp.json()]
+        self.assertIn("admin_channel-prime", after_usernames)
+        self.assertIn("channel-prime_op1", after_usernames)
+        self.assertNotIn("admin_channel-alpha", after_usernames)
+        self.assertNotIn("channel-alpha_op1", after_usernames)
+
     def test_groups_api_and_duplicate_prevention(self):
         headers = {"Authorization": f"Bearer {self.superadmin_token}"}
 

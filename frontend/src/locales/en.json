@@ -407,6 +407,8 @@
     "newPasswordOptionalPlaceholder": "Leave blank to preserve current password",
     "tenantNameRequired": "Tenant name is required.",
     "tenantSlugRequired": "Tenant slug / identifier is required.",
+    "tenantSlugLengthError": "Tenant slug must be at least 2 characters.",
+    "tenantSlugCascadeWarning": "Warning: Modifying the seed will cascade rename all user accounts associated with this tenant.",
     "adminUsername": "Admin Username",
     "adminUsernameHint": "Suggested from seed; customizable.",
     "adminPassword": "Initial Admin Password",

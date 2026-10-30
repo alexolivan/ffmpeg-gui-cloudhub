@@ -1,5 +1,6 @@
 """Multi-tenant management routes for Organizations, Groups, Users, Nodes and Tokens."""
 
+import re
 import secrets
 import logging
 from datetime import datetime, timedelta, timezone
@@ -41,6 +42,7 @@ class CreateOrgRequest(BaseModel):
 
 class UpdateOrgRequest(BaseModel):
     name: Optional[str] = None
+    slug: Optional[str] = Field(None, min_length=2, max_length=100)
     icon_data: Optional[str] = None
 
 
@@ -216,6 +218,92 @@ def update_organization(
         org.name = req.name.strip()
     if req.icon_data is not None:
         org.icon_data = req.icon_data
+
+    if req.slug is not None:
+        new_slug = re.sub(r"[\s_]+", "-", re.sub(r"[^\w\s-]", "", req.slug.strip().lower())).strip("-")
+        if len(new_slug) < 2:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Slug must be at least 2 characters",
+            )
+        if new_slug != org.slug:
+            if user.role != "superadmin":
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Only superadmin can modify tenant slug/seed",
+                )
+            if org.slug == "default":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Cannot modify the default organization slug",
+                )
+
+            # Check uniqueness against other organizations
+            existing_org = (
+                db.query(Organization)
+                .filter(Organization.slug == new_slug, Organization.id != org_id)
+                .first()
+            )
+            if existing_org:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Tenant slug '{new_slug}' is already in use by another organization",
+                )
+
+            old_slug = org.slug
+            # Calculate cascade updates for all users in this tenant
+            tenant_users = db.query(User).filter(User.org_id == org_id).all()
+            user_renames = []
+            for u in tenant_users:
+                new_uname = None
+                if u.username == f"admin_{old_slug}":
+                    new_uname = f"admin_{new_slug}"
+                elif u.username.startswith(f"{old_slug}_"):
+                    suffix = u.username[len(old_slug) + 1 :]
+                    new_uname = f"{new_slug}_{suffix}"
+
+                if new_uname and new_uname != u.username:
+                    user_renames.append((u, new_uname))
+
+            # Validate that none of the new usernames collide with existing users outside this set
+            for u, new_uname in user_renames:
+                collision = (
+                    db.query(User)
+                    .filter(User.username == new_uname, User.id != u.id)
+                    .first()
+                )
+                if collision:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=f"Cannot cascade rename user '{u.username}' to '{new_uname}': username already taken by another account",
+                    )
+
+            # Apply user renames
+            for u, new_uname in user_renames:
+                old_uname = u.username
+                u.username = new_uname
+                db.add(
+                    AuditLog(
+                        username=user.username,
+                        org_id=org.id,
+                        action="UPDATE_USER",
+                        target_type="user",
+                        target_id=str(u.id),
+                        details=f"Cascaded rename from '{old_uname}' to '{new_uname}' due to tenant slug change ('{old_slug}' -> '{new_slug}')",
+                    )
+                )
+
+            org.slug = new_slug
+            db.add(
+                AuditLog(
+                    username=user.username,
+                    org_id=org.id,
+                    action="UPDATE_ORGANIZATION",
+                    target_type="organization",
+                    target_id=str(org.id),
+                    details=f"Updated tenant slug/seed from '{old_slug}' to '{new_slug}' (cascaded {len(user_renames)} user logins)",
+                )
+            )
 
     db.commit()
     return {"status": "ok", "organization": {"id": org.id, "name": org.name, "slug": org.slug, "icon_data": org.icon_data}}

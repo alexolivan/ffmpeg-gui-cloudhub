@@ -23,6 +23,7 @@ export const TenantsTab: React.FC = () => {
   // Edit Modal State
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
   const [editName, setEditName] = useState('');
+  const [editSlug, setEditSlug] = useState('');
   const [editMonogram, setEditMonogram] = useState('');
   const [editIconData, setEditIconData] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -157,6 +158,7 @@ export const TenantsTab: React.FC = () => {
   const openEditModal = (org: Organization) => {
     setEditingOrg(org);
     setEditName(org.name);
+    setEditSlug(org.slug);
     if (org.icon_data && (org.icon_data.startsWith('data:image') || org.icon_data.startsWith('http') || org.icon_data.startsWith('/uploads'))) {
       setEditIconData(org.icon_data);
       setEditMonogram('');
@@ -175,6 +177,22 @@ export const TenantsTab: React.FC = () => {
       return;
     }
 
+    const cleanSlug = editSlug
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+    if (!cleanSlug) {
+      setEditErrorMsg(t('settings.tenantSlugRequired', 'Tenant slug / identifier is required.'));
+      return;
+    }
+    if (cleanSlug.length < 2) {
+      setEditErrorMsg(t('settings.tenantSlugLengthError', 'Slug must be at least 2 characters.'));
+      return;
+    }
+
     setIsUpdating(true);
     setEditErrorMsg(null);
     try {
@@ -185,6 +203,7 @@ export const TenantsTab: React.FC = () => {
         credentials: 'include',
         body: JSON.stringify({
           name: editName.trim(),
+          slug: cleanSlug,
           icon_data: iconToSave,
         }),
       });
@@ -561,12 +580,9 @@ export const TenantsTab: React.FC = () => {
             >
               ✕
             </button>
-            <h3 className="text-base font-bold text-[var(--text-primary)] mb-1">
+            <h3 className="text-base font-bold text-[var(--text-primary)] mb-4">
               {t('settings.editTenantTitle', 'Edit Tenant')}
             </h3>
-            <p className="text-xs text-[var(--text-secondary)] mb-4">
-              slug: <span className="text-brand-lime font-mono">{editingOrg.slug}</span>
-            </p>
 
             {editErrorMsg && (
               <div className="p-3 mb-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs">
@@ -586,6 +602,31 @@ export const TenantsTab: React.FC = () => {
                   onChange={(e) => setEditName(e.target.value)}
                   className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5 font-mono">
+                  {t('settings.tenantSlug', 'Tenant Slug / Seed')}
+                </label>
+                <div className="flex items-center">
+                  <span className="inline-flex items-center px-3 py-2 rounded-l-xl border border-r-0 border-[var(--glass-border)] bg-white/5 text-brand-lime font-mono font-bold text-xs select-none">
+                    seed:
+                  </span>
+                  <input
+                    type="text"
+                    name="edit_tenant_slug"
+                    value={editSlug}
+                    onChange={(e) => setEditSlug(e.target.value.toLowerCase().replace(/[^\w-]/g, ''))}
+                    disabled={editingOrg.slug === 'default'}
+                    className="flex-1 bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-r-xl px-3 py-2 text-xs text-brand-lime font-mono font-bold focus:outline-none focus:ring-1 focus:ring-brand-lime disabled:opacity-50"
+                  />
+                </div>
+                {editSlug.trim().toLowerCase() !== editingOrg.slug && editingOrg.slug !== 'default' && (
+                  <p className="text-[11px] text-amber-400 mt-1.5 flex items-center gap-1.5">
+                    <span>⚠️</span>
+                    <span>{t('settings.tenantSlugCascadeWarning', 'Warning: Modifying the seed will cascade rename all user accounts associated with this tenant.')}</span>
+                  </p>
+                )}
               </div>
 
               {/* Branding: Monogram & Logo Upload with Drag & Drop and Preview */}

@@ -407,6 +407,8 @@
     "newPasswordOptionalPlaceholder": "Dejar en blanco para conservar la contraseña actual",
     "tenantNameRequired": "El nombre del tenant es obligatorio.",
     "tenantSlugRequired": "El slug / identificador es obligatorio.",
+    "tenantSlugLengthError": "El slug del tenant debe tener al menos 2 caracteres.",
+    "tenantSlugCascadeWarning": "Atención: Modificar el seed renombrará en cascada las cuentas de usuario asociadas a este tenant.",
     "adminUsername": "Nombre de Usuario Administrador",
     "adminUsernameHint": "Sugerido a partir del seed; personalizable.",
     "adminPassword": "Contraseña Inicial del Administrador",

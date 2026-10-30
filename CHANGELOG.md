@@ -5,6 +5,17 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.13] - 2026-10-30
+
+### Added
+- **Editable Tenant Seed / Slug with Collision Prevention & User Cascade (`tenant_routes.py`, `TenantsTab.tsx`, `test_hub_api_and_enrollment.py`)**:
+  - Superadmin / Platform Owner can now edit the tenant `slug` (seed) from the Edit Tenant modal.
+  - Strict uniqueness validation prevents duplicate slugs (`409 Conflict`), and protects default virtual organization from modification (`400 Bad Request`).
+  - Automatically cascades changes to all usernames of that tenant matching the old seed (e.g. `admin_icc` -> `admin_itz`, `icc_operador` -> `itz_operador`) after validating no username collisions occur.
+  - Generates detailed `AuditLog` entries for the tenant slug modification and each cascaded user rename.
+  - Added warning banner in Edit Tenant modal alerting about user login cascade when seed is changed.
+  - Updated multi-language locale strings in English, Spanish, and Catalan.
+
 ## [1.5.12] - 2026-10-30
 
 ### Added
