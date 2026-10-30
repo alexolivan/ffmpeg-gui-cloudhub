@@ -31,6 +31,8 @@
     "tenant": "Tenant",
     "allTenants": "Tots els Tenants",
     "tenantContext": "Tenant Actiu",
+    "tenantPortal": "Portal d'Organització",
+    "tenantWorkspace": "Espai d'Organització",
     "switchTenant": "Canviar Tenant",
     "node": "dispositiu",
     "nodes": "dispositius",

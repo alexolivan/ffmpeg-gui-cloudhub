@@ -31,6 +31,8 @@
     "tenant": "Tenant",
     "allTenants": "Todos los Tenants",
     "tenantContext": "Tenant Activo",
+    "tenantPortal": "Portal de Organización",
+    "tenantWorkspace": "Espacio de Organización",
     "switchTenant": "Cambiar Tenant",
     "node": "dispositivo",
     "nodes": "dispositivos",

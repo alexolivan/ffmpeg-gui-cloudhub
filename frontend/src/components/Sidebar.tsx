@@ -30,12 +30,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { t } = useTranslation();
 
+  const isSuperadmin = currentUser.role === 'superadmin';
+
   const activeOrg = organizations.find((o) => o.id === selectedOrgId);
   const userOrg = organizations.find((o) => o.id === currentUser.org_id);
   const realOrgs = React.useMemo(
     () => organizations.filter((o) => o.slug !== 'default' && o.id !== 1),
     [organizations]
   );
+
+  const tenantName =
+    userOrg?.name ||
+    currentUser.org_name ||
+    (currentUser.org_id ? `Tenant #${currentUser.org_id}` : 'Tenant Workspace');
+  const tenantIconRaw = userOrg?.icon_data || currentUser.org_icon || null;
+  const isTenantImage =
+    !!tenantIconRaw &&
+    (tenantIconRaw.startsWith('data:image/') ||
+      tenantIconRaw.startsWith('http') ||
+      tenantIconRaw.startsWith('/'));
+  const tenantMonogram = !isTenantImage
+    ? tenantIconRaw || tenantName.substring(0, 2).toUpperCase()
+    : null;
 
   const canViewGovernance =
     currentUser.role === 'superadmin' ||
@@ -70,13 +86,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
   } | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const [tenantLogoError, setTenantLogoError] = useState(false);
 
   useEffect(() => {
     setLogoError(false);
   }, [logoPath]);
 
   useEffect(() => {
-    if (currentUser.role === 'superadmin') {
+    setTenantLogoError(false);
+  }, [tenantIconRaw]);
+
+  useEffect(() => {
+    if (isSuperadmin) {
       fetch('/api/hub/version', { credentials: 'include' })
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
@@ -84,7 +105,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })
         .catch(() => {});
     }
-  }, [currentUser.role]);
+  }, [isSuperadmin]);
 
   const handleCheckUpdates = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -107,34 +128,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div className="w-20 lg:w-64 h-screen bg-[var(--bg-card)] border-r border-[var(--glass-border)] flex flex-col items-center py-6 transition-colors duration-300 select-none flex-shrink-0">
-      {/* Brand Icon */}
-      <div
-        className="w-12 h-12 rounded-2xl flex items-center justify-center mb-2 shadow-lg cursor-pointer transition-all hover:scale-105 overflow-hidden flex-shrink-0"
-        style={!logoPath ? { backgroundColor: accentColor, boxShadow: `0 10px 20px ${accentColor}33` } : undefined}
-        onClick={() => onViewChange('fleet')}
-        title="ffmpeg-gui CloudHub"
-      >
-        {logoPath && !logoError ? (
-          <img
-            src={logoPath}
-            alt="Logo"
-            className="w-full h-full object-contain"
-            onError={() => setLogoError(true)}
-          />
-        ) : (
-          <span className="text-black font-black text-xl tracking-wider">{logoText}</span>
-        )}
-      </div>
-
-      <div className="hidden lg:flex flex-col items-center mb-2">
-        <span className="font-bold tracking-wider text-sm text-[var(--text-primary)]">CLOUDHUB</span>
-        <span className="text-[10px] tracking-widest text-[var(--text-secondary)] font-mono uppercase">Control Plane</span>
-      </div>
-
-      {/* ── OWNER VERSION INDICATOR & ENVIRONMENT BADGE (Between Logo and Tenant Selector) ── */}
-      {currentUser.role === 'superadmin' && (
+      {/* ── TOP BRAND HEADER ── */}
+      {isSuperadmin ? (
         <>
-          {/* Collapsed Sidebar Pill (Mobile / w-20) */}
+          {/* Owner Platform Brand Icon */}
+          <div
+            className="w-12 h-12 rounded-2xl flex items-center justify-center mb-2 shadow-lg cursor-pointer transition-all hover:scale-105 overflow-hidden flex-shrink-0"
+            style={!logoPath || logoError ? { backgroundColor: accentColor, boxShadow: `0 10px 20px ${accentColor}33` } : undefined}
+            onClick={() => onViewChange('fleet')}
+            title="ffmpeg-gui CloudHub"
+          >
+            {logoPath && !logoError ? (
+              <img
+                src={logoPath}
+                alt="Logo"
+                className="w-full h-full object-contain"
+                onError={() => setLogoError(true)}
+              />
+            ) : (
+              <span className="text-black font-black text-xl tracking-wider">{logoText}</span>
+            )}
+          </div>
+
+          <div className="hidden lg:flex flex-col items-center mb-2">
+            <span className="font-bold tracking-wider text-sm text-[var(--text-primary)]">CLOUDHUB</span>
+            <span className="text-[10px] tracking-widest text-[var(--text-secondary)] font-mono uppercase">Control Plane</span>
+          </div>
+
+          {/* Owner Version Indicator: Collapsed Sidebar Pill (Mobile / w-20) */}
           <div
             className="lg:hidden flex flex-col items-center mb-3 px-2 cursor-pointer"
             onClick={handleCheckUpdates}
@@ -151,7 +172,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </span>
           </div>
 
-          {/* Expanded Sidebar Version Card (Desktop / lg:w-64 - Parity with ffmpeg-gui dashboard) */}
+          {/* Owner Version Indicator: Expanded Card (Desktop / lg:w-64) */}
           <div className="hidden lg:block w-full px-3 mb-3">
             <div className="p-2.5 rounded-xl bg-white/5 border border-[var(--glass-border)] space-y-0.5 shadow-xs">
               {/* Row 1: Environment */}
@@ -222,74 +243,69 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </div>
           </div>
-        </>
-      )}
 
-      {/* ── TENANT CONTEXT CONTROLLER (Between Logo and Menu Items) ── */}
-      {currentUser.role === 'superadmin' ? (
-        <div className="w-full px-3 mb-4 space-y-2">
-          {/* Dropdown Selector (Compact) */}
-          <div className="relative hidden lg:block">
-            <select
-              value={selectedOrgId ?? 'all'}
-              onChange={(e) => {
-                const val = e.target.value;
-                onSelectOrg?.(val === 'all' ? null : Number(val));
-              }}
-              className="w-full appearance-none bg-[var(--input-bg)] border border-[var(--glass-border)] hover:border-brand-lime/40 text-[var(--text-primary)] text-xs rounded-xl px-2.5 py-1.5 pr-7 focus:outline-none focus:ring-1 focus:ring-brand-lime transition-all cursor-pointer font-medium truncate"
-              title={t('common.switchTenant', 'Switch Tenant')}
-            >
-              <option value="all" className="bg-[#18181b] text-white">
-                🌐 {t('common.allTenants', 'All Tenants')}
-              </option>
-              {realOrgs.map((org) => (
-                <option key={org.id} value={org.id} className="bg-[#18181b] text-white">
-                  🏢 {org.name}
+          {/* Superadmin Tenant Context Switcher Dropdown */}
+          <div className="w-full px-3 mb-4">
+            <div className="relative hidden lg:block">
+              <select
+                value={selectedOrgId ?? 'all'}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  onSelectOrg?.(val === 'all' ? null : Number(val));
+                }}
+                className="w-full appearance-none bg-[var(--input-bg)] border border-[var(--glass-border)] hover:border-brand-lime/40 text-[var(--text-primary)] text-xs rounded-xl px-2.5 py-2 pr-7 focus:outline-none focus:ring-1 focus:ring-brand-lime transition-all cursor-pointer font-medium truncate"
+                title={t('common.switchTenant', 'Switch Tenant')}
+              >
+                <option value="all" className="bg-[#18181b] text-white">
+                  🌐 {t('common.allTenants', 'All Tenants')}
                 </option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[var(--text-secondary)]">
-              <ChevronDownIcon size={12} />
+                {realOrgs.map((org) => (
+                  <option key={org.id} value={org.id} className="bg-[#18181b] text-white">
+                    🏢 {org.name}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[var(--text-secondary)]">
+                <ChevronDownIcon size={12} />
+              </div>
             </div>
           </div>
-
-          {/* Active Tenant Indicator Element */}
+        </>
+      ) : (
+        /* Non-Owner Tenant Brand Header (White-label experience for Tenant Admins and Operators) */
+        <div className="w-full flex flex-col items-center mb-4 px-2">
+          {/* Tenant Icon / Monogram */}
           <div
-            className="flex items-center gap-2.5 p-2 rounded-xl bg-white/5 border border-[var(--glass-border)] justify-center lg:justify-start transition-all"
-            title={activeOrg ? `Tenant: ${activeOrg.name}` : t('common.allTenants', 'All Tenants')}
+            className="w-12 h-12 rounded-2xl flex items-center justify-center mb-2 shadow-lg cursor-pointer transition-all hover:scale-105 overflow-hidden flex-shrink-0"
+            style={!isTenantImage || tenantLogoError ? { backgroundColor: accentColor, boxShadow: `0 10px 20px ${accentColor}33` } : undefined}
+            onClick={() => onViewChange('fleet')}
+            title={tenantName}
           >
-            <span className="text-base shrink-0">{activeOrg ? '🏢' : '🌐'}</span>
-            <div className="hidden lg:flex flex-col min-w-0 flex-1">
-              <span className="text-[9px] font-mono uppercase tracking-wider text-[var(--text-secondary)]">
-                {t('common.tenantContext', 'Active Tenant')}
-              </span>
-              <span className="text-xs font-bold text-brand-lime truncate">
-                {activeOrg ? activeOrg.name : t('common.allTenants', 'All Tenants')}
-              </span>
-            </div>
-            {activeOrg && activeOrg.nodes_count !== undefined && (
-              <span className="hidden lg:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded bg-brand-lime/15 text-brand-lime border border-brand-lime/30 font-bold shrink-0">
-                {activeOrg.nodes_count}
+            {isTenantImage && !tenantLogoError ? (
+              <img
+                src={tenantIconRaw!}
+                alt={tenantName}
+                className="w-full h-full object-contain p-1"
+                onError={() => setTenantLogoError(true)}
+              />
+            ) : (
+              <span className="text-black font-black text-xl tracking-wider">
+                {tenantMonogram}
               </span>
             )}
           </div>
-        </div>
-      ) : (
-        /* Static Tenant Indicator for Tenant Admin and Operators */
-        <div className="w-full px-3 mb-4">
-          <div
-            className="flex items-center gap-2.5 p-2 rounded-xl bg-white/5 border border-[var(--glass-border)] justify-center lg:justify-start"
-            title={`Tenant: ${userOrg?.name || `Tenant #${currentUser.org_id}`}`}
-          >
-            <span className="text-base shrink-0">🏢</span>
-            <div className="hidden lg:flex flex-col min-w-0">
-              <span className="text-[9px] font-mono uppercase tracking-wider text-[var(--text-secondary)]">
-                {t('common.tenantContext', 'Tenant')}
-              </span>
-              <span className="text-xs font-bold text-[var(--text-primary)] truncate">
-                {userOrg?.name || `Tenant #${currentUser.org_id}`}
-              </span>
-            </div>
+
+          {/* Tenant Name and Subtitle on Expanded Desktop */}
+          <div className="hidden lg:flex flex-col items-center text-center px-1">
+            <span
+              className="font-bold tracking-tight text-sm text-[var(--text-primary)] text-center line-clamp-2 px-1"
+              title={tenantName}
+            >
+              {tenantName}
+            </span>
+            <span className="text-[10px] tracking-widest text-brand-lime font-mono uppercase mt-0.5">
+              {t('common.tenantPortal', 'Tenant Portal')}
+            </span>
           </div>
         </div>
       )}

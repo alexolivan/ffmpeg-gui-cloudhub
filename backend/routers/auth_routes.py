@@ -163,6 +163,9 @@ def login(
     )
     db.commit()
 
+    org_name = user.organization.name if user.organization else None
+    org_icon = user.organization.icon_data if user.organization else None
+
     return {
         "token": token,
         "user": {
@@ -170,6 +173,8 @@ def login(
             "username": user.username,
             "role": user.role,
             "org_id": user.org_id,
+            "org_name": org_name,
+            "org_icon": org_icon,
         },
     }
 
@@ -183,11 +188,15 @@ def logout(response: Response, user: User = Depends(get_current_user)):
 @router.get("/me")
 def get_me(user: User = Depends(get_current_user)):
     group_ids = [p.group_id for p in user.group_permissions]
+    org_name = user.organization.name if user.organization else None
+    org_icon = user.organization.icon_data if user.organization else None
     return {
         "id": user.id,
         "username": user.username,
         "role": user.role,
         "org_id": user.org_id,
+        "org_name": org_name,
+        "org_icon": org_icon,
         "group_ids": group_ids,
         "created_at": user.created_at.isoformat() if user.created_at else None,
     }

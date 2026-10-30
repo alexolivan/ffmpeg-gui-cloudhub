@@ -5,6 +5,26 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.10] - 2026-10-30
+
+### Added
+- **White-Label Tenant Workspace for Non-Owners (`Sidebar.tsx`, `auth_routes.py`, `types/hub.ts`)**:
+  - The top sidebar brand container now dynamically adapts to user governance roles:
+    - **Owner / Superadmin**: Displays platform logo / monogram and "CLOUDHUB Control Plane", version indicator card, and tenant filter dropdown.
+    - **Tenant Administrators & Operators**: Displays the assigned tenant's custom logo (or monogram badge in theme accent color) and tenant name prominently, with "Tenant Portal" subtitle.
+  - Enriched `/api/hub/auth/me` and `/api/hub/auth/login` to return `org_name` and `org_icon` immediately with user session data, guaranteeing zero-flicker branding on initial load.
+  - Added multi-language keys (`common.tenantPortal`, `common.tenantWorkspace`) in English, Spanish, and Catalan.
+
+### Changed
+- **Streamlined Sidebar Layout (`Sidebar.tsx`)**:
+  - Eliminated the redundant "ACTIVE TENANT" banner box below the dropdown for Superadmin, keeping the sidebar sleek and giving full focus to the selector.
+  - Completely removed the version card, update checker, and tenant dropdown from tenant admin and operator views, creating an isolated, dedicated customer tenant portal experience.
+
+### Fixed
+- **Console 403 Forbidden and 401 Unauthorized Errors (`App.tsx`, `Sidebar.tsx`)**:
+  - Guarded `/api/hub/settings` fetch in `App.tsx` so only superadmins request system-wide settings, completely eliminating the 403 Forbidden error in DevTools for tenant admins and operators.
+  - Enhanced `checkAuth` in `App.tsx` to skip unauthenticated `/api/hub/auth/me` calls when no session token exists in `localStorage`, preventing spurious 401 Unauthorized errors in browser developer tools for unauthenticated visitors.
+
 ## [1.5.9] - 2026-10-30
 
 ### Changed

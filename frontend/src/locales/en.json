@@ -31,6 +31,8 @@
     "tenant": "Tenant",
     "allTenants": "All Tenants",
     "tenantContext": "Active Tenant",
+    "tenantPortal": "Tenant Portal",
+    "tenantWorkspace": "Tenant Workspace",
     "switchTenant": "Switch Tenant",
     "node": "appliance",
     "nodes": "appliances",

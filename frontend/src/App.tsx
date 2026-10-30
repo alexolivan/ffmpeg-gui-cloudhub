@@ -50,12 +50,23 @@ export const App: React.FC = () => {
   }, [theme]);
 
   const checkAuth = async () => {
+    const token = localStorage.getItem('cloudhub_token');
+    if (!token) {
+      setCurrentUser(null);
+      setIsLoadingAuth(false);
+      return;
+    }
+
     try {
-      const res = await fetch('/api/hub/auth/me', { credentials: 'include' });
+      const res = await fetch('/api/hub/auth/me', {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      });
       if (res.ok) {
         const user = await res.json();
         setCurrentUser(user);
       } else {
+        localStorage.removeItem('cloudhub_token');
         setCurrentUser(null);
       }
     } catch {
@@ -65,7 +76,7 @@ export const App: React.FC = () => {
     }
   };
 
-  const fetchAppData = async () => {
+  const fetchAppData = async (user?: User | null) => {
     try {
       const orgsRes = await fetch('/api/hub/orgs', { credentials: 'include' });
       if (orgsRes.ok) {
@@ -75,13 +86,16 @@ export const App: React.FC = () => {
       // Non-blocking
     }
 
-    try {
-      const setRes = await fetch('/api/hub/settings', { credentials: 'include' });
-      if (setRes.ok) {
-        setHubSettings(await setRes.json());
+    const effectiveRole = user?.role || currentUser?.role;
+    if (effectiveRole === 'superadmin') {
+      try {
+        const setRes = await fetch('/api/hub/settings', { credentials: 'include' });
+        if (setRes.ok) {
+          setHubSettings(await setRes.json());
+        }
+      } catch {
+        // Non-blocking
       }
-    } catch {
-      // Non-blocking
     }
   };
 
@@ -92,7 +106,7 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     if (currentUser) {
-      fetchAppData();
+      fetchAppData(currentUser);
       if (currentUser.org_id) {
         setSelectedOrgId(currentUser.org_id);
       }
@@ -124,6 +138,7 @@ export const App: React.FC = () => {
         onLoginSuccess={(user) => {
           setCurrentUser(user);
           setActiveView('fleet');
+          fetchAppData(user);
         }}
         currentTheme={theme}
         onThemeChange={setTheme}

@@ -7,6 +7,7 @@ export interface User {
   role: UserRole;
   org_id: number | null;
   org_name?: string;
+  org_icon?: string | null;
   group_ids?: number[];
   group_names?: string[];
   groups?: Array<{ id: number; name: string }>;
