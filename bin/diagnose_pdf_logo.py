@@ -73,30 +73,40 @@ def main():
     else:
         print("  • [WARNING] No file found for login_logo_disk_path!")
 
-    # 3. Check FFmpeg and librsvg
-    print("\n[3] Checking FFmpeg binary and librsvg support...")
+    # 3. Check FFmpeg / rsvg-convert (Optional, only needed if uploading .svg vector logos)
+    print("\n[3] Checking SVG Rasterizers (Optional, only needed for .svg logos)...")
     import subprocess
-    try:
-        res = subprocess.run(["ffmpeg", "-version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5)
-        if res.returncode == 0:
-            out_txt = res.stdout.decode("utf-8", errors="replace")
-            has_librsvg = "--enable-librsvg" in out_txt
-            first_line = out_txt.splitlines()[0] if out_txt.splitlines() else "OK"
-            print(f"  • ffmpeg binary : Available ({first_line})")
-            print(f"  • --enable-librsvg : {'YES (Native SVG conversion supported)' if has_librsvg else 'NO (Missing librsvg!)'}")
-        else:
-            print(f"  • [ERROR] ffmpeg exited with code {res.returncode}")
-    except FileNotFoundError:
-        print("  • [ERROR] 'ffmpeg' command NOT found in PATH!")
-    except Exception as e:
-        print(f"  • [ERROR] ffmpeg check failed: {e}")
+    import shutil
+    rsvg_cmd = shutil.which("rsvg-convert")
+    ffmpeg_cmd = shutil.which("ffmpeg")
 
-    # 4. Check PIL / Pillow
-    print("\n[4] Checking PIL (Pillow)...")
+    if rsvg_cmd:
+        print(f"  • rsvg-convert : Available at {rsvg_cmd} (Fast SVG conversion supported)")
+    else:
+        print("  • rsvg-convert : Not installed")
+
+    if ffmpeg_cmd:
+        try:
+            res = subprocess.run([ffmpeg_cmd, "-version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5)
+            if res.returncode == 0:
+                out_txt = res.stdout.decode("utf-8", errors="replace")
+                has_librsvg = "--enable-librsvg" in out_txt
+                first_line = out_txt.splitlines()[0] if out_txt.splitlines() else "OK"
+                print(f"  • ffmpeg binary : Available ({first_line})")
+                print(f"  • --enable-librsvg : {'YES (Native SVG conversion supported)' if has_librsvg else 'NO (Missing librsvg!)'}")
+            else:
+                print(f"  • ffmpeg exited with code {res.returncode}")
+        except Exception as e:
+            print(f"  • ffmpeg check failed: {e}")
+    else:
+        print("  • ffmpeg binary : Not installed (Not required for PNG/JPEG logos)")
+
+    # 4. Check PIL / Pillow (REQUIRED for PDF logo embedding)
+    print("\n[4] Checking PIL (Pillow - REQUIRED for PDF logo embedding)...")
     try:
         import PIL
         from PIL import Image
-        print(f"  • Pillow version: {PIL.__version__}")
+        print(f"  • Pillow version: {PIL.__version__} (INSTALLED)")
         if resolved_file:
             with open(resolved_file, "rb") as f:
                 b = f.read()
@@ -106,6 +116,9 @@ def main():
                 print(f"  • Direct PIL load: SUCCESS (format={im.format}, size={im.size}, mode={im.mode})")
             except Exception as e:
                 print(f"  • Direct PIL load: FAILED ({e})")
+    except ImportError:
+        print("  • [ERROR] Pillow is NOT installed in virtual environment!")
+        print("    Run: ./venv/bin/pip install Pillow")
     except Exception as e:
         print(f"  • [ERROR] PIL check failed: {e}")
 

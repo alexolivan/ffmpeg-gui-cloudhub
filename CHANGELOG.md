@@ -5,6 +5,14 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.8] - 2026-10-30
+
+### Fixed
+- **Missing Pillow Dependency & PDF Logo Rendering (`backend/requirements.txt`, `backend/services/audit_pdf_generator.py`)**:
+  - Added `Pillow>=10.0.0` to `backend/requirements.txt`, ensuring Pillow is installed in the virtualenv during `install.sh` and `update.sh` to allow native rasterization and PDF logo embedding.
+  - Added multi-tool resilience in `_svg_to_png_bytes` with fallback support for `rsvg-convert` alongside `ffmpeg`.
+  - Updated `bin/diagnose_pdf_logo.py` to clarify that `ffmpeg` is optional (only needed for SVG vector logos, not for PNG/JPEG) and highlight `Pillow` requirements.
+
 ## [1.5.7] - 2026-10-30
 
 ### Added

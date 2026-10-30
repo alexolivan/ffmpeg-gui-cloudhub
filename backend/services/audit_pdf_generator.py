@@ -83,9 +83,10 @@ class PDFCanvas:
 
 
 def _svg_to_png_bytes(svg_bytes: bytes) -> Optional[bytes]:
-    """Converts SVG vector bytes to raster PNG bytes via system ffmpeg librsvg."""
+    """Converts SVG vector bytes to raster PNG bytes via rsvg-convert or system ffmpeg librsvg."""
     import tempfile
     import subprocess
+    import shutil
     import os
     try:
         with tempfile.NamedTemporaryFile(suffix=".svg", delete=False) as f:
@@ -93,25 +94,39 @@ def _svg_to_png_bytes(svg_bytes: bytes) -> Optional[bytes]:
             svg_path = f.name
         png_path = svg_path + ".png"
         try:
-            cmd = ["ffmpeg", "-y", "-i", svg_path, png_path]
-            res = subprocess.run(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                timeout=5,
-            )
-            if res.returncode == 0 and os.path.exists(png_path):
-                with open(png_path, "rb") as pf:
-                    converted = pf.read()
-                logger.info("Successfully converted SVG to PNG via ffmpeg (%d bytes)", len(converted))
-                return converted
-            else:
-                stderr_text = res.stderr.decode("utf-8", errors="replace")[:300]
-                logger.warning("ffmpeg SVG to PNG conversion failed (code %d): %s", res.returncode, stderr_text)
-        except FileNotFoundError:
-            logger.error("ffmpeg command not found in PATH on this system. Cannot convert SVG to PNG.")
+            rsvg_bin = shutil.which("rsvg-convert")
+            ffmpeg_bin = shutil.which("ffmpeg")
+
+            if rsvg_bin:
+                cmd = [rsvg_bin, "-o", png_path, svg_path]
+                res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5)
+                if res.returncode == 0 and os.path.exists(png_path):
+                    with open(png_path, "rb") as pf:
+                        converted = pf.read()
+                    logger.info("Successfully converted SVG to PNG via rsvg-convert (%d bytes)", len(converted))
+                    return converted
+
+            if ffmpeg_bin:
+                cmd = [ffmpeg_bin, "-y", "-i", svg_path, png_path]
+                res = subprocess.run(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=5,
+                )
+                if res.returncode == 0 and os.path.exists(png_path):
+                    with open(png_path, "rb") as pf:
+                        converted = pf.read()
+                    logger.info("Successfully converted SVG to PNG via ffmpeg (%d bytes)", len(converted))
+                    return converted
+                else:
+                    stderr_text = res.stderr.decode("utf-8", errors="replace")[:300]
+                    logger.warning("ffmpeg SVG to PNG conversion failed (code %d): %s", res.returncode, stderr_text)
+
+            if not rsvg_bin and not ffmpeg_bin:
+                logger.warning("Neither rsvg-convert nor ffmpeg found in PATH. Cannot rasterize SVG vector logo.")
         except Exception as e:
-            logger.error("Error executing ffmpeg for SVG conversion: %s", e)
+            logger.error("Error executing rasterizer for SVG conversion: %s", e)
         finally:
             if os.path.exists(svg_path):
                 try: os.remove(svg_path)
