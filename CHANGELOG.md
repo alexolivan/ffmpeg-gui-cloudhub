@@ -5,6 +5,18 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.11] - 2026-10-30
+
+### Changed
+- **Harmonized Sidebar Branding with Platform Name (`Sidebar.tsx`, `App.tsx`)**:
+  - Replaced generic static "TENANT PORTAL" subtitle in non-owner sidebar with the configurable platform name (`hub_name`, e.g. "ffmpeg-gui CloudHub"), subtly displayed under the tenant organization name.
+  - Passed `hubName` from public branding and settings to the sidebar component.
+
+### Added
+- **Tenant-Attributed Failed Login Audit Logging (`auth_routes.py`, `test_audit_pdf_and_version.py`)**:
+  - Failed logins for existing users (with correct username but wrong password) now record an audit log entry attributed to the user's tenant organization (`org_id=user.org_id`), allowing Tenant Admins to monitor credential issues in their own audit logs.
+  - Failed login attempts with non-existent usernames continue to trigger security rate-limiting and IP lockouts without polluting the audit log database table with brute-force dictionary scans.
+
 ## [1.5.10] - 2026-10-30
 
 ### Added

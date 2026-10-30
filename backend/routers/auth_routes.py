@@ -108,21 +108,41 @@ def login(
         )
 
     user = db.query(User).filter(User.username == req.username.strip()).first()
-    if not user or not AuthManager.verify_password(req.password, user.password_hash):
+    if not user:
+        # Non-existent user: track rate-limit/lockout on IP without polluting the audit log with brute-force scans
         locked_now, rem = security_guard.record_failure(ip, req.username)
         logger.warning(
-            "[security] Failed CloudHub login attempt for '%s' from %s (locked=%s)",
+            "[security] Failed CloudHub login attempt for non-existent user '%s' from %s (locked=%s)",
             req.username,
             ip,
             locked_now,
         )
-        # Record failed audit log
+        if locked_now:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Account or IP locked. Try again in {rem} seconds.",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password",
+        )
+
+    if not AuthManager.verify_password(req.password, user.password_hash):
+        locked_now, rem = security_guard.record_failure(ip, user.username)
+        logger.warning(
+            "[security] Failed password attempt for valid user '%s' from %s (locked=%s)",
+            user.username,
+            ip,
+            locked_now,
+        )
+        # Record failed audit log attributed to the user's tenant organization
         log = AuditLog(
-            username=req.username,
+            username=user.username,
+            org_id=user.org_id,
             action="LOGIN_FAILED",
             target_type="auth",
             ip_address=ip,
-            details=f"Failed login attempt (locked={locked_now})",
+            details=f"Failed password attempt for user '{user.username}' (locked={locked_now})",
         )
         db.add(log)
         db.commit()

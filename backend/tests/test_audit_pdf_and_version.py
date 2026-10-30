@@ -456,5 +456,45 @@ class TestAuditPdfAndVersion(unittest.TestCase):
         res = self.client.get("/api/hub/audit-logs/1/export-pdf", headers=op_headers)
         self.assertEqual(res.status_code, 403)
 
+    def test_login_failed_audit_logging_tenant_attribution(self):
+        # 1. Failed login with a non-existent username -> 401, but does NOT create an AuditLog entry
+        res_unknown = self.client.post(
+            "/api/hub/auth/login",
+            json={"username": "bot_attacker_99", "password": "wrongpassword"},
+        )
+        self.assertEqual(res_unknown.status_code, 401)
+
+        db = self.TestingSessionLocal()
+        bot_logs = db.query(AuditLog).filter(AuditLog.username == "bot_attacker_99").all()
+        self.assertEqual(len(bot_logs), 0)
+        db.close()
+
+        # 2. Failed login with a REAL tenant user but wrong password -> 401 and creates AuditLog with org_id
+        res_real_fail = self.client.post(
+            "/api/hub/auth/login",
+            json={"username": "tenant_admin_user", "password": "BadPassword123!"},
+        )
+        self.assertEqual(res_real_fail.status_code, 401)
+
+        db = self.TestingSessionLocal()
+        fail_logs = (
+            db.query(AuditLog)
+            .filter(AuditLog.username == "tenant_admin_user", AuditLog.action == "LOGIN_FAILED")
+            .all()
+        )
+        self.assertEqual(len(fail_logs), 1)
+        self.assertEqual(fail_logs[0].org_id, self.org_id)
+        self.assertIn("Failed password attempt", fail_logs[0].details)
+        db.close()
+
+        # 3. Log in as tenant_admin and verify that the LOGIN_FAILED entry is returned in /api/hub/audit-logs
+        admin_token = AuthManager.create_session(self.tenant_admin_id, self.tenant_admin_password_hash)
+        admin_headers = {"Authorization": f"Bearer {admin_token}"}
+        audit_res = self.client.get("/api/hub/audit-logs", headers=admin_headers)
+        self.assertEqual(audit_res.status_code, 200)
+        logs_data = audit_res.json()
+        found = any(l["action"] == "LOGIN_FAILED" and l["username"] == "tenant_admin_user" for l in logs_data)
+        self.assertTrue(found)
+
 if __name__ == "__main__":
     unittest.main()

@@ -8,6 +8,7 @@ interface SidebarProps {
   onViewChange: (view: string) => void;
   currentUser: User;
   onLogout: () => void;
+  hubName?: string;
   logoText?: string;
   logoPath?: string;
   accentColor?: string;
@@ -21,6 +22,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onViewChange,
   currentUser,
   onLogout,
+  hubName,
   logoText = 'CH',
   logoPath,
   accentColor = '#d4ff5b',
@@ -295,7 +297,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
           </div>
 
-          {/* Tenant Name and Subtitle on Expanded Desktop */}
+          {/* Tenant Name and Platform Name Subtitle on Expanded Desktop */}
           <div className="hidden lg:flex flex-col items-center text-center px-1">
             <span
               className="font-bold tracking-tight text-sm text-[var(--text-primary)] text-center line-clamp-2 px-1"
@@ -303,9 +305,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
             >
               {tenantName}
             </span>
-            <span className="text-[10px] tracking-widest text-brand-lime font-mono uppercase mt-0.5">
-              {t('common.tenantPortal', 'Tenant Portal')}
-            </span>
+            {hubName ? (
+              <span
+                className="text-[10px] tracking-widest text-[var(--text-secondary)] font-mono uppercase mt-0.5 truncate max-w-[190px]"
+                title={hubName}
+              >
+                {hubName}
+              </span>
+            ) : null}
           </div>
         </div>
       )}

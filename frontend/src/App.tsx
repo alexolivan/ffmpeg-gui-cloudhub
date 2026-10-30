@@ -161,6 +161,7 @@ export const App: React.FC = () => {
         }}
         currentUser={currentUser}
         onLogout={handleLogout}
+        hubName={hubSettings?.hub_name || publicBranding?.hub_name || 'ffmpeg-gui CloudHub'}
         logoText={hubSettings?.login_logo_text || publicBranding?.login_logo_text || 'CH'}
         logoPath={hubSettings?.login_logo_url || publicBranding?.login_logo_url || undefined}
         organizations={organizations}
