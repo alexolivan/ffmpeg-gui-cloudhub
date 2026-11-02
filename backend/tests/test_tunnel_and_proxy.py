@@ -224,6 +224,28 @@ class TestTunnelAndProxy(unittest.TestCase):
         resp = self.client.get("/proxy/ch_node_alpha/api/status", headers=headers)
         self.assertEqual(resp.status_code, 403)
 
+    def test_revoke_node_actively_notifies_and_closes(self):
+        mock_ws = MockEdgeTunnelClient("ch_node_alpha", self.node_secret)
+        active_tunnel = ActiveTunnel("ch_node_alpha", mock_ws)
+        tunnel_server._tunnels["ch_node_alpha"] = active_tunnel
+
+        asyncio.run(tunnel_server.revoke_node("ch_node_alpha", reason="unlinked_by_superadmin"))
+
+        # Verify revoke frame sent to node
+        self.assertTrue(any(f.get("type") == "revoke" for f in mock_ws.received_frames))
+        self.assertTrue(mock_ws.closed)
+        self.assertFalse(tunnel_server.is_connected("ch_node_alpha"))
+
+    def test_handle_edge_unlink_notify(self):
+        mock_ws = MockEdgeTunnelClient("ch_node_alpha", self.node_secret)
+        active_tunnel = ActiveTunnel("ch_node_alpha", mock_ws)
+        tunnel_server._tunnels["ch_node_alpha"] = active_tunnel
+
+        msg = {"type": "unlink_notify", "node_id": "ch_node_alpha", "reason": "unlinked_by_owner"}
+        asyncio.run(tunnel_server.handle_tunnel_message("ch_node_alpha", json.dumps(msg)))
+
+        self.assertFalse(tunnel_server.is_connected("ch_node_alpha"))
+
 
 if __name__ == "__main__":
     unittest.main()

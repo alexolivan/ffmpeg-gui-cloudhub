@@ -61,6 +61,23 @@ class TunnelServer:
             logger.info("Reverse tunnel registered for node '%s'", node_id)
             return tunnel
 
+    async def revoke_node(self, node_id: str, reason: str = "revoked_by_admin") -> None:
+        """Actively send REVOKE control frame to edge node and close its tunnel with code 4004."""
+        async with self._lock:
+            tunnel = self._tunnels.get(node_id)
+        if tunnel:
+            try:
+                await tunnel.send_json({
+                    "type": TunnelMessageType.REVOKE,
+                    "node_id": node_id,
+                    "reason": reason,
+                })
+                await asyncio.sleep(0.05)
+                await tunnel.websocket.close(code=4004, reason="Node enrollment revoked by CloudHub")
+            except Exception as e:
+                logger.debug("Failed to send clean revoke frame to node '%s': %s", node_id, e)
+            await self.unregister_tunnel(node_id)
+
     async def unregister_tunnel(self, node_id: str) -> None:
         """Unregister tunnel and clean up all in-flight streams."""
         async with self._lock:
@@ -188,6 +205,10 @@ class TunnelServer:
                 event_payload = msg.get("event") or {}
                 self._persist_edge_audit_event(node_id, event_payload)
 
+            elif msg_type == TunnelMessageType.UNLINK_NOTIFY:
+                self._handle_edge_unlink_notify(node_id, msg)
+                await self.unregister_tunnel(node_id)
+
         except Exception as err:
             logger.error("Error processing tunnel frame from node '%s': %s", node_id, err)
 
@@ -279,6 +300,35 @@ class TunnelServer:
                 logger.info("Persisted audit event '%s' from edge node '%s' by '%s'", action, node_id, username)
         except Exception as e:
             logger.error("Failed to persist edge audit event for node '%s': %s", node_id, e)
+
+    def _handle_edge_unlink_notify(self, node_id: str, msg: Dict[str, Any]) -> None:
+        """Record audit event when an edge node is voluntarily unlinked by hardware owner."""
+        from backend.database.db import SessionLocal
+        from backend.database.models import AuditLog, EnrolledNode
+        import datetime
+
+        try:
+            with SessionLocal() as db:
+                node = db.query(EnrolledNode).filter(EnrolledNode.node_id == node_id).first()
+                org_id = node.org_id if node else None
+                node_name = node.name if node else node_id
+
+                entry = AuditLog(
+                    timestamp=datetime.datetime.now(datetime.timezone.utc),
+                    org_id=org_id,
+                    node_id=node_id,
+                    channel="local",
+                    username="hardware_owner",
+                    action="NODE_UNLINKED_LOCALLY",
+                    target_type="node",
+                    target_id=node_id,
+                    details=f"Appliance '{node_name}' ({node_id}) voluntarily unlinked and disconnected by hardware owner",
+                )
+                db.add(entry)
+                db.commit()
+                logger.info("Recorded voluntary local unlink for node '%s'", node_id)
+        except Exception as e:
+            logger.error("Failed to record unlink notify for node '%s': %s", node_id, e)
 
 
     async def bridge_websocket(

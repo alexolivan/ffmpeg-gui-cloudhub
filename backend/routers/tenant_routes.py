@@ -941,7 +941,7 @@ def update_node(
 
 
 @router.delete("/nodes/{node_id}")
-def delete_node(
+async def delete_node(
     node_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -954,6 +954,10 @@ def delete_node(
         current_user.role != "org_admin" or current_user.org_id != node.org_id
     ):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    # Actively notify remote node over active tunnel if connected and revoke it
+    from backend.core.tunnel_server import tunnel_server
+    await tunnel_server.revoke_node(node_id, reason=f"Deleted by {current_user.username}")
 
     telemetry_collector.mark_disconnected(node_id)
     db.delete(node)

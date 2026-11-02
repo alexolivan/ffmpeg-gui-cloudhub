@@ -14,6 +14,8 @@ class TunnelMessageType:
     PONG = "pong"
     HEARTBEAT = "heartbeat"
     AUDIT_EVENT = "audit_event"
+    REVOKE = "revoke"
+    UNLINK_NOTIFY = "unlink_notify"
 
 
 
