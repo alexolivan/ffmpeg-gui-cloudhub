@@ -10,9 +10,40 @@ from backend.database.models import Base, User
 
 logger = logging.getLogger("cloudhub.db")
 
-DEFAULT_DB_PATH = os.path.abspath(
-    os.environ.get("CLOUDHUB_DB_PATH", os.path.join(os.getcwd(), "cloudhub.db"))
-)
+
+def _resolve_database_path() -> str:
+    """Resolve database path, placing it in data/ and migrating legacy root db if present."""
+    custom_path = os.environ.get("CLOUDHUB_DB_PATH")
+    if custom_path:
+        return os.path.abspath(custom_path)
+
+    # Base directory is project root (parent of backend/)
+    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    root_dir = os.path.dirname(backend_dir)
+    data_dir = os.path.join(root_dir, "data")
+    os.makedirs(data_dir, exist_ok=True)
+
+    target_path = os.path.join(data_dir, "cloudhub.db")
+    legacy_path = os.path.join(root_dir, "cloudhub.db")
+
+    # If legacy database exists in root and target does not exist, migrate it cleanly
+    if os.path.isfile(legacy_path) and not os.path.isfile(target_path):
+        try:
+            import shutil
+            shutil.move(legacy_path, target_path)
+            for ext in ("-wal", "-shm"):
+                leg_aux = legacy_path + ext
+                tgt_aux = target_path + ext
+                if os.path.isfile(leg_aux):
+                    shutil.move(leg_aux, tgt_aux)
+            logger.info("Migrated legacy database from %s to %s", legacy_path, target_path)
+        except Exception as e:
+            logger.warning("Failed to migrate legacy database to data/ dir: %s", e)
+
+    return os.path.abspath(target_path)
+
+
+DEFAULT_DB_PATH = _resolve_database_path()
 
 DATABASE_URL = f"sqlite:///{DEFAULT_DB_PATH}"
 

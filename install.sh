@@ -60,6 +60,10 @@ cd "${PROJ_DIR}"
 
 # 4. Initialize Database & Seed Superadmin
 echo "[3/4] Initializing Database & Administrator Account..."
+mkdir -p "${PROJ_DIR}/data"
+if [ -f "${PROJ_DIR}/cloudhub.db" ] && [ ! -f "${PROJ_DIR}/data/cloudhub.db" ]; then
+    mv "${PROJ_DIR}/cloudhub.db"* "${PROJ_DIR}/data/" 2>/dev/null || true
+fi
 "${PROJ_DIR}/bin/ffmpeg-gui-cloudhub-admin" init-db
 
 ADMIN_PASS="${CLOUDHUB_ADMIN_PASSWORD:-}"
