@@ -1,5 +1,5 @@
 export type UserRole = 'superadmin' | 'org_admin' | 'group_operator' | 'tenant_admin' | 'operator';
-export type VitalityStatus = 'online' | 'degraded' | 'offline';
+export type VitalityStatus = 'online' | 'degraded' | 'offline' | 'unlinked';
 
 export interface User {
   id: number;

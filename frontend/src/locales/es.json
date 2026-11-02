@@ -14,6 +14,7 @@
     "online": "En línea",
     "degraded": "Degradado",
     "offline": "Desconectado",
+    "unlinked": "Desvinculado",
     "refresh": "Actualizar",
     "close": "Cerrar",
     "done": "Hecho",
@@ -135,7 +136,9 @@
     "errors": "Errores",
     "update_available": "Actualización Disponible",
     "latest_version": "v{{version}} disponible",
-    "offline_notice": "El túnel inverso del dispositivo está desconectado"
+    "offline_notice": "El túnel inverso del dispositivo está desconectado",
+    "unlinked": "Desvinculado",
+    "unlinkedWarning": "Appliance desvinculado por el dueño del hardware"
   },
   "audit": {
     "title": "Registro de Auditoría",

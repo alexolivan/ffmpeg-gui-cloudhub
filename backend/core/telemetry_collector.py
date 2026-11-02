@@ -34,6 +34,7 @@ class TelemetryCollector:
                 "timestamp": now,
                 "payload": payload,
                 "disconnected": False,
+                "unlinked": False,
             }
         return self.get_node_vitality(node_id, payload.get("current_version"))
 
@@ -42,6 +43,20 @@ class TelemetryCollector:
         with self._lock:
             if node_id in self._vitality_cache:
                 self._vitality_cache[node_id]["disconnected"] = True
+
+    def mark_unlinked(self, node_id: str) -> None:
+        """Explicitly mark node as unlinked by the hardware owner."""
+        with self._lock:
+            if node_id in self._vitality_cache:
+                self._vitality_cache[node_id]["unlinked"] = True
+                self._vitality_cache[node_id]["disconnected"] = True
+            else:
+                self._vitality_cache[node_id] = {
+                    "timestamp": time.time(),
+                    "payload": {},
+                    "disconnected": True,
+                    "unlinked": True,
+                }
 
     def get_latest_payload(self, node_id: str) -> Optional[dict]:
         """Retrieve most recent raw telemetry payload for a given node."""
@@ -95,6 +110,18 @@ class TelemetryCollector:
         now = time.time()
         with self._lock:
             record = self._vitality_cache.get(node_id)
+
+        if record and record.get("unlinked"):
+            return {
+                "status": "unlinked",
+                "last_seen_seconds_ago": int(now - record["timestamp"]),
+                "system": {},
+                "workload": {},
+                "version": {
+                    "current": current_version,
+                    "update_available": False,
+                },
+            }
 
         if not record or record.get("disconnected"):
             return {

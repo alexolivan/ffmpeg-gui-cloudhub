@@ -49,24 +49,28 @@ export const NodeAccessCard: React.FC<NodeAccessCardProps> = ({
   const isOnline = status === 'online';
   const isDegraded = status === 'degraded';
   const isOffline = status === 'offline';
+  const isUnlinked = status === 'unlinked';
 
   const statusBadge = {
     online: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
     degraded: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
     offline: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/30',
-  }[status];
+    unlinked: 'bg-orange-500/10 text-orange-400 border-orange-500/40',
+  }[status] || 'bg-zinc-500/10 text-zinc-400 border-zinc-500/30';
 
   const statusPulse = {
     online: 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]',
     degraded: 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]',
     offline: 'bg-zinc-500',
-  }[status];
+    unlinked: 'bg-orange-400 shadow-[0_0_8px_rgba(249,115,22,0.8)]',
+  }[status] || 'bg-zinc-500';
 
   const statusLabel = {
     online: t('common.online'),
     degraded: t('common.degraded'),
     offline: t('common.offline'),
-  }[status];
+    unlinked: t('common.unlinked', 'Unlinked'),
+  }[status] || status;
 
   const formatUptime = (seconds?: number): string => {
     if (!seconds || seconds <= 0) return '0m';
@@ -163,7 +167,7 @@ export const NodeAccessCard: React.FC<NodeAccessCardProps> = ({
                 cpuPercent > 85 ? 'text-red-400' : 'text-[var(--text-primary)]'
               }`}
             >
-              {isOffline ? '--' : `${Math.round(cpuPercent)}%`}
+              {isOffline || isUnlinked ? '--' : `${Math.round(cpuPercent)}%`}
             </span>
           </div>
 
@@ -176,7 +180,7 @@ export const NodeAccessCard: React.FC<NodeAccessCardProps> = ({
                 ramPercent > 85 ? 'text-amber-400' : 'text-[var(--text-primary)]'
               }`}
             >
-              {isOffline ? '--' : `${Math.round(ramPercent)}%`}
+              {isOffline || isUnlinked ? '--' : `${Math.round(ramPercent)}%`}
             </span>
           </div>
 
@@ -185,7 +189,7 @@ export const NodeAccessCard: React.FC<NodeAccessCardProps> = ({
               {t('node_card.uptime')}
             </span>
             <span className="text-xs font-mono font-bold text-[var(--text-primary)]">
-              {isOffline ? '--' : uptimeStr}
+              {isOffline || isUnlinked ? '--' : uptimeStr}
             </span>
           </div>
 
@@ -194,7 +198,7 @@ export const NodeAccessCard: React.FC<NodeAccessCardProps> = ({
               {t('node_card.services')}
             </span>
             <span className="text-xs font-mono font-bold text-[var(--text-primary)]">
-              {isOffline ? (
+              {isOffline || isUnlinked ? (
                 '--'
               ) : (
                 <>
@@ -207,6 +211,12 @@ export const NodeAccessCard: React.FC<NodeAccessCardProps> = ({
             </span>
           </div>
         </div>
+
+        {isUnlinked && (
+          <div className="flex items-center justify-between p-2.5 rounded-lg bg-orange-500/10 border border-orange-500/30 text-orange-400 text-xs my-2 font-medium">
+            <span>⚠️ {t('node_card.unlinkedWarning', 'Appliance unlinked by hardware owner')}</span>
+          </div>
+        )}
 
         {/* Version & Update radar */}
         <div className="flex items-center justify-between text-xs my-2">
@@ -234,16 +244,18 @@ export const NodeAccessCard: React.FC<NodeAccessCardProps> = ({
       <div className="pt-3 flex items-center justify-between gap-2 mt-2">
         <button
           onClick={handleOpenGui}
-          disabled={isOffline || isOpening}
+          disabled={isOffline || isUnlinked || isOpening}
           className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-            isOffline
+            isOffline || isUnlinked
               ? 'bg-zinc-800/40 text-zinc-500 border border-zinc-700/30 cursor-not-allowed'
               : 'bg-brand-lime/15 hover:bg-brand-lime/25 text-brand-lime border border-brand-lime/30 hover:border-brand-lime/50 shadow-sm cursor-pointer'
           }`}
-          title={isOffline ? t('node_card.offline_notice') : ''}
+          title={isUnlinked ? t('node_card.unlinkedWarning', 'Appliance unlinked by hardware owner') : (isOffline ? t('node_card.offline_notice') : '')}
         >
           {isOpening ? (
             <span>{t('common.loading')}</span>
+          ) : isUnlinked ? (
+            <span>{t('common.unlinked', 'Unlinked')}</span>
           ) : (
             <>
               <span>{t('node_card.open_gui')}</span>

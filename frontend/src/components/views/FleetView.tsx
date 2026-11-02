@@ -17,7 +17,7 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
   const [groups, setGroups] = useState<NodeGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'online' | 'offline'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'online' | 'offline' | 'unlinked'>('all');
 
   // Token Modal
   const [showTokenModal, setShowTokenModal] = useState(false);
@@ -94,6 +94,7 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
       const status = node.vitality?.status || 'offline';
       if (statusFilter === 'online' && status !== 'online') return false;
       if (statusFilter === 'offline' && status !== 'offline') return false;
+      if (statusFilter === 'unlinked' && status !== 'unlinked') return false;
 
       // Search query
       if (searchQuery.trim()) {
@@ -356,7 +357,7 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
           </div>
 
           <div className="flex items-center bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl p-0.5 text-xs font-mono">
-            {(['all', 'online', 'offline'] as const).map((mode) => (
+            {(['all', 'online', 'offline', 'unlinked'] as const).map((mode) => (
               <button
                 key={mode}
                 onClick={() => setStatusFilter(mode)}

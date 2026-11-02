@@ -145,6 +145,7 @@ class EnrolledNode(Base):
     tunnel_secret = Column(String(128), nullable=False)
     icon_data = Column(Text, nullable=True)
     current_version = Column(String(50), nullable=True)
+    is_unlinked = Column(Boolean, default=False, nullable=False)
     last_seen_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=utcnow, nullable=False)
 
