@@ -17,6 +17,7 @@ from backend.core.tunnel_protocol import (
     decode_body,
 )
 from backend.core.telemetry_collector import telemetry_collector
+from backend.database.db import SessionLocal
 
 logger = logging.getLogger("cloudhub.tunnel")
 
@@ -214,7 +215,6 @@ class TunnelServer:
 
     def _sync_node_identity_from_heartbeat(self, node_id: str, msg: Dict[str, Any]) -> None:
         """Synchronize node friendly name, current version and brand icon/monogram from heartbeat."""
-        from backend.database.db import SessionLocal
         from backend.database.models import EnrolledNode
 
         node_name = msg.get("node_name")
@@ -246,12 +246,15 @@ class TunnelServer:
 
                 if changed:
                     db.commit()
+
+                if node.is_unlinked:
+                    node.is_unlinked = False
+                    db.commit()
         except Exception as exc:
             logger.debug("Failed to sync node identity from heartbeat: %s", exc)
 
     def _persist_edge_audit_event(self, node_id: str, event: Dict[str, Any]) -> None:
         """Persist an audit log event received from an edge node."""
-        from backend.database.db import SessionLocal
         from backend.database.models import AuditLog, EnrolledNode
         import datetime
 
@@ -303,7 +306,6 @@ class TunnelServer:
 
     def _handle_edge_unlink_notify(self, node_id: str, msg: Dict[str, Any]) -> None:
         """Record audit event when an edge node is voluntarily unlinked by hardware owner."""
-        from backend.database.db import SessionLocal
         from backend.database.models import AuditLog, EnrolledNode
         import datetime
 
@@ -312,6 +314,12 @@ class TunnelServer:
                 node = db.query(EnrolledNode).filter(EnrolledNode.node_id == node_id).first()
                 org_id = node.org_id if node else None
                 node_name = node.name if node else node_id
+
+                if node:
+                    node.is_unlinked = True
+                    db.commit()
+
+                telemetry_collector.mark_unlinked(node_id)
 
                 entry = AuditLog(
                     timestamp=datetime.datetime.now(datetime.timezone.utc),

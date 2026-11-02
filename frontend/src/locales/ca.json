@@ -14,6 +14,7 @@
     "online": "En línia",
     "degraded": "Degradat",
     "offline": "Desconnectat",
+    "unlinked": "Desvinculat",
     "refresh": "Actualitzar",
     "close": "Tancar",
     "done": "Fet",
@@ -135,7 +136,9 @@
     "errors": "Errors",
     "update_available": "Actualització Disponible",
     "latest_version": "v{{version}} disponible",
-    "offline_notice": "El túnel invers del dispositiu està desconnectat"
+    "offline_notice": "El túnel invers del dispositiu està desconnectat",
+    "unlinked": "Desvinculat",
+    "unlinkedWarning": "Appliance desvinculat pel propietari del maquinari"
   },
   "audit": {
     "title": "Registre d'Auditoria",

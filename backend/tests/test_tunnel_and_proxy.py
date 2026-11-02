@@ -78,6 +78,8 @@ class TestTunnelAndProxy(unittest.TestCase):
         rp.SessionLocal = self.SessionFactory
         import backend.routers.edge_routes as er
         er.SessionLocal = self.SessionFactory
+        import backend.core.tunnel_server as ts
+        ts.SessionLocal = self.SessionFactory
 
         self.client = TestClient(app)
 

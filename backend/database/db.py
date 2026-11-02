@@ -92,6 +92,11 @@ def init_db(db_engine=None) -> None:
             conn.commit()
         except Exception:
             pass
+        try:
+            conn.execute(text("ALTER TABLE enrolled_nodes ADD COLUMN is_unlinked BOOLEAN DEFAULT 0"))
+            conn.commit()
+        except Exception:
+            pass
 
     session_factory = sessionmaker(autocommit=False, autoflush=False, bind=target_engine)
 

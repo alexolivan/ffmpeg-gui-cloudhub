@@ -876,6 +876,8 @@ def list_nodes(
     result = []
     for n in accessible_nodes:
         vitality = telemetry_collector.get_node_vitality(n.node_id, n.current_version)
+        if getattr(n, "is_unlinked", False):
+            vitality["status"] = "unlinked"
         icon_display = n.icon_data
         if not icon_display:
             t_payload = telemetry_collector.get_latest_payload(n.node_id)
