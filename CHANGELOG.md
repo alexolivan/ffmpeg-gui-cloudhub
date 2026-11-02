@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive audit trail of authentications, failed login attempts for valid users, appliance enrollments, configuration backups, and edge session proxy activity.
   - Multi-criteria filtering console (actor, appliance, origin, category, date range).
   - Branded PDF compliance reports rendered via ReportLab with platform monogram headers and filter summaries.
+- **Symmetric Node Revocation & Voluntary Unlink Protocol**:
+  - Central node deletion actively sends a `REVOKE` control frame and closes the tunnel with code `4004`, causing the remote appliance to instantly clear its credentials and cease reconnection loops.
+  - Listens for `UNLINK_NOTIFY` frames when appliances are unlinked by their hardware owner, recording a dedicated `NODE_UNLINKED_LOCALLY` audit trail event.
 - **White-Label Customization, Themes & Multi-Language**:
   - Custom branding support (logo image uploads in PNG/SVG/WebP or monogram text fallbacks for platform and tenants).
   - 5 responsive visual themes (`Studio Dark`, `Cyberpunk Neon`, `Nordic Frost`, `Broadcast Light`, `Warm Paper`).
