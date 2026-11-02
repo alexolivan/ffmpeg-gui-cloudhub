@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added dedicated one-click "Copy Command" button and click-to-copy interaction on the command box itself.
   - Integrated universal clipboard utility with automatic textarea fallback (`document.execCommand('copy')`) ensuring copy works reliably even in non-secure HTTP / LAN contexts.
   - Added multi-language keys (`fleet.copyCommand`, `fleet.copyTokenOnly`, `fleet.clickToCopy`) in English, Spanish, and Catalan.
+- **Official Public Documentation & Screenshot Suite (`README.md`, `INSTALL.md`, `docs/assets/`)**:
+  - Integrated official screenshot gallery (`screenshot1.png`, `screenshot2.png`, `screenshot3.png`) showcasing the Fleet Directory, Centralized Audit Trail, and Settings/RBAC/Theme control plane.
+  - Revamped `README.md` and `INSTALL.md` with complete architecture diagrams, edge appliance pairing workflows, Nginx WebSocket reverse proxy configuration, and offline admin rescue CLI documentation.
 
 ## [1.5.13] - 2026-10-30
 

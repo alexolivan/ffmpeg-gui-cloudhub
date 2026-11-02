@@ -27,7 +27,7 @@ sudo apt install -y python3 python3-venv python3-pip nodejs npm git curl fail2ba
 
 ## 3. Clone Repository and Install
 
-Clone the repository into your preferred deployment directory (e.g. `/opt/ffmpeg-gui-cloudhub`):
+Clone the repository into your preferred deployment directory (e.g. `/opt/ffmpeg-gui-cloudhub` or `/usr/local/src/ffmpeg-gui-cloudhub`):
 
 ```bash
 sudo git clone https://github.com/alexolivan/ffmpeg-gui-cloudhub.git /opt/ffmpeg-gui-cloudhub
@@ -64,11 +64,13 @@ Upon database initialization, the default superadmin account is created:
 
 ---
 
-## 5. SSL / TLS Certificate Setup
+## 5. SSL / TLS & Web Server Setup
 
-### Automated Let's Encrypt (Certbot)
+CloudHub can run standalone (handling TLS directly) or behind an existing reverse proxy (such as Nginx).
 
-To secure CloudHub with a trusted Let's Encrypt certificate:
+### Option A: Standalone Let's Encrypt (Certbot)
+
+To secure CloudHub directly with Let's Encrypt:
 
 ```bash
 sudo apt install -y certbot
@@ -89,11 +91,68 @@ Restart or reload the service:
 sudo systemctl reload-or-restart ffmpeg-gui-cloudhub.service
 ```
 
+### Option B: Nginx Reverse Proxy (Recommended for Multi-App Hosts)
+
+When running behind Nginx, ensure the WebSocket upgrade headers and streaming timeouts are configured:
+
+```nginx
+server {
+    listen 80;
+    server_name hub.example.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name hub.example.com;
+
+    ssl_certificate /etc/letsencrypt/live/hub.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/hub.example.com/privkey.pem;
+
+    client_max_body_size 50M;
+
+    location / {
+        proxy_pass http://127.0.0.1:9000;
+        proxy_http_version 1.1;
+
+        # WebSocket support (Critical for /api/edge/tunnel)
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        # Standard proxy headers
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Disable proxy buffering for low-latency live streams & SSE
+        proxy_buffering off;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+    }
+}
+```
+
 ---
 
-## 6. Fail2ban Security Guard
+## 6. Pairing an ffmpeg-gui Appliance
 
-To protect the login endpoint from brute-force attempts at the OS level:
+To enroll an edge node into CloudHub:
+
+1. Open CloudHub in your browser and log in as an administrator.
+2. Go to **Fleet** -> **Enroll Appliance**.
+3. Choose the target tenant (and optional group) and click **Generate Token**.
+4. Run the generated command on the edge appliance shell:
+   ```bash
+   ./bin/ffmpeg-gui-admin enroll-cloudhub https://hub.example.com <ENROLLMENT_TOKEN>
+   ```
+5. The edge node establishes the reverse tunnel and begins streaming telemetry.
+
+---
+
+## 7. Fail2ban Security Guard
+
+To protect authentication endpoints from brute-force scans:
 
 ```bash
 sudo cp packaging/fail2ban/filter.d/ffmpeg-gui-cloudhub.conf /etc/fail2ban/filter.d/
@@ -109,9 +168,34 @@ sudo fail2ban-client status ffmpeg-gui-cloudhub
 
 ---
 
-## 7. Service Management
+## 8. Service Management & Maintenance
 
 - **Status:** `sudo systemctl status ffmpeg-gui-cloudhub`
 - **Start / Stop:** `sudo systemctl start ffmpeg-gui-cloudhub` / `sudo systemctl stop ffmpeg-gui-cloudhub`
 - **Live Logs:** `sudo journalctl -u ffmpeg-gui-cloudhub -f`
-- **Non-disruptive update:** `./update.sh -y`
+- **Non-disruptive Updates:**
+  ```bash
+  cd /opt/ffmpeg-gui-cloudhub
+  git pull origin main
+  ./update.sh -y
+  ```
+
+---
+
+## 9. Offline Admin Rescue CLI
+
+If you lose web access or lock yourself out, run the rescue CLI directly on the server host:
+
+```bash
+# Show version and system summary
+./bin/ffmpeg-gui-cloudhub-admin show-version
+
+# Reset superadmin password
+./bin/ffmpeg-gui-cloudhub-admin reset-admin-password --user admin --password "NewPassword123"
+
+# Create a second emergency superadmin
+./bin/ffmpeg-gui-cloudhub-admin create-superadmin --user rescue --password "EmergencySecret456"
+
+# Clear temporary IP lockouts
+./bin/ffmpeg-gui-cloudhub-admin unlock-ips
+```
