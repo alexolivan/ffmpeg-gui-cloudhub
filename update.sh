@@ -57,6 +57,11 @@ cd "${PROJ_DIR}"
 
 # 4. Migrate database schema if needed
 echo "[4/4] Synchronizing database schema..."
+if [ -f "${PROJ_DIR}/cloudhub.db" ] && [ ! -f "${PROJ_DIR}/data/cloudhub.db" ]; then
+    echo "[*] Migrating database to data/cloudhub.db..."
+    mkdir -p "${PROJ_DIR}/data"
+    mv "${PROJ_DIR}/cloudhub.db"* "${PROJ_DIR}/data/" 2>/dev/null || true
+fi
 "${PROJ_DIR}/bin/ffmpeg-gui-cloudhub-admin" init-db
 
 # 5. Restart systemd service to load new Python code and listeners
