@@ -5,6 +5,13 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-11-03
+
+### Fixed
+- **WebSocket Reverse Proxy ES6 Proxy & Binary Subprotocol Negotiation (`backend/core/reverse_proxy.py`)**:
+  - Replaced the monkey-patched `window.WebSocket` constructor in the JS Shim with an ES6 `Proxy`. This preserves constructor metadata and static properties (`WebSocket.OPEN = 1`, `CONNECTING`, `CLOSING`, `CLOSED`), unblocking noVNC/RFB WebSocket clients from freezing during handshake negotiation.
+  - Added explicit `binary` subprotocol negotiation support in `proxy_websocket_endpoint`.
+
 ## [1.0.0] - 2026-11-02
 
 ### Added

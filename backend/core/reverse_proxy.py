@@ -55,18 +55,25 @@ JS_SHIM_TEMPLATE = """
     return origOpen.apply(this, arguments);
   };
 
-  // 3. WebSocket Interceptor
+  // 3. WebSocket Interceptor (Transparent ES6 Proxy preserving static constants & prototype)
   const OrigWS = window.WebSocket;
-  window.WebSocket = function(url, protocols) {
-    try {
-      const parsed = new URL(url, window.location.href);
-      if (parsed.pathname.startsWith('/') && !parsed.pathname.startsWith(prefix)) {
-        parsed.pathname = prefix + parsed.pathname;
-        url = parsed.toString();
+  window.WebSocket = new Proxy(OrigWS, {
+    construct(target, args) {
+      if (args[0]) {
+        try {
+          const parsed = new URL(args[0], window.location.href);
+          if (parsed.pathname.startsWith('/') && !parsed.pathname.startsWith(prefix)) {
+            parsed.pathname = prefix + parsed.pathname;
+            args[0] = parsed.toString();
+          }
+        } catch(e) {}
       }
-    } catch(e) {}
-    return new OrigWS(url, protocols);
-  };
+      return Reflect.construct(target, args);
+    },
+    apply(target, thisArg, args) {
+      return Reflect.construct(target, args);
+    }
+  });
 
   // 4. HTMLImageElement.prototype.src Interceptor (Logos & Program Icons)
   try {
@@ -218,7 +225,10 @@ async def proxy_websocket_endpoint(
     """
     WebSocket reverse proxy tunneling browser WebSocket connections to edge appliance.
     """
-    await websocket.accept()
+    # Negotiate binary subprotocol if requested by client (e.g. noVNC RFB)
+    requested_protocols = websocket.headers.get("sec-websocket-protocol", "")
+    subprotocol = "binary" if "binary" in requested_protocols else None
+    await websocket.accept(subprotocol=subprotocol)
     with SessionLocal() as db:
         user = authenticate_user_from_ws(websocket, db)
         if not user:
