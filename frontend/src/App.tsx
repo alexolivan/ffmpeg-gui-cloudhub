@@ -170,7 +170,7 @@ export const App: React.FC = () => {
       />
 
       {/* ── Main Canvas (Parity with ffmpeg-gui: No global topbar, full horizontal canvas) ── */}
-      <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+      <main className="flex-1 overflow-y-auto px-5 py-3.5 lg:px-6 lg:py-4">
         {activeView === 'fleet' && (
           <FleetView currentUser={currentUser} selectedOrgId={selectedOrgId} />
         )}

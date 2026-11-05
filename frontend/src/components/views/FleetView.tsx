@@ -225,11 +225,11 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-3 animate-in fade-in duration-300">
       {/* ── Top Banner Header & Floating Actions (Parity with ffmpeg-gui) ── */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h2 className="text-2xl font-black tracking-tight text-[var(--text-primary)]">
+          <h2 className="text-xl font-black tracking-tight text-[var(--text-primary)]">
             {t('nav.fleet', 'Fleet Directory')}
           </h2>
           <p className="text-xs text-[var(--text-secondary)] mt-0.5">
@@ -240,14 +240,14 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 w-full sm:w-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           {canManage && (
             <button
               onClick={() => {
                 setShowTokenModal(true);
                 setGeneratedToken(null);
               }}
-              className="pill-button bg-brand-lime hover:bg-brand-lime/90 text-black font-bold text-xs py-2 px-4 flex items-center gap-1.5 flex-1 sm:flex-initial justify-center shadow-lg shadow-brand-lime/10 cursor-pointer"
+              className="pill-button bg-brand-lime hover:bg-brand-lime/90 text-black font-bold text-xs py-1.5 px-3.5 flex items-center gap-1.5 flex-1 sm:flex-initial justify-center shadow-lg shadow-brand-lime/10 cursor-pointer"
             >
               <PlusIcon size={14} />
               <span>{t('fleet.enrollNewNode', 'Enroll Node')}</span>
@@ -256,7 +256,7 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
           <button
             onClick={fetchData}
             disabled={isLoading}
-            className="pill-button bg-white/5 hover:bg-white/10 text-[var(--text-primary)] border border-white/10 text-xs py-2 px-3.5 flex items-center gap-1.5 flex-1 sm:flex-initial justify-center cursor-pointer"
+            className="pill-button bg-white/5 hover:bg-white/10 text-[var(--text-primary)] border border-white/10 text-xs py-1.5 px-3 flex items-center gap-1.5 flex-1 sm:flex-initial justify-center cursor-pointer"
             title={t('common.refresh', 'Refresh')}
           >
             <RefreshIcon size={14} className={isLoading ? 'animate-spin' : ''} />
@@ -265,135 +265,118 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
         </div>
       </div>
 
-      {/* ── Top 4 KPI Metric Cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* ── Top 4 KPI Metric Cards (Compact Inline Format) ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Total Nodes */}
-        <div className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-[var(--text-secondary)] font-mono uppercase tracking-wider">
-              {t('fleet.totalAppliances', 'Total Appliances')}
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-[var(--text-secondary)]">
+        <div className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-xl px-3.5 py-2.5 shadow-xs flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-[var(--text-secondary)] shrink-0">
               <FleetIcon size={16} />
             </div>
+            <div className="min-w-0">
+              <span className="text-[11px] text-[var(--text-secondary)] font-mono uppercase tracking-wider block truncate">
+                {t('fleet.totalAppliances', 'Total Appliances')}
+              </span>
+              <span className="text-[10px] text-[var(--text-secondary)]/80 block truncate">
+                {selectedOrgId ? t('fleet.inSelectedTenant', 'In active tenant') : t('fleet.acrossAllTenants', 'Across all tenants')}
+              </span>
+            </div>
           </div>
-          <div className="text-3xl font-black text-[var(--text-primary)] font-mono tracking-tight">
+          <div className="text-2xl font-black text-[var(--text-primary)] font-mono tracking-tight shrink-0">
             {totalAppliances}
           </div>
-          <span className="text-[11px] text-[var(--text-secondary)] mt-1 block">
-            {selectedOrgId ? t('fleet.inSelectedTenant', 'In active tenant') : t('fleet.acrossAllTenants', 'Across all tenants')}
-          </span>
         </div>
 
         {/* Online Nodes */}
-        <div className="bg-[var(--bg-card)] border border-emerald-500/20 rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-emerald-400 font-mono uppercase tracking-wider">
-              {t('common.online', 'Online')}
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+        <div className="bg-[var(--bg-card)] border border-emerald-500/20 rounded-xl px-3.5 py-2.5 shadow-xs flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-[11px] text-emerald-400 font-mono uppercase tracking-wider block truncate">
+                {t('common.online', 'Online')}
+              </span>
+              <span className="text-[10px] text-emerald-500/70 block truncate">
+                {t('fleet.tunnelConnected', 'Tunnel connection active')}
+              </span>
             </div>
           </div>
-          <div className="text-3xl font-black text-emerald-400 font-mono tracking-tight">
+          <div className="text-2xl font-black text-emerald-400 font-mono tracking-tight shrink-0">
             {onlineAppliances}
           </div>
-          <span className="text-[11px] text-emerald-500/70 mt-1 block">
-            {t('fleet.tunnelConnected', 'Tunnel connection active')}
-          </span>
         </div>
 
         {/* Offline / Degraded */}
-        <div className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-[var(--text-secondary)] font-mono uppercase tracking-wider">
-              {t('common.offline', 'Offline')}
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-zinc-500/10 text-zinc-400 flex items-center justify-center font-mono text-xs">
+        <div className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-xl px-3.5 py-2.5 shadow-xs flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-zinc-500/10 text-zinc-400 flex items-center justify-center font-mono text-xs shrink-0">
               {degradedAppliances > 0 ? `!${degradedAppliances}` : '—'}
             </div>
+            <div className="min-w-0">
+              <span className="text-[11px] text-[var(--text-secondary)] font-mono uppercase tracking-wider block truncate">
+                {t('common.offline', 'Offline')}
+              </span>
+              <span className="text-[10px] text-[var(--text-secondary)]/80 block truncate">
+                {degradedAppliances > 0
+                  ? `${degradedAppliances} ${t('common.degraded', 'degraded')}`
+                  : t('fleet.allOthersHealthy', 'No degraded appliances')}
+              </span>
+            </div>
           </div>
-          <div className="text-3xl font-black text-[var(--text-secondary)] font-mono tracking-tight">
+          <div className="text-2xl font-black text-[var(--text-secondary)] font-mono tracking-tight shrink-0">
             {offlineAppliances}
           </div>
-          <span className="text-[11px] text-[var(--text-secondary)] mt-1 block">
-            {degradedAppliances > 0
-              ? `${degradedAppliances} ${t('common.degraded', 'degraded')}`
-              : t('fleet.allOthersHealthy', 'No degraded appliances')}
-          </span>
         </div>
 
         {/* Groups */}
-        <div className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-[var(--text-secondary)] font-mono uppercase tracking-wider">
-              {t('fleet.groupsCount', 'Active Groups')}
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-brand-lime/10 text-brand-lime flex items-center justify-center">
+        <div className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-xl px-3.5 py-2.5 shadow-xs flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-brand-lime/10 text-brand-lime flex items-center justify-center shrink-0">
               <LayersIcon size={16} />
             </div>
+            <div className="min-w-0">
+              <span className="text-[11px] text-[var(--text-secondary)] font-mono uppercase tracking-wider block truncate">
+                {t('fleet.groupsCount', 'Active Groups')}
+              </span>
+              <span className="text-[10px] text-[var(--text-secondary)]/80 block truncate">
+                {t('fleet.clustersConfigured', 'Logical clusters')}
+              </span>
+            </div>
           </div>
-          <div className="text-3xl font-black text-brand-lime font-mono tracking-tight">
+          <div className="text-2xl font-black text-brand-lime font-mono tracking-tight shrink-0">
             {visibleGroups.length}
           </div>
-          <span className="text-[11px] text-[var(--text-secondary)] mt-1 block">
-            {t('fleet.clustersConfigured', 'Logical clusters')}
-          </span>
         </div>
       </div>
 
-      {/* ── Search & Filter Controls ── */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[var(--bg-card)] border border-[var(--glass-border)] p-3 rounded-2xl">
-        <div className="flex items-center gap-3 flex-1">
-          <div className="relative flex-1 max-w-md">
-            <SearchIcon size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t('fleet.searchPlaceholder', 'Filter by name, ID or version...')}
-              className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] hover:border-brand-lime/40 rounded-xl pl-9 pr-3 py-1.5 text-xs text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:ring-1 focus:ring-brand-lime transition-all"
-            />
-          </div>
-
-          <div className="flex items-center bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl p-0.5 text-xs font-mono">
-            {(['all', 'online', 'offline', 'unlinked'] as const).map((mode) => (
-              <button
-                key={mode}
-                onClick={() => setStatusFilter(mode)}
-                className={`px-3 py-1 rounded-lg capitalize transition-all cursor-pointer ${
-                  statusFilter === mode
-                    ? 'bg-brand-lime/20 text-brand-lime font-bold shadow-xs'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                }`}
-              >
-                {t(`common.${mode}`, mode)}
-              </button>
-            ))}
-          </div>
+      {/* ── Search & Filter Controls (Compact Single Bar) ── */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 bg-[var(--bg-card)] border border-[var(--glass-border)] px-3 py-2 rounded-xl">
+        <div className="relative flex-1 max-w-md">
+          <SearchIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t('fleet.searchPlaceholder', 'Filter by name, ID or version...')}
+            className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] hover:border-brand-lime/40 rounded-lg pl-8 pr-3 py-1 text-xs text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:ring-1 focus:ring-brand-lime transition-all"
+          />
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={fetchData}
-            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--glass-border)] transition-all cursor-pointer"
-            title={t('common.refresh', 'Refresh')}
-          >
-            <RefreshIcon size={16} />
-          </button>
-
-          {canManage && (
+        <div className="flex items-center bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-lg p-0.5 text-xs font-mono shrink-0">
+          {(['all', 'online', 'offline', 'unlinked'] as const).map((mode) => (
             <button
-              onClick={() => {
-                setGeneratedToken(null);
-                setShowTokenModal(true);
-              }}
-              className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-brand-lime text-black font-bold text-xs tracking-wide hover:bg-brand-lime/90 transition-all shadow-sm cursor-pointer"
+              key={mode}
+              onClick={() => setStatusFilter(mode)}
+              className={`px-2.5 py-0.5 rounded-md capitalize transition-all cursor-pointer text-[11px] ${
+                statusFilter === mode
+                  ? 'bg-brand-lime/20 text-brand-lime font-bold shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
             >
-              <PlusIcon size={16} />
-              <span>{t('fleet.enrollAppliance', 'Enroll Appliance')}</span>
+              {t(`common.${mode}`, mode)}
             </button>
-          )}
+          ))}
         </div>
       </div>
 
