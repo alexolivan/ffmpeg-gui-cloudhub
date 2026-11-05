@@ -116,201 +116,217 @@ export const NodeAccessCard: React.FC<NodeAccessCardProps> = ({
   const latestVersion = vitality.version?.latest_upstream;
   const currentVersion = node.current_version || vitality.version?.current || '2.50.0';
 
+  const containerStatusStyle = isOnline
+    ? 'bg-emerald-500/[0.03] hover:bg-emerald-500/[0.07] border-[var(--glass-border)] hover:border-emerald-500/30 border-l-4 border-l-emerald-400'
+    : isDegraded
+    ? 'bg-amber-500/[0.04] hover:bg-amber-500/[0.08] border-[var(--glass-border)] hover:border-amber-500/30 border-l-4 border-l-amber-400'
+    : isUnlinked
+    ? 'bg-orange-500/[0.04] hover:bg-orange-500/[0.08] border-[var(--glass-border)] hover:border-orange-500/30 border-l-4 border-l-orange-400'
+    : 'bg-white/[0.01] hover:bg-white/[0.03] border-[var(--glass-border)] border-l-4 border-l-zinc-600 opacity-80 hover:opacity-100';
+
   return (
-    <div className="bg-[var(--bg-card)] border border-[var(--glass-border)] hover:border-[var(--glass-border-hover)] rounded-xl p-5 shadow-[var(--card-shadow)] hover:shadow-[var(--card-shadow-hover)] transition-all flex flex-col justify-between relative group">
-      <div>
-        {/* Header: Node Icon, Name, and Status Badge */}
-        <div className="flex items-start justify-between gap-3 mb-4">
-          <div className="flex items-center gap-3">
-            {isImageLogo ? (
-              <div className="w-10 h-10 rounded-xl border border-[var(--glass-border)] bg-[var(--input-bg)] flex items-center justify-center overflow-hidden">
-                <img
-                  src={node.icon_data!}
-                  alt={node.name}
-                  className="w-full h-full object-contain p-1"
-                  onError={() => setImgError(true)}
-                />
-              </div>
-            ) : (
-              <div className="w-10 h-10 rounded-xl border border-brand-lime/30 bg-brand-lime/10 flex items-center justify-center text-brand-lime font-mono font-black text-xs uppercase tracking-wider shadow-sm">
-                {monogramText}
-              </div>
-            )}
-            <div>
-              <h3 className="font-bold text-sm text-[var(--text-primary)] leading-tight">
-                {node.name}
-              </h3>
-              <p className="text-[11px] font-mono text-[var(--text-secondary)] mt-0.5">
-                {node.node_id}
-              </p>
+    <div className={`rounded-lg px-3 py-1.5 transition-all shadow-xs relative group ${containerStatusStyle}`}>
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-x-4 gap-y-2">
+        {/* Left Column: Identity & Metadata */}
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          {/* Status LED */}
+          <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${statusPulse}`} />
+
+          {/* Icon / Monogram */}
+          {isImageLogo ? (
+            <div className="w-7 h-7 rounded-lg border border-[var(--glass-border)] bg-[var(--input-bg)] flex items-center justify-center overflow-hidden shrink-0">
+              <img
+                src={node.icon_data!}
+                alt={node.name}
+                className="w-full h-full object-contain p-0.5"
+                onError={() => setImgError(true)}
+              />
             </div>
-          </div>
+          ) : (
+            <div className="w-7 h-7 rounded-lg border border-brand-lime/30 bg-brand-lime/10 flex items-center justify-center text-brand-lime font-mono font-black text-[10px] uppercase tracking-wider shadow-xs shrink-0">
+              {monogramText}
+            </div>
+          )}
 
-          <div className="flex items-center gap-2">
-            <span
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${statusBadge}`}
-            >
-              <span className={`w-2 h-2 rounded-full ${statusPulse}`} />
-              {statusLabel}
-            </span>
-          </div>
-        </div>
+          {/* Node Friendly Name */}
+          <span className="font-bold text-xs sm:text-sm text-[var(--text-primary)] truncate" title={node.name}>
+            {node.name}
+          </span>
 
-        {/* Vitality Metrics Strip */}
-        <div className="grid grid-cols-4 gap-2 py-3 border-y border-[var(--glass-border)] text-center my-3 bg-[var(--input-bg)]/30 rounded-lg">
-          <div>
-            <span className="block text-[10px] text-[var(--text-secondary)] uppercase tracking-wider">
-              {t('node_card.cpu')}
-            </span>
-            <span
-              className={`text-xs font-mono font-bold ${
-                cpuPercent > 85 ? 'text-red-400' : 'text-[var(--text-primary)]'
-              }`}
-            >
-              {isOffline || isUnlinked ? '--' : `${Math.round(cpuPercent)}%`}
-            </span>
-          </div>
+          {/* Node ID */}
+          <span
+            className="text-[11px] font-mono text-[var(--text-secondary)] bg-[var(--input-bg)]/60 px-1.5 py-0.5 rounded border border-[var(--glass-border)] shrink-0"
+            title={node.node_id}
+          >
+            {node.node_id}
+          </span>
 
-          <div>
-            <span className="block text-[10px] text-[var(--text-secondary)] uppercase tracking-wider">
-              {t('node_card.ram')}
-            </span>
-            <span
-              className={`text-xs font-mono font-bold ${
-                ramPercent > 85 ? 'text-amber-400' : 'text-[var(--text-primary)]'
-              }`}
-            >
-              {isOffline || isUnlinked ? '--' : `${Math.round(ramPercent)}%`}
-            </span>
-          </div>
-
-          <div>
-            <span className="block text-[10px] text-[var(--text-secondary)] uppercase tracking-wider">
-              {t('node_card.uptime')}
-            </span>
-            <span className="text-xs font-mono font-bold text-[var(--text-primary)]">
-              {isOffline || isUnlinked ? '--' : uptimeStr}
-            </span>
-          </div>
-
-          <div>
-            <span className="block text-[10px] text-[var(--text-secondary)] uppercase tracking-wider">
-              {t('node_card.services')}
-            </span>
-            <span className="text-xs font-mono font-bold text-[var(--text-primary)]">
-              {isOffline || isUnlinked ? (
-                '--'
-              ) : (
-                <>
-                  {runningServices}/{totalServices}
-                  {errorServices > 0 && (
-                    <span className="text-red-400 ml-1">({errorServices} err)</span>
-                  )}
-                </>
-              )}
-            </span>
-          </div>
-        </div>
-
-        {isUnlinked && (
-          <div className="flex items-center justify-between p-2.5 rounded-lg bg-orange-500/10 border border-orange-500/30 text-orange-400 text-xs my-2 font-medium">
-            <span>⚠️ {t('node_card.unlinkedWarning', 'Appliance unlinked by hardware owner')}</span>
-          </div>
-        )}
-
-        {/* Version & Update radar */}
-        <div className="flex items-center justify-between text-xs my-2">
-          <span className="text-[11px] font-mono text-[var(--text-secondary)]">
+          {/* Version */}
+          <span className="text-[11px] font-mono text-[var(--text-secondary)] shrink-0">
             v{currentVersion}
           </span>
+
+          {/* Upstream Update Available */}
           {updateAvailable && (
             <span
-              className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-brand-lime/15 text-brand-lime border border-brand-lime/30 flex items-center gap-1"
+              className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-brand-lime/15 text-brand-lime border border-brand-lime/30 flex items-center gap-0.5 shrink-0"
               title={t('node_card.latest_version', { version: latestVersion })}
             >
               <span>↑</span> {t('node_card.update_available')}
             </span>
           )}
+
+          {/* Unlinked Alert */}
+          {isUnlinked && (
+            <span className="text-[11px] text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded flex items-center gap-1 shrink-0 font-medium truncate">
+              <span>⚠️</span> {t('node_card.unlinkedWarning', 'Appliance unlinked by hardware owner')}
+            </span>
+          )}
+
+          {/* Error Message */}
+          {errorMsg && (
+            <span className="text-[11px] text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded shrink-0">
+              {errorMsg}
+            </span>
+          )}
         </div>
 
-        {errorMsg && (
-          <div className="p-2 mb-2 rounded bg-red-500/10 border border-red-500/30 text-red-400 text-xs">
-            {errorMsg}
-          </div>
-        )}
-      </div>
+        {/* Middle Column: Telemetry Matrix Inline */}
+        <div className="flex items-center gap-2.5 px-3 py-1 rounded-lg bg-[var(--input-bg)]/40 border border-[var(--glass-border)] font-mono text-xs tabular-nums text-[var(--text-secondary)] shrink-0">
+          <span>
+            {t('node_card.cpu')}:{' '}
+            <strong
+              className={
+                isOffline || isUnlinked
+                  ? 'text-zinc-500 font-normal'
+                  : cpuPercent > 85
+                  ? 'text-red-400 font-bold'
+                  : 'text-[var(--text-primary)] font-bold'
+              }
+            >
+              {isOffline || isUnlinked ? '--' : `${Math.round(cpuPercent)}%`}
+            </strong>
+          </span>
+          <span className="opacity-20">|</span>
+          <span>
+            {t('node_card.ram')}:{' '}
+            <strong
+              className={
+                isOffline || isUnlinked
+                  ? 'text-zinc-500 font-normal'
+                  : ramPercent > 85
+                  ? 'text-amber-400 font-bold'
+                  : 'text-[var(--text-primary)] font-bold'
+              }
+            >
+              {isOffline || isUnlinked ? '--' : `${Math.round(ramPercent)}%`}
+            </strong>
+          </span>
+          <span className="opacity-20">|</span>
+          <span>
+            {t('node_card.uptime')}:{' '}
+            <strong className={isOffline || isUnlinked ? 'text-zinc-500 font-normal' : 'text-[var(--text-primary)] font-bold'}>
+              {isOffline || isUnlinked ? '--' : uptimeStr}
+            </strong>
+          </span>
+          <span className="opacity-20">|</span>
+          <span>
+            {t('node_card.services')}:{' '}
+            <strong className={isOffline || isUnlinked ? 'text-zinc-500 font-normal' : 'text-[var(--text-primary)] font-bold'}>
+              {isOffline || isUnlinked ? '--' : `${runningServices}/${totalServices}`}
+            </strong>
+            {!isOffline && !isUnlinked && errorServices > 0 && (
+              <span className="text-red-400 font-bold ml-1">({errorServices} err)</span>
+            )}
+          </span>
+        </div>
 
-      {/* Footer: Open GUI Button and Management actions */}
-      <div className="pt-3 flex items-center justify-between gap-2 mt-2">
-        <button
-          onClick={handleOpenGui}
-          disabled={isOffline || isUnlinked || isOpening}
-          className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-            isOffline || isUnlinked
-              ? 'bg-zinc-800/40 text-zinc-500 border border-zinc-700/30 cursor-not-allowed'
-              : 'bg-brand-lime/15 hover:bg-brand-lime/25 text-brand-lime border border-brand-lime/30 hover:border-brand-lime/50 shadow-sm cursor-pointer'
-          }`}
-          title={isUnlinked ? t('node_card.unlinkedWarning', 'Appliance unlinked by hardware owner') : (isOffline ? t('node_card.offline_notice') : '')}
-        >
-          {isOpening ? (
-            <span>{t('common.loading')}</span>
-          ) : isUnlinked ? (
-            <span>{t('common.unlinked', 'Unlinked')}</span>
-          ) : (
-            <>
-              <span>{t('node_card.open_gui')}</span>
-              <span className="text-sm">↗</span>
-            </>
+        {/* Right Column: Status Badge, Launch Button and Actions */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Status Badge */}
+          <span className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${statusBadge}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${statusPulse}`} />
+            {statusLabel}
+          </span>
+
+          {/* Open Web GUI */}
+          <button
+            onClick={handleOpenGui}
+            disabled={isOffline || isUnlinked || isOpening}
+            className={`py-1 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+              isOffline || isUnlinked
+                ? 'bg-zinc-800/40 text-zinc-500 border border-zinc-700/30 cursor-not-allowed'
+                : 'bg-brand-lime/15 hover:bg-brand-lime/25 text-brand-lime border border-brand-lime/30 hover:border-brand-lime/50 shadow-xs cursor-pointer'
+            }`}
+            title={
+              isUnlinked
+                ? t('node_card.unlinkedWarning', 'Appliance unlinked by hardware owner')
+                : isOffline
+                ? t('node_card.offline_notice')
+                : ''
+            }
+          >
+            {isOpening ? (
+              <span>{t('common.loading')}</span>
+            ) : isUnlinked ? (
+              <span>{t('common.unlinked', 'Unlinked')}</span>
+            ) : (
+              <>
+                <span>{t('node_card.open_gui')}</span>
+                <span className="text-xs">↗</span>
+              </>
+            )}
+          </button>
+
+          {/* Node Edit / Delete Actions */}
+          {canManage && (
+            <div className="flex items-center gap-0.5">
+              {onEdit && (
+                <button
+                  onClick={() => onEdit(node)}
+                  className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--glass-border)] transition-colors cursor-pointer"
+                  title={t('common.edit')}
+                  aria-label={t('common.edit')}
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                  </svg>
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  onClick={() => onDelete(node.node_id)}
+                  className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                  title={t('common.delete')}
+                  aria-label={t('common.delete')}
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M3 6h18" />
+                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                  </svg>
+                </button>
+              )}
+            </div>
           )}
-        </button>
-
-        {canManage && (
-          <div className="flex items-center gap-1">
-            {onEdit && (
-              <button
-                onClick={() => onEdit(node)}
-                className="p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--glass-border)] transition-colors"
-                title={t('common.edit')}
-                aria-label={t('common.edit')}
-              >
-                <svg
-                  className="w-4 h-4"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 20h9" />
-                  <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                </svg>
-              </button>
-            )}
-            {onDelete && (
-              <button
-                onClick={() => onDelete(node.node_id)}
-                className="p-2 rounded-lg text-[var(--text-secondary)] hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                title={t('common.delete')}
-                aria-label={t('common.delete')}
-              >
-                <svg
-                  className="w-4 h-4"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M3 6h18" />
-                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                </svg>
-              </button>
-            )}
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

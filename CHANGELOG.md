@@ -5,6 +5,15 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-11-05
+
+### Added
+- **High-Density Fleet Dashboard & 1U Rack Chassis View (`frontend`)**:
+  - Compacted global layout canvas padding and vertical spacing (`space-y-3`), drastically increasing usable screen real estate on 1080p displays.
+  - Re-architected top KPI metric cards into an inline horizontal layout, displaying icons, labels, and figures in ~60px height without sacrificing aesthetic clarity.
+  - Streamlined filter bar by eliminating redundant action buttons and tightening inputs.
+  - Transformed appliance cards into a full-width 1U Rack Chassis matrix format (`NodeAccessCard` in `space-y-1.5` stacks), with distinct status LED borders, inline technical metadata, and tabular monospace telemetry (`CPU`, `RAM`, `Uptime`, `Services`) aligned with `ffmpeg-gui` and `ffmpeg-gui-scanner`.
+
 ## [1.0.1] - 2026-11-03
 
 ### Fixed
