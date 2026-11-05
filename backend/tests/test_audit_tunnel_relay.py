@@ -6,6 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import backend.database.db as db_mod
+import backend.core.tunnel_server as tunnel_server_module
 from backend.database.models import Base, AuditLog, EnrolledNode
 from backend.core.tunnel_server import tunnel_server
 from backend.core.tunnel_protocol import TunnelMessageType
@@ -27,10 +28,13 @@ class TestAuditTunnelRelay(unittest.TestCase):
         Base.metadata.create_all(bind=cls.engine)
         cls.orig_SessionLocal = db_mod.SessionLocal
         db_mod.SessionLocal = cls.TestingSessionLocal
+        cls.orig_ts_session_local = tunnel_server_module.SessionLocal
+        tunnel_server_module.SessionLocal = cls.TestingSessionLocal
 
     @classmethod
     def tearDownClass(cls):
         db_mod.SessionLocal = cls.orig_SessionLocal
+        tunnel_server_module.SessionLocal = cls.orig_ts_session_local
         cls.temp_dir.cleanup()
 
     def setUp(self):
