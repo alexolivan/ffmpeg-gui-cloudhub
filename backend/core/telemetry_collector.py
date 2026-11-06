@@ -126,6 +126,7 @@ class TelemetryCollector:
             "alias": None,
             "model": "cfa635",
             "locator_active": False,
+            "leds": ["off", "off", "off", "off"],
         }
 
         if record and record.get("unlinked"):
@@ -172,17 +173,31 @@ class TelemetryCollector:
         sys_data = payload.get("system", {})
         work_data = payload.get("workload", {})
         lcd_data = payload.get("lcd", {})
+
+        cpu = float(sys_data.get("cpu_percent", 0.0))
+        ram = float(sys_data.get("memory_percent", 0.0))
+        errors = int(work_data.get("services_error", 0))
+        running_svcs = int(work_data.get("services_running", 0))
+
+        raw_leds = lcd_data.get("leds")
+        if isinstance(raw_leds, list) and len(raw_leds) == 4:
+            lcd_leds = [str(x) for x in raw_leds]
+        else:
+            lcd_leds = [
+                "blink_green",
+                "red" if errors > 0 else ("green" if running_svcs > 0 else "off"),
+                "off",
+                "red" if (cpu > 90.0 or ram > 90.0) else "green",
+            ]
+
         lcd_vitality = {
             "enabled": bool(lcd_data.get("enabled", False)),
             "connected": bool(lcd_data.get("connected", False)),
             "alias": lcd_data.get("alias") or None,
             "model": lcd_data.get("model") or "cfa635",
             "locator_active": bool(lcd_data.get("locator_active", False)),
+            "leds": lcd_leds,
         }
-
-        cpu = float(sys_data.get("cpu_percent", 0.0))
-        ram = float(sys_data.get("memory_percent", 0.0))
-        errors = int(work_data.get("services_error", 0))
 
         is_degraded = errors > 0 or cpu > 90.0 or ram > 90.0
         status = "degraded" if is_degraded else "online"
