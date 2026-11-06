@@ -158,6 +158,7 @@ cd frontend && npm run build
 
 ---
 
-## License
+## License & Third-Party Credits
 
-This project is licensed under the [MIT License](LICENSE).
+- `ffmpeg-gui-cloudhub` is licensed under the [MIT License](LICENSE).
+- **DSEG Font Family** (used for the 14-segment virtual LCD panel) is created by [keshikan](https://www.keshikan.net) and licensed under the [SIL Open Font License 1.1](https://scripts.sil.org/OFL) (see [OFL.txt](frontend/src/assets/fonts/OFL.txt)).
