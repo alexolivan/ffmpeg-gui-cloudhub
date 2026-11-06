@@ -5,6 +5,23 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-11-06
+
+### Added
+- **Crystalfontz CFA635-TMF Virtual LCD Bezel & Remote Rack Locator (`frontend/backend`)**:
+  - Implemented an authentic Crystalfontz CFA635-TMF negative blue transmissive LCD bezel with high-contrast white text, side bezel housing, and 4 vertical status micro-LEDs directly on the 1U rack faceplate.
+  - Added real-time edge LCD telemetry ingestion (`enabled`, `connected`, `alias`, `model`, `locator_active`) into CloudHub telemetry collector.
+  - Added remote rack locator proxy endpoint `POST /api/hub/nodes/{node_id}/lcd-locator` tunneling commands directly to the appliance hardware.
+  - Interactive "FIND / LOC" button in CloudHub: clicking it causes both the virtual UI visor and the physical rack LCD to cycle flashing LEDs and alternate find-me text at 2Hz.
+- **Multi-Tab Session Termination & WebSocket Kill-Switch (`backend/frontend`)**:
+  - Injected `BroadcastChannel('cloudhub_auth')` and `storage` event listeners into the reverse proxy HTML shim so that logging out of CloudHub instantly terminates and redirects open edge appliance browser tabs.
+  - Added user ID tracking across reverse proxy WebSocket bridges (`active_ws_users`), actively terminating all open edge WebSocket streams for that operator on `/api/hub/auth/logout`.
+
+### Changed
+- **Zero-Jitter 1U Rack Grid Alignment (`frontend`)**:
+  - Re-architected 1U rack chassis strip into strict fixed-width faceplate zones (`w-[17.5rem]` identity/LCD slot, `w-[8.5rem]` Node ID, `w-[4.5rem]` version, `w-[5.25rem]` CPU, `w-[5.25rem]` RAM, `w-[7rem]` Uptime, `w-[7.5rem]` Services, `w-24` Status Badge, `w-28` Launch Button, `w-14` Manage Actions).
+  - Telemetry digits use fixed-width character spans and `tabular-nums`, preventing horizontal shifting when status badges or telemetry figures change.
+
 ## [1.1.0] - 2026-11-05
 
 ### Added
