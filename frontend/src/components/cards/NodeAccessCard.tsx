@@ -146,6 +146,30 @@ export const NodeAccessCard: React.FC<NodeAccessCardProps> = ({
   const latestVersion = vitality.version?.latest_upstream;
   const currentVersion = node.current_version || vitality.version?.current || '2.50.0';
 
+  const lcdLeds = vitality.lcd?.leds && vitality.lcd.leds.length === 4
+    ? vitality.lcd.leds
+    : ['blink_green', errorServices > 0 ? 'red' : runningServices > 0 ? 'green' : 'off', 'off', isDegraded ? 'red' : 'green'];
+
+  const getCfa635LedClass = (idx: number): string => {
+    if (isOffline || isUnlinked) return 'bg-zinc-700';
+    if (locatorActive) return 'animate-cfa635-locator';
+    const state = lcdLeds[idx] || 'off';
+    switch (state) {
+      case 'blink_green':
+        return 'animate-cfa635-blink-green';
+      case 'blink_red':
+        return 'animate-cfa635-blink-red';
+      case 'green':
+        return 'bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.9)]';
+      case 'yellow':
+        return 'bg-amber-400 shadow-[0_0_5px_rgba(251,191,36,0.9)]';
+      case 'red':
+        return 'bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.9)]';
+      default:
+        return 'bg-zinc-700';
+    }
+  };
+
   const containerStatusStyle = isOnline
     ? 'bg-emerald-500/[0.03] hover:bg-emerald-500/[0.07] border-[var(--glass-border)] hover:border-emerald-500/30 border-l-4 border-l-emerald-400'
     : isDegraded
@@ -188,10 +212,10 @@ export const NodeAccessCard: React.FC<NodeAccessCardProps> = ({
             >
               {/* 4 Micro LEDs stack on the left edge of CFA635 */}
               <div className="flex flex-col justify-between h-6 py-0.5 pr-1.5 shrink-0">
-                <span className={`w-1 h-1 rounded-full ${locatorActive ? 'animate-cfa635-led0' : isOnline ? 'bg-emerald-400' : 'bg-zinc-600'}`} />
-                <span className={`w-1 h-1 rounded-full ${locatorActive ? 'animate-cfa635-led1' : runningServices > 0 ? 'bg-emerald-400' : 'bg-zinc-600'}`} />
-                <span className={`w-1 h-1 rounded-full ${locatorActive ? 'animate-cfa635-led2' : errorServices > 0 ? 'bg-amber-400' : 'bg-zinc-600'}`} />
-                <span className={`w-1 h-1 rounded-full ${locatorActive ? 'animate-cfa635-led3' : isDegraded ? 'bg-red-400' : 'bg-zinc-600'}`} />
+                <span className={`w-1 h-1 rounded-full ${getCfa635LedClass(0)}`} />
+                <span className={`w-1 h-1 rounded-full ${getCfa635LedClass(1)}`} />
+                <span className={`w-1 h-1 rounded-full ${getCfa635LedClass(2)}`} />
+                <span className={`w-1 h-1 rounded-full ${getCfa635LedClass(3)}`} />
               </div>
 
               {/* Negative Blue Screen with White Text */}

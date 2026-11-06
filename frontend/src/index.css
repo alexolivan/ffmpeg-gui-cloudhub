@@ -117,28 +117,25 @@
   letter-spacing: 0.05em;
 }
 
-@keyframes cfa635-chase-red {
-  0%, 100% { background-color: #ef4444; box-shadow: 0 0 6px #ef4444; }
-  33% { background-color: #22c55e; box-shadow: 0 0 6px #22c55e; }
-  66% { background-color: #eab308; box-shadow: 0 0 6px #eab308; }
+@keyframes cfa635-locator-unison {
+  0% { background-color: #ef4444; box-shadow: 0 0 6px #ef4444; }
+  33.33% { background-color: #22c55e; box-shadow: 0 0 6px #22c55e; }
+  66.66% { background-color: #eab308; box-shadow: 0 0 6px #eab308; }
 }
 
-@keyframes cfa635-chase-green {
-  0%, 100% { background-color: #22c55e; box-shadow: 0 0 6px #22c55e; }
-  33% { background-color: #eab308; box-shadow: 0 0 6px #eab308; }
-  66% { background-color: #ef4444; box-shadow: 0 0 6px #ef4444; }
+@keyframes cfa635-heartbeat-100ms {
+  0%, 10% { background-color: #22c55e; box-shadow: 0 0 5px #22c55e; }
+  10.01%, 100% { background-color: #27272a; box-shadow: none; }
 }
 
-@keyframes cfa635-chase-yellow {
-  0%, 100% { background-color: #eab308; box-shadow: 0 0 6px #eab308; }
-  33% { background-color: #ef4444; box-shadow: 0 0 6px #ef4444; }
-  66% { background-color: #22c55e; box-shadow: 0 0 6px #22c55e; }
+@keyframes cfa635-recording-500ms {
+  0%, 50% { background-color: #ef4444; box-shadow: 0 0 5px #ef4444; }
+  50.01%, 100% { background-color: #27272a; box-shadow: none; }
 }
 
-.animate-cfa635-led0 { animation: cfa635-chase-red 0.5s infinite steps(1); }
-.animate-cfa635-led1 { animation: cfa635-chase-green 0.5s infinite steps(1); }
-.animate-cfa635-led2 { animation: cfa635-chase-yellow 0.5s infinite steps(1); }
-.animate-cfa635-led3 { animation: cfa635-chase-red 0.5s infinite steps(1); }
+.animate-cfa635-locator { animation: cfa635-locator-unison 0.75s infinite steps(1); }
+.animate-cfa635-blink-green { animation: cfa635-heartbeat-100ms 1s infinite steps(1); }
+.animate-cfa635-blink-red { animation: cfa635-recording-500ms 1s infinite steps(1); }
 
 body {
   background-color: var(--bg-dark);

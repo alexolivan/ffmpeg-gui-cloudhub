@@ -57,6 +57,7 @@ export interface NodeVitality {
     alias?: string | null;
     model?: string;
     locator_active?: boolean;
+    leds?: string[];
   };
   version?: {
     current?: string | null;
