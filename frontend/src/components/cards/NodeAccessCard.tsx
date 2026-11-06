@@ -170,6 +170,23 @@ export const NodeAccessCard: React.FC<NodeAccessCardProps> = ({
     }
   };
 
+  // In DSEG14 Classic, '!' is the full-cell blank space and '~' is all 14 segments lit
+  const formatForDseg14 = (raw: string, cells = 15): string => {
+    const clean = raw
+      .toUpperCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^A-Z0-9\-_*/() ]/g, ' ')
+      .slice(0, cells)
+      .replace(/ /g, '!');
+    return clean;
+  };
+  const lcdGhostCells = '~'.repeat(15);
+  const lcdDisplaySegmented = formatForDseg14(
+    locatorActive ? '** FIND ME **' : lcdAlias,
+    15
+  );
+
   const containerStatusStyle = isOnline
     ? 'bg-emerald-500/[0.03] hover:bg-emerald-500/[0.07] border-[var(--glass-border)] hover:border-emerald-500/30 border-l-4 border-l-emerald-400'
     : isDegraded
@@ -218,11 +235,20 @@ export const NodeAccessCard: React.FC<NodeAccessCardProps> = ({
                 <span className={`w-1 h-1 rounded-full ${getCfa635LedClass(3)}`} />
               </div>
 
-              {/* Negative Blue Screen with White Text */}
+              {/* Negative Blue Screen with 14-Segment White LCD Text & Ghost Segments */}
               <div className="flex-1 h-full rounded px-2 flex items-center justify-between cfa635-screen overflow-hidden">
-                <span className={`text-[11px] font-bold truncate cfa635-text ${locatorActive ? 'animate-pulse text-amber-200' : ''}`}>
-                  {locatorActive ? t('node_card.lcd_find_me', '*** FIND ME! ***') : lcdAlias}
-                </span>
+                <div className="relative flex items-center overflow-hidden min-w-0 flex-1 h-full">
+                  <span aria-hidden="true" className="text-[11px] font-bold whitespace-pre cfa635-ghost">
+                    {lcdGhostCells}
+                  </span>
+                  <span
+                    className={`absolute inset-y-0 left-0 flex items-center text-[11px] font-bold whitespace-pre cfa635-text ${
+                      locatorActive ? 'animate-pulse text-amber-200' : ''
+                    }`}
+                  >
+                    {lcdDisplaySegmented}
+                  </span>
+                </div>
 
                 {/* Locator Flash Button on the right of screen */}
                 <button

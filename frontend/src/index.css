@@ -98,6 +98,14 @@
 }
 
 /* Crystalfontz CFA635-TMF Negative Blue Transmissive LCD Bezel */
+@font-face {
+  font-family: 'DSEG14 Classic';
+  src: url('./assets/fonts/DSEG14Classic-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+
 .cfa635-bezel {
   background: #080d1a;
   border: 1px solid rgba(59, 130, 246, 0.35);
@@ -112,9 +120,19 @@
 
 .cfa635-text {
   color: #f8fafc;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  text-shadow: 0 0 6px rgba(255, 255, 255, 0.65), 0 0 12px rgba(96, 165, 250, 0.45);
-  letter-spacing: 0.05em;
+  font-family: 'DSEG14 Classic', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.7), 0 0 12px rgba(96, 165, 250, 0.5);
+  letter-spacing: 0.08em;
+  line-height: 1;
+}
+
+.cfa635-ghost {
+  color: rgba(147, 197, 253, 0.11);
+  font-family: 'DSEG14 Classic', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  user-select: none;
+  pointer-events: none;
 }
 
 @keyframes cfa635-locator-unison {
