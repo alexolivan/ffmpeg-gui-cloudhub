@@ -30,6 +30,7 @@ class HeartbeatPayload(BaseModel):
     current_version: Optional[str] = None
     system: Dict[str, Any] = Field(default_factory=dict)
     workload: Dict[str, Any] = Field(default_factory=dict)
+    lcd: Dict[str, Any] = Field(default_factory=dict)
 
 
 @router.post("/enroll")

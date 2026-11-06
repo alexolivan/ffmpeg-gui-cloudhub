@@ -93,6 +93,10 @@ class UpdateNodeRequest(BaseModel):
     icon_data: Optional[str] = None
 
 
+class LcdLocatorRequest(BaseModel):
+    active: bool
+
+
 # =========================================================================
 # Organizations Endpoints
 # =========================================================================
@@ -1011,4 +1015,71 @@ def get_node_sso_url(
         "node_id": node.node_id,
         "sso_path": sso_path,
         "expires_in": 60,
+    }
+
+
+@router.post("/nodes/{node_id}/lcd-locator")
+async def toggle_node_lcd_locator(
+    node_id: str,
+    req: LcdLocatorRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    node = db.query(EnrolledNode).filter(EnrolledNode.node_id == node_id).first()
+    if not node:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Node not found")
+
+    if not AuthManager.can_user_access_node(db, current_user, node):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to this node")
+
+    from backend.core.tunnel_server import tunnel_server
+    import json
+
+    assertion = AuthManager.create_sso_assertion(
+        node_id=node.node_id,
+        tunnel_secret=node.tunnel_secret,
+        username=current_user.username,
+        ttl_seconds=60,
+    )
+
+    body_bytes = json.dumps({"active": req.active}).encode("utf-8")
+    headers = {"content-type": "application/json"}
+
+    try:
+        status_code, resp_headers, resp_bytes = await tunnel_server.forward_http(
+            node_id=node.node_id,
+            method="POST",
+            path="/api/lcd/locator",
+            query="",
+            headers=headers,
+            body=body_bytes,
+            sso_assertion=assertion,
+            timeout=10.0,
+        )
+    except ConnectionError:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Appliance '{node.name or node.node_id}' is offline or tunnel disconnected",
+        )
+    except TimeoutError:
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Timeout communicating with appliance LCD subsystem",
+        )
+
+    if status_code >= 400:
+        err_msg = "Failed to toggle locator on appliance"
+        try:
+            err_data = json.loads(resp_bytes.decode("utf-8"))
+            err_msg = err_data.get("detail", err_msg)
+        except Exception:
+            pass
+        raise HTTPException(status_code=status_code, detail=err_msg)
+
+    telemetry_collector.set_lcd_locator_state(node.node_id, req.active)
+
+    return {
+        "status": "ok",
+        "node_id": node.node_id,
+        "active": req.active,
     }
