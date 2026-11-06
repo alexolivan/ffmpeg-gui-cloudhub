@@ -200,7 +200,9 @@ def login(
 
 
 @router.post("/logout")
-def logout(response: Response, user: User = Depends(get_current_user)):
+async def logout(response: Response, user: User = Depends(get_current_user)):
+    from backend.core.tunnel_server import tunnel_server
+    await tunnel_server.close_user_websockets(user.id)
     response.delete_cookie("ch_session")
     return {"status": "ok", "message": "Logged out successfully"}
 
