@@ -31,6 +31,7 @@ class ActiveTunnel:
         self.connected_at = time.time()
         self.pending_http: Dict[str, asyncio.Future] = {}
         self.active_ws_streams: Dict[str, WebSocket] = {}
+        self.active_ws_users: Dict[str, int] = {}
         self._send_lock = asyncio.Lock()
 
     async def send_json(self, data: Dict[str, Any]) -> None:
@@ -101,6 +102,7 @@ class TunnelServer:
                 except Exception:
                     pass
             tunnel.active_ws_streams.clear()
+            tunnel.active_ws_users.clear()
 
             # Update telemetry collector
             telemetry_collector.mark_disconnected(node_id)
@@ -187,6 +189,7 @@ class TunnelServer:
 
             elif msg_type == TunnelMessageType.WS_CLOSE:
                 browser_ws = tunnel.active_ws_streams.pop(stream_id, None)
+                tunnel.active_ws_users.pop(stream_id, None)
                 if browser_ws:
                     code = int(msg.get("code", 1000))
                     reason = msg.get("reason", "Edge node closed connection")
@@ -347,6 +350,7 @@ class TunnelServer:
         query: str,
         headers: Dict[str, str],
         sso_assertion: Optional[str] = None,
+        user_id: Optional[int] = None,
     ) -> None:
         """
         Bridge an incoming browser WebSocket connection into the edge node reverse tunnel.
@@ -358,6 +362,8 @@ class TunnelServer:
 
         stream_id = uuid.uuid4().hex
         tunnel.active_ws_streams[stream_id] = browser_ws
+        if user_id is not None:
+            tunnel.active_ws_users[stream_id] = user_id
 
         open_frame = create_ws_open_frame(
             stream_id=stream_id,
@@ -388,11 +394,38 @@ class TunnelServer:
             logger.debug("WS bridge error: %s", err)
         finally:
             tunnel.active_ws_streams.pop(stream_id, None)
+            tunnel.active_ws_users.pop(stream_id, None)
             close_frame = create_ws_close_frame(stream_id)
             try:
                 await tunnel.send_json(close_frame)
             except Exception:
                 pass
+
+    async def close_user_websockets(self, user_id: int) -> int:
+        """Actively close all open browser WebSocket sessions associated with a specific user ID."""
+        closed_count = 0
+        async with self._lock:
+            active_tunnels = list(self._tunnels.values())
+
+        for tunnel in active_tunnels:
+            matching_stream_ids = [
+                s_id for s_id, u_id in list(tunnel.active_ws_users.items()) if u_id == user_id
+            ]
+            for stream_id in matching_stream_ids:
+                browser_ws = tunnel.active_ws_streams.pop(stream_id, None)
+                tunnel.active_ws_users.pop(stream_id, None)
+                if browser_ws:
+                    try:
+                        await browser_ws.close(code=4001, reason="CloudHub session logged out")
+                        closed_count += 1
+                    except Exception:
+                        pass
+                try:
+                    close_frame = create_ws_close_frame(stream_id)
+                    await tunnel.send_json(close_frame)
+                except Exception:
+                    pass
+        return closed_count
 
 
 tunnel_server = TunnelServer()

@@ -170,6 +170,35 @@ JS_SHIM_TEMPLATE = """
       });
     }
   } catch(e) {}
+
+  // 8. Multi-Tab Session Kill-Switch
+  function terminateProxySession() {
+    try {
+      window.close();
+    } catch(e) {}
+    try {
+      window.location.replace('/');
+    } catch(e) {}
+  }
+
+  try {
+    if (typeof BroadcastChannel !== 'undefined') {
+      const authChannel = new BroadcastChannel('cloudhub_auth');
+      authChannel.onmessage = function(ev) {
+        if (ev && ev.data && ev.data.type === 'LOGOUT') {
+          terminateProxySession();
+        }
+      };
+    }
+  } catch(e) {}
+
+  try {
+    window.addEventListener('storage', function(ev) {
+      if (ev && ev.key === 'cloudhub_logout_event') {
+        terminateProxySession();
+      }
+    });
+  } catch(e) {}
 })();
 </script>
 """
@@ -263,6 +292,7 @@ async def proxy_websocket_endpoint(
         query=query_str,
         headers=headers,
         sso_assertion=sso_assertion,
+        user_id=user.id,
     )
 
 

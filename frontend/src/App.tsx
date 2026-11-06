@@ -115,9 +115,19 @@ export const App: React.FC = () => {
 
   const handleLogout = async () => {
     try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        const authChannel = new BroadcastChannel('cloudhub_auth');
+        authChannel.postMessage({ type: 'LOGOUT' });
+        authChannel.close();
+      }
+      localStorage.setItem('cloudhub_logout_event', Date.now().toString());
+    } catch (e) {}
+
+    try {
       await fetch('/api/hub/auth/logout', { method: 'POST', credentials: 'include' });
     } finally {
       localStorage.removeItem('cloudhub_token');
+      localStorage.removeItem('cloudhub_logout_event');
       setCurrentUser(null);
       setActiveView('fleet');
       setSelectedOrgId(null);
