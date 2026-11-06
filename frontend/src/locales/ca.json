@@ -138,7 +138,10 @@
     "latest_version": "v{{version}} disponible",
     "offline_notice": "El túnel invers del dispositiu està desconnectat",
     "unlinked": "Desvinculat",
-    "unlinkedWarning": "Appliance desvinculat pel propietari del maquinari"
+    "unlinkedWarning": "Appliance desvinculat pel propietari del maquinari",
+    "locate_rack": "Localitzar al rack (Parpellejar LCD)",
+    "locator_active": "Localitzador de rack actiu (parpellejant)",
+    "lcd_find_me": "*** FIND ME! ***"
   },
   "audit": {
     "title": "Registre d'Auditoria",
