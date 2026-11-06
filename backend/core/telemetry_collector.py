@@ -64,6 +64,15 @@ class TelemetryCollector:
             rec = self._vitality_cache.get(node_id)
             return rec.get("payload") if rec else None
 
+    def set_lcd_locator_state(self, node_id: str, active: bool) -> None:
+        """Update in-memory LCD locator beacon state for a node."""
+        with self._lock:
+            rec = self._vitality_cache.get(node_id)
+            if rec and "payload" in rec:
+                if "lcd" not in rec["payload"] or not isinstance(rec["payload"]["lcd"], dict):
+                    rec["payload"]["lcd"] = {}
+                rec["payload"]["lcd"]["locator_active"] = bool(active)
+
     def get_latest_upstream_version(self) -> Optional[str]:
         """Fetch latest ffmpeg-gui version from GitHub, cached for 6 hours."""
         now = time.time()
@@ -111,12 +120,21 @@ class TelemetryCollector:
         with self._lock:
             record = self._vitality_cache.get(node_id)
 
+        default_lcd = {
+            "enabled": False,
+            "connected": False,
+            "alias": None,
+            "model": "cfa635",
+            "locator_active": False,
+        }
+
         if record and record.get("unlinked"):
             return {
                 "status": "unlinked",
                 "last_seen_seconds_ago": int(now - record["timestamp"]),
                 "system": {},
                 "workload": {},
+                "lcd": default_lcd,
                 "version": {
                     "current": current_version,
                     "update_available": False,
@@ -129,6 +147,7 @@ class TelemetryCollector:
                 "last_seen_seconds_ago": None if not record else int(now - record["timestamp"]),
                 "system": {},
                 "workload": {},
+                "lcd": default_lcd,
                 "version": {
                     "current": current_version,
                     "update_available": False,
@@ -142,6 +161,7 @@ class TelemetryCollector:
                 "last_seen_seconds_ago": int(elapsed),
                 "system": {},
                 "workload": {},
+                "lcd": default_lcd,
                 "version": {
                     "current": current_version,
                     "update_available": False,
@@ -151,6 +171,14 @@ class TelemetryCollector:
         payload = record.get("payload", {})
         sys_data = payload.get("system", {})
         work_data = payload.get("workload", {})
+        lcd_data = payload.get("lcd", {})
+        lcd_vitality = {
+            "enabled": bool(lcd_data.get("enabled", False)),
+            "connected": bool(lcd_data.get("connected", False)),
+            "alias": lcd_data.get("alias") or None,
+            "model": lcd_data.get("model") or "cfa635",
+            "locator_active": bool(lcd_data.get("locator_active", False)),
+        }
 
         cpu = float(sys_data.get("cpu_percent", 0.0))
         ram = float(sys_data.get("memory_percent", 0.0))
@@ -188,6 +216,7 @@ class TelemetryCollector:
                 "total_tasks": int(work_data.get("total_tasks", 0)),
                 "tasks_running": int(work_data.get("tasks_running", 0)),
             },
+            "lcd": lcd_vitality,
             "version": {
                 "current": node_ver,
                 "latest_upstream": latest_ver,
