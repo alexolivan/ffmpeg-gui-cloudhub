@@ -51,6 +51,13 @@ export interface NodeVitality {
     total_tasks?: number;
     tasks_running?: number;
   };
+  lcd?: {
+    enabled?: boolean;
+    connected?: boolean;
+    alias?: string | null;
+    model?: string;
+    locator_active?: boolean;
+  };
   version?: {
     current?: string | null;
     latest_upstream?: string | null;

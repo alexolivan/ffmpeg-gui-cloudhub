@@ -19,6 +19,7 @@ export const NodeAccessCard: React.FC<NodeAccessCardProps> = ({
   const [isOpening, setIsOpening] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isTogglingLocator, setIsTogglingLocator] = useState(false);
 
   const isImageLogo =
     Boolean(node.icon_data) &&
@@ -43,6 +44,7 @@ export const NodeAccessCard: React.FC<NodeAccessCardProps> = ({
     status: 'offline',
     system: {},
     workload: {},
+    lcd: { enabled: false, connected: false, alias: null, model: 'cfa635', locator_active: false },
   };
 
   const status = vitality.status;
@@ -50,6 +52,10 @@ export const NodeAccessCard: React.FC<NodeAccessCardProps> = ({
   const isDegraded = status === 'degraded';
   const isOffline = status === 'offline';
   const isUnlinked = status === 'unlinked';
+
+  const hasLcd = Boolean(vitality.lcd?.enabled || vitality.lcd?.connected);
+  const locatorActive = Boolean(vitality.lcd?.locator_active);
+  const lcdAlias = vitality.lcd?.alias || node.name;
 
   const statusBadge = {
     online: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
@@ -103,9 +109,33 @@ export const NodeAccessCard: React.FC<NodeAccessCardProps> = ({
     }
   };
 
+  const handleToggleLocator = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!hasLcd || isOffline || isUnlinked || isTogglingLocator) return;
+    setIsTogglingLocator(true);
+    try {
+      const res = await fetch(`/api/hub/nodes/${node.node_id}/lcd-locator`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ active: !locatorActive }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || 'Failed to toggle rack locator');
+      }
+      if (vitality.lcd) {
+        vitality.lcd.locator_active = !locatorActive;
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Locator toggle error');
+    } finally {
+      setIsTogglingLocator(false);
+    }
+  };
+
   const cpuPercent = vitality.system?.cpu_percent ?? 0;
   const ramPercent = vitality.system?.memory_percent ?? 0;
-  const diskPercent = vitality.system?.disk_percent ?? 0;
   const uptimeStr = formatUptime(vitality.system?.uptime_seconds);
 
   const runningServices = vitality.workload?.services_running ?? 0;
@@ -126,8 +156,8 @@ export const NodeAccessCard: React.FC<NodeAccessCardProps> = ({
 
   return (
     <div className={`rounded-lg px-3 py-1.5 transition-all shadow-xs relative group ${containerStatusStyle}`}>
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-x-4 gap-y-2">
-        {/* Left Column: Identity & Metadata */}
+      <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-x-3 gap-y-2">
+        {/* Left Column: Fixed Faceplate Identity & Crystalfontz CFA635 LCD Bezel */}
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
           {/* Status LED */}
           <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${statusPulse}`} />
@@ -148,21 +178,66 @@ export const NodeAccessCard: React.FC<NodeAccessCardProps> = ({
             </div>
           )}
 
-          {/* Node Friendly Name */}
-          <span className="font-bold text-xs sm:text-sm text-[var(--text-primary)] truncate" title={node.name}>
-            {node.name}
-          </span>
+          {/* 1U Chassis Faceplate / CFA635 Negative Blue LCD Screen */}
+          {hasLcd ? (
+            <div
+              className={`w-[17.5rem] h-8 rounded px-1.5 py-0.5 flex items-center justify-between shrink-0 cfa635-bezel transition-all ${
+                locatorActive ? 'ring-2 ring-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.6)]' : ''
+              }`}
+              title={`Crystalfontz CFA-635 (${vitality.lcd?.model || 'cfa635'})`}
+            >
+              {/* 4 Micro LEDs stack on the left edge of CFA635 */}
+              <div className="flex flex-col justify-between h-6 py-0.5 pr-1.5 shrink-0">
+                <span className={`w-1 h-1 rounded-full ${locatorActive ? 'animate-cfa635-led0' : isOnline ? 'bg-emerald-400' : 'bg-zinc-600'}`} />
+                <span className={`w-1 h-1 rounded-full ${locatorActive ? 'animate-cfa635-led1' : runningServices > 0 ? 'bg-emerald-400' : 'bg-zinc-600'}`} />
+                <span className={`w-1 h-1 rounded-full ${locatorActive ? 'animate-cfa635-led2' : errorServices > 0 ? 'bg-amber-400' : 'bg-zinc-600'}`} />
+                <span className={`w-1 h-1 rounded-full ${locatorActive ? 'animate-cfa635-led3' : isDegraded ? 'bg-red-400' : 'bg-zinc-600'}`} />
+              </div>
 
-          {/* Node ID */}
+              {/* Negative Blue Screen with White Text */}
+              <div className="flex-1 h-full rounded px-2 flex items-center justify-between cfa635-screen overflow-hidden">
+                <span className={`text-[11px] font-bold truncate cfa635-text ${locatorActive ? 'animate-pulse text-amber-200' : ''}`}>
+                  {locatorActive ? t('node_card.lcd_find_me', '*** FIND ME! ***') : lcdAlias}
+                </span>
+
+                {/* Locator Flash Button on the right of screen */}
+                <button
+                  type="button"
+                  onClick={handleToggleLocator}
+                  disabled={isOffline || isUnlinked || isTogglingLocator}
+                  className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold transition-all flex items-center gap-1 cursor-pointer shrink-0 ${
+                    locatorActive
+                      ? 'bg-amber-400 text-black shadow-[0_0_8px_rgba(251,191,36,0.9)] animate-pulse'
+                      : 'bg-blue-600/40 hover:bg-blue-500/60 text-blue-200 border border-blue-400/40'
+                  }`}
+                  title={locatorActive ? t('node_card.locator_active') : t('node_card.locate_rack')}
+                >
+                  <span>{locatorActive ? '🚨' : '🔦'}</span>
+                  <span className="text-[9px] uppercase tracking-wider">{locatorActive ? 'LOC' : 'FIND'}</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="w-[17.5rem] flex items-center justify-between shrink-0 truncate pr-1">
+              <span className="font-bold text-xs sm:text-sm text-[var(--text-primary)] truncate" title={node.name}>
+                {node.name}
+              </span>
+              <span className="text-[10px] font-mono text-[var(--text-secondary)] opacity-40 uppercase tracking-widest shrink-0 ml-1">
+                [1U BLANK]
+              </span>
+            </div>
+          )}
+
+          {/* Node ID - Fixed Slot */}
           <span
-            className="text-[11px] font-mono text-[var(--text-secondary)] bg-[var(--input-bg)]/60 px-1.5 py-0.5 rounded border border-[var(--glass-border)] shrink-0"
+            className="w-[8.5rem] text-center text-[11px] font-mono text-[var(--text-secondary)] bg-[var(--input-bg)]/60 px-1.5 py-0.5 rounded border border-[var(--glass-border)] shrink-0 truncate"
             title={node.node_id}
           >
             {node.node_id}
           </span>
 
-          {/* Version */}
-          <span className="text-[11px] font-mono text-[var(--text-secondary)] shrink-0">
+          {/* Version - Fixed Slot */}
+          <span className="w-[4.5rem] text-center text-[11px] font-mono text-[var(--text-secondary)] shrink-0">
             v{currentVersion}
           </span>
 
@@ -191,69 +266,83 @@ export const NodeAccessCard: React.FC<NodeAccessCardProps> = ({
           )}
         </div>
 
-        {/* Middle Column: Telemetry Matrix Inline */}
-        <div className="flex items-center gap-2.5 px-3 py-1 rounded-lg bg-[var(--input-bg)]/40 border border-[var(--glass-border)] font-mono text-xs tabular-nums text-[var(--text-secondary)] shrink-0">
-          <span>
-            {t('node_card.cpu')}:{' '}
+        {/* Middle Column: Fixed Grid Telemetry Strip (Zero Jitter) */}
+        <div className="grid grid-cols-4 divide-x divide-[var(--glass-border)] px-1 py-1 rounded-lg bg-[var(--input-bg)]/40 border border-[var(--glass-border)] font-mono text-xs tabular-nums text-[var(--text-secondary)] shrink-0">
+          {/* CPU: fixed cell */}
+          <div className="w-[5.25rem] px-2 flex items-center justify-between">
+            <span className="text-[11px] uppercase opacity-70">{t('node_card.cpu')}</span>
             <strong
-              className={
+              className={`inline-block w-[4ch] text-right ${
                 isOffline || isUnlinked
                   ? 'text-zinc-500 font-normal'
                   : cpuPercent > 85
                   ? 'text-red-400 font-bold'
                   : 'text-[var(--text-primary)] font-bold'
-              }
+              }`}
             >
               {isOffline || isUnlinked ? '--' : `${Math.round(cpuPercent)}%`}
             </strong>
-          </span>
-          <span className="opacity-20">|</span>
-          <span>
-            {t('node_card.ram')}:{' '}
+          </div>
+
+          {/* RAM: fixed cell */}
+          <div className="w-[5.25rem] px-2 flex items-center justify-between">
+            <span className="text-[11px] uppercase opacity-70">{t('node_card.ram')}</span>
             <strong
-              className={
+              className={`inline-block w-[4ch] text-right ${
                 isOffline || isUnlinked
                   ? 'text-zinc-500 font-normal'
                   : ramPercent > 85
                   ? 'text-amber-400 font-bold'
                   : 'text-[var(--text-primary)] font-bold'
-              }
+              }`}
             >
               {isOffline || isUnlinked ? '--' : `${Math.round(ramPercent)}%`}
             </strong>
-          </span>
-          <span className="opacity-20">|</span>
-          <span>
-            {t('node_card.uptime')}:{' '}
-            <strong className={isOffline || isUnlinked ? 'text-zinc-500 font-normal' : 'text-[var(--text-primary)] font-bold'}>
+          </div>
+
+          {/* Uptime: fixed cell */}
+          <div className="w-[7rem] px-2 flex items-center justify-between">
+            <span className="text-[11px] uppercase opacity-70">{t('node_card.uptime')}</span>
+            <strong
+              className={`inline-block w-[6ch] text-right truncate ${
+                isOffline || isUnlinked ? 'text-zinc-500 font-normal' : 'text-[var(--text-primary)] font-bold'
+              }`}
+            >
               {isOffline || isUnlinked ? '--' : uptimeStr}
             </strong>
-          </span>
-          <span className="opacity-20">|</span>
-          <span>
-            {t('node_card.services')}:{' '}
-            <strong className={isOffline || isUnlinked ? 'text-zinc-500 font-normal' : 'text-[var(--text-primary)] font-bold'}>
-              {isOffline || isUnlinked ? '--' : `${runningServices}/${totalServices}`}
-            </strong>
-            {!isOffline && !isUnlinked && errorServices > 0 && (
-              <span className="text-red-400 font-bold ml-1">({errorServices} err)</span>
-            )}
-          </span>
+          </div>
+
+          {/* Services: fixed cell */}
+          <div className="w-[7.5rem] px-2 flex items-center justify-between">
+            <span className="text-[11px] uppercase opacity-70">{t('node_card.services')}</span>
+            <div className="text-right truncate">
+              <strong
+                className={isOffline || isUnlinked ? 'text-zinc-500 font-normal' : 'text-[var(--text-primary)] font-bold'}
+              >
+                {isOffline || isUnlinked ? '--' : `${runningServices}/${totalServices}`}
+              </strong>
+              {!isOffline && !isUnlinked && errorServices > 0 && (
+                <span className="text-red-400 font-bold ml-1">({errorServices})</span>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Right Column: Status Badge, Launch Button and Actions */}
+        {/* Right Column: Fixed Status Badge, Launch Button & Actions */}
         <div className="flex items-center gap-2 shrink-0">
-          {/* Status Badge */}
-          <span className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${statusBadge}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${statusPulse}`} />
-            {statusLabel}
+          {/* Status Badge: Fixed w-24 */}
+          <span
+            className={`w-24 justify-center flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border shrink-0 ${statusBadge}`}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusPulse}`} />
+            <span className="truncate">{statusLabel}</span>
           </span>
 
-          {/* Open Web GUI */}
+          {/* Open Web GUI: Fixed w-28 */}
           <button
             onClick={handleOpenGui}
             disabled={isOffline || isUnlinked || isOpening}
-            className={`py-1 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+            className={`w-28 py-1 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 shrink-0 ${
               isOffline || isUnlinked
                 ? 'bg-zinc-800/40 text-zinc-500 border border-zinc-700/30 cursor-not-allowed'
                 : 'bg-brand-lime/15 hover:bg-brand-lime/25 text-brand-lime border border-brand-lime/30 hover:border-brand-lime/50 shadow-xs cursor-pointer'
@@ -272,7 +361,7 @@ export const NodeAccessCard: React.FC<NodeAccessCardProps> = ({
               <span>{t('common.unlinked', 'Unlinked')}</span>
             ) : (
               <>
-                <span>{t('node_card.open_gui')}</span>
+                <span className="truncate">{t('node_card.open_gui')}</span>
                 <span className="text-xs">↗</span>
               </>
             )}
@@ -280,7 +369,7 @@ export const NodeAccessCard: React.FC<NodeAccessCardProps> = ({
 
           {/* Node Edit / Delete Actions */}
           {canManage && (
-            <div className="flex items-center gap-0.5">
+            <div className="w-14 flex items-center justify-end gap-0.5 shrink-0">
               {onEdit && (
                 <button
                   onClick={() => onEdit(node)}

@@ -138,7 +138,10 @@
     "latest_version": "v{{version}} available",
     "offline_notice": "Appliance reverse tunnel is currently disconnected",
     "unlinked": "Unlinked",
-    "unlinkedWarning": "Appliance unlinked by hardware owner"
+    "unlinkedWarning": "Appliance unlinked by hardware owner",
+    "locate_rack": "Locate in rack (Blink LCD)",
+    "locator_active": "Rack locator active (blinking)",
+    "lcd_find_me": "*** FIND ME! ***"
   },
   "audit": {
     "title": "Audit Logs",

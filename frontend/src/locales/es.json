@@ -138,7 +138,10 @@
     "latest_version": "v{{version}} disponible",
     "offline_notice": "El túnel inverso del dispositivo está desconectado",
     "unlinked": "Desvinculado",
-    "unlinkedWarning": "Appliance desvinculado por el dueño del hardware"
+    "unlinkedWarning": "Appliance desvinculado por el dueño del hardware",
+    "locate_rack": "Localizar en rack (Parpadear LCD)",
+    "locator_active": "Localizador de rack activo (parpadeando)",
+    "lcd_find_me": "*** FIND ME! ***"
   },
   "audit": {
     "title": "Registro de Auditoría",
