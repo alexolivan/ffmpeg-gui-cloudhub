@@ -5,6 +5,14 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-11-17
+
+### Added
+- **Chunked HTTP Streaming over Reverse Tunnel (`backend/core/tunnel_protocol.py`, `tunnel_server.py`, `reverse_proxy.py`)**:
+  - Extended the multiplexed reverse tunnel protocol with `http_resp_start`, `http_resp_chunk`, `http_resp_end`, and `http_req_cancel` frames while preserving 100% backwards compatibility with monolithic `http_resp` responses.
+  - Enabled `StreamingResponse` pass-through in `proxy_http_endpoint` for live Icecast audio mountpoints (`audio/*`, `application/ogg`), MJPEG multipart video previews, and chunked binary streams, automatically cancelling the upstream edge stream on client disconnect.
+  - Added `action="/api/` rewriting in the reverse proxy HTML rewriter.
+
 ## [1.2.1] - 2026-11-17
 
 ### Fixed
