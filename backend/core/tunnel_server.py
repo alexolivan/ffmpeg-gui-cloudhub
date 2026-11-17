@@ -5,12 +5,13 @@ import json
 import uuid
 import time
 import logging
-from typing import Dict, Any, Optional, Tuple, List
+from typing import Dict, Any, Optional, Tuple, List, Union, AsyncIterator
 from fastapi import WebSocket, WebSocketDisconnect
 
 from backend.core.tunnel_protocol import (
     TunnelMessageType,
     create_http_request_frame,
+    create_http_cancel_frame,
     create_ws_open_frame,
     create_ws_frame,
     create_ws_close_frame,
@@ -30,6 +31,7 @@ class ActiveTunnel:
         self.websocket = websocket
         self.connected_at = time.time()
         self.pending_http: Dict[str, asyncio.Future] = {}
+        self.pending_http_streams: Dict[str, asyncio.Queue] = {}
         self.active_ws_streams: Dict[str, WebSocket] = {}
         self.active_ws_users: Dict[str, int] = {}
         self._send_lock = asyncio.Lock()
@@ -55,6 +57,13 @@ class TunnelServer:
                     ConnectionError("Edge appliance disconnected while request was in-flight")
                 )
         tunnel.pending_http.clear()
+
+        for stream_id, queue in list(tunnel.pending_http_streams.items()):
+            try:
+                queue.put_nowait({"type": TunnelMessageType.HTTP_RESP_END, "error": "Edge tunnel closed"})
+            except Exception:
+                pass
+        tunnel.pending_http_streams.clear()
 
         for stream_id, browser_ws in list(tunnel.active_ws_streams.items()):
             try:
@@ -172,6 +181,94 @@ class TunnelServer:
         finally:
             tunnel.pending_http.pop(stream_id, None)
 
+    async def forward_http_stream(
+        self,
+        node_id: str,
+        method: str,
+        path: str,
+        query: str,
+        headers: Dict[str, str],
+        body: Optional[bytes] = None,
+        sso_assertion: Optional[str] = None,
+        timeout: float = 30.0,
+    ) -> Tuple[int, List[List[str]], bool, Union[bytes, AsyncIterator[bytes]]]:
+        """
+        Forward an HTTP request over the reverse tunnel with chunked streaming support.
+        Returns: (status_code, headers_list, is_stream, body_bytes_or_async_iterator)
+        """
+        tunnel = self._tunnels.get(node_id)
+        if not tunnel:
+            raise ConnectionError(f"Node '{node_id}' is offline or reverse tunnel not connected")
+
+        stream_id = uuid.uuid4().hex
+        queue: asyncio.Queue = asyncio.Queue()
+        tunnel.pending_http_streams[stream_id] = queue
+
+        frame = create_http_request_frame(
+            stream_id=stream_id,
+            method=method,
+            path=path,
+            query=query,
+            headers=headers,
+            body=body,
+            sso_assertion=sso_assertion,
+            supports_stream=True,
+        )
+
+        try:
+            await tunnel.send_json(frame)
+            first_msg = await asyncio.wait_for(queue.get(), timeout=timeout)
+        except asyncio.TimeoutError:
+            tunnel.pending_http_streams.pop(stream_id, None)
+            raise TimeoutError(f"Timed out waiting for edge node '{node_id}' response after {timeout}s")
+        except Exception:
+            tunnel.pending_http_streams.pop(stream_id, None)
+            raise
+
+        first_type = first_msg.get("type")
+        if first_type == TunnelMessageType.HTTP_RESP:
+            tunnel.pending_http_streams.pop(stream_id, None)
+            status_code = int(first_msg.get("status_code", 502))
+            resp_headers = first_msg.get("headers", [])
+            body_bytes = decode_body(first_msg.get("body")) or b""
+            return status_code, resp_headers, False, body_bytes
+
+        if first_type == TunnelMessageType.HTTP_RESP_END:
+            tunnel.pending_http_streams.pop(stream_id, None)
+            err = first_msg.get("error") or "Edge appliance disconnected"
+            raise ConnectionError(err)
+
+        if first_type == TunnelMessageType.HTTP_RESP_START:
+            status_code = int(first_msg.get("status_code", 200))
+            resp_headers = first_msg.get("headers", [])
+
+            async def _chunk_iterator() -> AsyncIterator[bytes]:
+                stream_ended = False
+                try:
+                    while True:
+                        msg = await queue.get()
+                        mtype = msg.get("type")
+                        if mtype == TunnelMessageType.HTTP_RESP_CHUNK:
+                            raw_b64 = msg.get("data_b64") if "data_b64" in msg else msg.get("body")
+                            chunk = decode_body(raw_b64)
+                            if chunk:
+                                yield chunk
+                        elif mtype == TunnelMessageType.HTTP_RESP_END:
+                            stream_ended = True
+                            break
+                finally:
+                    tunnel.pending_http_streams.pop(stream_id, None)
+                    if not stream_ended:
+                        try:
+                            await tunnel.send_json(create_http_cancel_frame(stream_id))
+                        except Exception:
+                            pass
+
+            return status_code, resp_headers, True, _chunk_iterator()
+
+        tunnel.pending_http_streams.pop(stream_id, None)
+        raise ConnectionError(f"Unexpected tunnel frame type '{first_type}' for stream '{stream_id}'")
+
     async def handle_tunnel_message(
         self,
         node_id: str,
@@ -194,6 +291,19 @@ class TunnelServer:
                 fut = tunnel.pending_http.get(stream_id)
                 if fut and not fut.done():
                     fut.set_result(msg)
+                else:
+                    q = tunnel.pending_http_streams.get(stream_id)
+                    if q:
+                        await q.put(msg)
+
+            elif msg_type in (
+                TunnelMessageType.HTTP_RESP_START,
+                TunnelMessageType.HTTP_RESP_CHUNK,
+                TunnelMessageType.HTTP_RESP_END,
+            ):
+                q = tunnel.pending_http_streams.get(stream_id)
+                if q:
+                    await q.put(msg)
 
             elif msg_type == TunnelMessageType.WS_FRAME:
                 browser_ws = tunnel.active_ws_streams.get(stream_id)

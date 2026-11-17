@@ -7,6 +7,10 @@ from typing import Dict, Any, Optional, List
 class TunnelMessageType:
     HTTP_REQ = "http_req"
     HTTP_RESP = "http_resp"
+    HTTP_RESP_START = "http_resp_start"
+    HTTP_RESP_CHUNK = "http_resp_chunk"
+    HTTP_RESP_END = "http_resp_end"
+    HTTP_REQ_CANCEL = "http_req_cancel"
     WS_OPEN = "ws_open"
     WS_FRAME = "ws_frame"
     WS_CLOSE = "ws_close"
@@ -41,6 +45,7 @@ def create_http_request_frame(
     headers: Dict[str, str],
     body: Optional[bytes] = None,
     sso_assertion: Optional[str] = None,
+    supports_stream: bool = True,
 ) -> Dict[str, Any]:
     """Construct a multiplexed HTTP request frame to be forwarded to edge node."""
     return {
@@ -52,6 +57,15 @@ def create_http_request_frame(
         "headers": headers,
         "body": encode_body(body),
         "sso_assertion": sso_assertion,
+        "supports_stream": supports_stream,
+    }
+
+
+def create_http_cancel_frame(stream_id: str) -> Dict[str, Any]:
+    """Construct an HTTP stream cancellation frame sent to edge node on client disconnect."""
+    return {
+        "type": TunnelMessageType.HTTP_REQ_CANCEL,
+        "stream_id": stream_id,
     }
 
 

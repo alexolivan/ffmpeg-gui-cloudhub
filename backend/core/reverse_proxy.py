@@ -5,7 +5,7 @@ import logging
 from typing import Optional, List, Tuple
 from urllib.parse import urlparse
 from fastapi import APIRouter, Request, Response, WebSocket, WebSocketDisconnect, HTTPException, status
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, Response, StreamingResponse
 
 from backend.database.db import SessionLocal
 from backend.database.models import User, EnrolledNode, AuditLog
@@ -369,7 +369,7 @@ async def proxy_http_endpoint(
             logger.debug("Failed to record NODE_SESSION_END audit log: %s", audit_err)
 
     try:
-        status_code, resp_headers, body_bytes = await tunnel_server.forward_http(
+        status_code, resp_headers, is_stream, body_or_stream = await tunnel_server.forward_http_stream(
             node_id=node_id,
             method=request.method,
             path=target_path,
@@ -413,6 +413,15 @@ async def proxy_http_endpoint(
         else:
             response_headers.append((k, v))
 
+    if is_stream:
+        return StreamingResponse(
+            body_or_stream,
+            status_code=status_code,
+            headers=dict(response_headers),
+            media_type=content_type or None,
+        )
+
+    body_bytes = body_or_stream
     # Single-Domain HTML Rewriting
     if "text/html" in content_type.lower() and body_bytes:
         try:
@@ -430,6 +439,7 @@ async def proxy_http_endpoint(
             html_text = re.sub(r'src="/assets/', f'src="{proxy_prefix}/assets/', html_text)
             html_text = re.sub(r'href="/api/', f'href="{proxy_prefix}/api/', html_text)
             html_text = re.sub(r'src="/api/', f'src="{proxy_prefix}/api/', html_text)
+            html_text = re.sub(r'action="/api/', f'action="{proxy_prefix}/api/', html_text)
             html_text = re.sub(r'href="/uploads/', f'href="{proxy_prefix}/uploads/', html_text)
             html_text = re.sub(r'src="/uploads/', f'src="{proxy_prefix}/uploads/', html_text)
             html_text = re.sub(r'href="/favicon', f'href="{proxy_prefix}/favicon', html_text)
