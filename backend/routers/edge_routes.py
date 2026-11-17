@@ -214,11 +214,11 @@ async def edge_reverse_tunnel_websocket(websocket: WebSocket):
     try:
         while True:
             message_text = await websocket.receive_text()
-            await tunnel_server.handle_tunnel_message(node_id, message_text)
+            await tunnel_server.handle_tunnel_message(node_id, message_text, source_tunnel=tunnel)
     except WebSocketDisconnect:
         pass
     except Exception as err:
         logger.error("Error in tunnel stream for node '%s': %s", node_id, err)
     finally:
-        await tunnel_server.unregister_tunnel(node_id)
+        await tunnel_server.unregister_tunnel(node_id, expected_tunnel=tunnel)
 

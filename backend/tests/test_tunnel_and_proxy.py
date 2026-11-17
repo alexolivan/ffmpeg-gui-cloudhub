@@ -248,6 +248,75 @@ class TestTunnelAndProxy(unittest.TestCase):
 
         self.assertFalse(tunnel_server.is_connected("ch_node_alpha"))
 
+    def test_stale_superseded_tunnel_unregister_does_not_evict_active_tunnel(self):
+        from backend.core.telemetry_collector import telemetry_collector
+
+        async def scenario():
+            ws_a = MockEdgeTunnelClient("ch_node_alpha", self.node_secret)
+            ws_b = MockEdgeTunnelClient("ch_node_alpha", self.node_secret)
+
+            tunnel_a = await tunnel_server.register_tunnel("ch_node_alpha", ws_a)
+            tunnel_b = await tunnel_server.register_tunnel("ch_node_alpha", ws_b)
+            telemetry_collector.record_heartbeat("ch_node_alpha", {"status": "connected"})
+
+            self.assertTrue(ws_a.closed)
+            self.assertFalse(ws_b.closed)
+            self.assertIs(tunnel_server._tunnels.get("ch_node_alpha"), tunnel_b)
+
+            # Simulate old socket A's finally block firing late
+            await tunnel_server.unregister_tunnel("ch_node_alpha", expected_tunnel=tunnel_a)
+
+            # Tunnel B MUST remain registered and online!
+            self.assertTrue(tunnel_server.is_connected("ch_node_alpha"))
+            self.assertIs(tunnel_server._tunnels.get("ch_node_alpha"), tunnel_b)
+            vitality = telemetry_collector.get_node_vitality("ch_node_alpha")
+            self.assertNotEqual(vitality["status"], "offline")
+
+            # Stale source_tunnel messages from tunnel A must be ignored
+            await tunnel_server.handle_tunnel_message(
+                "ch_node_alpha",
+                json.dumps({"type": "unlink_notify", "node_id": "ch_node_alpha"}),
+                source_tunnel=tunnel_a,
+            )
+            self.assertTrue(tunnel_server.is_connected("ch_node_alpha"))
+
+            # Unregistering active tunnel B succeeds normally
+            await tunnel_server.unregister_tunnel("ch_node_alpha", expected_tunnel=tunnel_b)
+            self.assertFalse(tunnel_server.is_connected("ch_node_alpha"))
+            self.assertEqual(telemetry_collector.get_node_vitality("ch_node_alpha")["status"], "offline")
+
+        asyncio.run(scenario())
+
+    def test_ws_frame_after_browser_close_cleans_up_gracefully(self):
+        class ClosedBrowserWS:
+            async def send_text(self, _text: str):
+                raise RuntimeError("Unexpected ASGI message 'websocket.send', after sending 'websocket.close'.")
+
+            async def close(self, code: int = 1000, reason: str = ""):
+                pass
+
+        async def scenario():
+            mock_ws = MockEdgeTunnelClient("ch_node_alpha", self.node_secret)
+            tunnel = await tunnel_server.register_tunnel("ch_node_alpha", mock_ws)
+            tunnel.active_ws_streams["stream_xyz"] = ClosedBrowserWS()
+            tunnel.active_ws_users["stream_xyz"] = 1
+
+            frame = create_ws_frame("stream_xyz", "telemetry_ping", is_binary=False)
+            await tunnel_server.handle_tunnel_message(
+                "ch_node_alpha", json.dumps(frame), source_tunnel=tunnel
+            )
+
+            self.assertNotIn("stream_xyz", tunnel.active_ws_streams)
+            self.assertNotIn("stream_xyz", tunnel.active_ws_users)
+            self.assertTrue(
+                any(
+                    f.get("type") == TunnelMessageType.WS_CLOSE and f.get("stream_id") == "stream_xyz"
+                    for f in mock_ws.received_frames
+                )
+            )
+
+        asyncio.run(scenario())
+
 
 if __name__ == "__main__":
     unittest.main()

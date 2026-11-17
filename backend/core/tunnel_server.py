@@ -47,21 +47,43 @@ class TunnelServer:
         self._tunnels: Dict[str, ActiveTunnel] = {}
         self._lock = asyncio.Lock()
 
+    async def _cleanup_tunnel_streams(self, tunnel: ActiveTunnel) -> None:
+        """Cancel in-flight HTTP requests and close active browser WebSocket bridges for a tunnel."""
+        for stream_id, fut in list(tunnel.pending_http.items()):
+            if not fut.done():
+                fut.set_exception(
+                    ConnectionError("Edge appliance disconnected while request was in-flight")
+                )
+        tunnel.pending_http.clear()
+
+        for stream_id, browser_ws in list(tunnel.active_ws_streams.items()):
+            try:
+                await browser_ws.close(code=1001, reason="Edge node tunnel closed")
+            except Exception:
+                pass
+        tunnel.active_ws_streams.clear()
+        tunnel.active_ws_users.clear()
+
     async def register_tunnel(self, node_id: str, websocket: WebSocket) -> ActiveTunnel:
         """Register a newly connected and authenticated edge appliance tunnel."""
+        tunnel = ActiveTunnel(node_id, websocket)
         async with self._lock:
             old_tunnel = self._tunnels.get(node_id)
-            if old_tunnel:
-                logger.warning("Closing superseded tunnel connection for node '%s'", node_id)
-                try:
-                    await old_tunnel.websocket.close(code=1000, reason="Superseded by new connection")
-                except Exception:
-                    pass
-
-            tunnel = ActiveTunnel(node_id, websocket)
             self._tunnels[node_id] = tunnel
             logger.info("Reverse tunnel registered for node '%s'", node_id)
-            return tunnel
+
+        if old_tunnel and old_tunnel is not tunnel:
+            logger.warning("Closing superseded tunnel connection for node '%s'", node_id)
+            await self._cleanup_tunnel_streams(old_tunnel)
+            try:
+                await asyncio.wait_for(
+                    old_tunnel.websocket.close(code=1000, reason="Superseded by new connection"),
+                    timeout=2.0,
+                )
+            except Exception:
+                pass
+
+        return tunnel
 
     async def revoke_node(self, node_id: str, reason: str = "revoked_by_admin") -> None:
         """Actively send REVOKE control frame to edge node and close its tunnel with code 4004."""
@@ -78,33 +100,25 @@ class TunnelServer:
                 await tunnel.websocket.close(code=4004, reason="Node enrollment revoked by CloudHub")
             except Exception as e:
                 logger.debug("Failed to send clean revoke frame to node '%s': %s", node_id, e)
-            await self.unregister_tunnel(node_id)
+            await self.unregister_tunnel(node_id, expected_tunnel=tunnel)
 
-    async def unregister_tunnel(self, node_id: str) -> None:
-        """Unregister tunnel and clean up all in-flight streams."""
+    async def unregister_tunnel(
+        self, node_id: str, expected_tunnel: Optional[ActiveTunnel] = None
+    ) -> None:
+        """Unregister tunnel only if it is still the active instance for node_id."""
         async with self._lock:
+            current = self._tunnels.get(node_id)
+            if expected_tunnel is not None and current is not expected_tunnel:
+                logger.info(
+                    "Skipping unregister for stale superseded tunnel of node '%s'",
+                    node_id,
+                )
+                return
             tunnel = self._tunnels.pop(node_id, None)
 
         if tunnel:
             logger.info("Reverse tunnel unregistered for node '%s'", node_id)
-            # Cancel pending HTTP requests
-            for stream_id, fut in list(tunnel.pending_http.items()):
-                if not fut.done():
-                    fut.set_exception(
-                        ConnectionError("Edge appliance disconnected while request was in-flight")
-                    )
-            tunnel.pending_http.clear()
-
-            # Close active browser WebSocket bridges
-            for stream_id, browser_ws in list(tunnel.active_ws_streams.items()):
-                try:
-                    await browser_ws.close(code=1001, reason="Edge node tunnel closed")
-                except Exception:
-                    pass
-            tunnel.active_ws_streams.clear()
-            tunnel.active_ws_users.clear()
-
-            # Update telemetry collector
+            await self._cleanup_tunnel_streams(tunnel)
             telemetry_collector.mark_disconnected(node_id)
 
     def is_connected(self, node_id: str) -> bool:
@@ -158,10 +172,17 @@ class TunnelServer:
         finally:
             tunnel.pending_http.pop(stream_id, None)
 
-    async def handle_tunnel_message(self, node_id: str, message_text: str) -> None:
+    async def handle_tunnel_message(
+        self,
+        node_id: str,
+        message_text: str,
+        source_tunnel: Optional[ActiveTunnel] = None,
+    ) -> None:
         """Process an incoming multiplexed frame received from edge appliance."""
         tunnel = self._tunnels.get(node_id)
         if not tunnel:
+            return
+        if source_tunnel is not None and tunnel is not source_tunnel:
             return
 
         try:
@@ -179,13 +200,21 @@ class TunnelServer:
                 if browser_ws:
                     is_binary = msg.get("is_binary", False)
                     data = msg.get("data")
-                    if is_binary:
-                        bin_data = decode_body(data)
-                        if bin_data is not None:
-                            await browser_ws.send_bytes(bin_data)
-                    else:
-                        if data is not None:
-                            await browser_ws.send_text(str(data))
+                    try:
+                        if is_binary:
+                            bin_data = decode_body(data)
+                            if bin_data is not None:
+                                await browser_ws.send_bytes(bin_data)
+                        else:
+                            if data is not None:
+                                await browser_ws.send_text(str(data))
+                    except (RuntimeError, WebSocketDisconnect):
+                        tunnel.active_ws_streams.pop(stream_id, None)
+                        tunnel.active_ws_users.pop(stream_id, None)
+                        try:
+                            await tunnel.send_json(create_ws_close_frame(stream_id))
+                        except Exception:
+                            pass
 
             elif msg_type == TunnelMessageType.WS_CLOSE:
                 browser_ws = tunnel.active_ws_streams.pop(stream_id, None)
@@ -211,7 +240,7 @@ class TunnelServer:
 
             elif msg_type == TunnelMessageType.UNLINK_NOTIFY:
                 self._handle_edge_unlink_notify(node_id, msg)
-                await self.unregister_tunnel(node_id)
+                await self.unregister_tunnel(node_id, expected_tunnel=tunnel)
 
         except Exception as err:
             logger.error("Error processing tunnel frame from node '%s': %s", node_id, err)
