@@ -5,6 +5,14 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-11-17
+
+### Fixed
+- **Reverse Tunnel Reconnection Race Condition (`backend/core/tunnel_server.py`, `backend/routers/edge_routes.py`)**:
+  - Added tunnel instance identity verification (`expected_tunnel` / `source_tunnel`) in `unregister_tunnel` and `handle_tunnel_message`. When an edge appliance reconnects rapidly after WAN flapping while a half-open socket is still tearing down on the server, the late `finally:` block of the superseded socket can no longer evict the newly registered active tunnel or falsely mark the node offline.
+  - Moved superseded WebSocket closure outside `TunnelServer._lock` with a 2s timeout so stalled half-open sockets cannot block tunnel registrations.
+  - Handled `RuntimeError` / `WebSocketDisconnect` cleanly when forwarding `WS_FRAME` payloads to an already-closed browser WebSocket, preventing noisy ASGI tracebacks and notifying the edge node to close the stream.
+
 ## [1.2.0] - 2026-11-06
 
 ### Added
