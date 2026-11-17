@@ -317,6 +317,46 @@ class TestTunnelAndProxy(unittest.TestCase):
 
         asyncio.run(scenario())
 
+    def test_css_and_inline_icecast_url_rewriting(self):
+        def reply_css_or_html(frame):
+            if frame["path"].endswith("style.css"):
+                css_body = (
+                    b"#header { background: url(/api/processes/8/icecast-proxy/icecast.png); }\n"
+                    b".corner { background-image: url('/api/processes/8/icecast-proxy/corner_topright.jpg'); }\n"
+                    b".ext { background-image: url(//cdn.example.com/ok.png); }\n"
+                )
+                return create_http_response_frame(
+                    stream_id=frame["stream_id"],
+                    status_code=200,
+                    headers=[["Content-Type", "text/css; charset=utf-8"]],
+                    body=css_body,
+                )
+            html_body = (
+                b"<html><head><style>.logo{background:url(/api/processes/8/icecast-proxy/tunein.png)}</style></head>"
+                b"<body><img src='/api/processes/8/icecast-proxy/icecast.png'></body></html>"
+            )
+            return create_http_response_frame(
+                stream_id=frame["stream_id"],
+                status_code=200,
+                headers=[["Content-Type", "text/html; charset=utf-8"]],
+                body=html_body,
+            )
+
+        mock_ws = MockEdgeTunnelClient("ch_node_alpha", self.node_secret, handler=reply_css_or_html)
+        tunnel_server._tunnels["ch_node_alpha"] = ActiveTunnel("ch_node_alpha", mock_ws)
+
+        headers = {"Authorization": f"Bearer {self.admin_token}"}
+        css_resp = self.client.get("/proxy/ch_node_alpha/api/processes/8/icecast-proxy/style.css", headers=headers)
+        self.assertEqual(css_resp.status_code, 200)
+        self.assertIn("url(/proxy/ch_node_alpha/api/processes/8/icecast-proxy/icecast.png)", css_resp.text)
+        self.assertIn("url('/proxy/ch_node_alpha/api/processes/8/icecast-proxy/corner_topright.jpg')", css_resp.text)
+        self.assertIn("url(//cdn.example.com/ok.png)", css_resp.text)
+
+        html_resp = self.client.get("/proxy/ch_node_alpha/api/processes/8/icecast-proxy/status.xsl", headers=headers)
+        self.assertEqual(html_resp.status_code, 200)
+        self.assertIn("src='/proxy/ch_node_alpha/api/processes/8/icecast-proxy/icecast.png'", html_resp.text)
+        self.assertIn("url(/proxy/ch_node_alpha/api/processes/8/icecast-proxy/tunein.png)", html_resp.text)
+
 
 if __name__ == "__main__":
     unittest.main()

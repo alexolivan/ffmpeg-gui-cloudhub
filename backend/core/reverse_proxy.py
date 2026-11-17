@@ -422,8 +422,9 @@ async def proxy_http_endpoint(
         )
 
     body_bytes = body_or_stream
-    # Single-Domain HTML Rewriting
-    if "text/html" in content_type.lower() and body_bytes:
+    ctype_lower = content_type.lower()
+    # Single-Domain HTML & CSS Rewriting
+    if "text/html" in ctype_lower and body_bytes:
         try:
             html_text = body_bytes.decode("utf-8")
             shim = JS_SHIM_TEMPLATE.replace("__PROXY_PREFIX__", proxy_prefix)
@@ -434,20 +435,41 @@ async def proxy_http_endpoint(
             else:
                 html_text = shim + html_text
 
-            # Rewrite static asset references
-            html_text = re.sub(r'href="/assets/', f'href="{proxy_prefix}/assets/', html_text)
-            html_text = re.sub(r'src="/assets/', f'src="{proxy_prefix}/assets/', html_text)
-            html_text = re.sub(r'href="/api/', f'href="{proxy_prefix}/api/', html_text)
-            html_text = re.sub(r'src="/api/', f'src="{proxy_prefix}/api/', html_text)
-            html_text = re.sub(r'action="/api/', f'action="{proxy_prefix}/api/', html_text)
-            html_text = re.sub(r'href="/uploads/', f'href="{proxy_prefix}/uploads/', html_text)
-            html_text = re.sub(r'src="/uploads/', f'src="{proxy_prefix}/uploads/', html_text)
-            html_text = re.sub(r'href="/favicon', f'href="{proxy_prefix}/favicon', html_text)
-            html_text = re.sub(r'src="/favicon', f'src="{proxy_prefix}/favicon', html_text)
+            # Rewrite static asset and proxied API references (double or single quotes)
+            html_text = re.sub(
+                r'(href|src|action)=(["\'])/(assets|api|uploads)/',
+                rf'\1=\2{proxy_prefix}/\3/',
+                html_text,
+                flags=re.IGNORECASE,
+            )
+            html_text = re.sub(
+                r'(href|src|action)=(["\'])/favicon',
+                rf'\1=\2{proxy_prefix}/favicon',
+                html_text,
+                flags=re.IGNORECASE,
+            )
+            html_text = re.sub(
+                r"url\(\s*(['\"]?)/(assets|api|uploads)/",
+                rf"url(\1{proxy_prefix}/\2/",
+                html_text,
+                flags=re.IGNORECASE,
+            )
 
             body_bytes = html_text.encode("utf-8")
         except Exception as err:
             logger.debug("HTML rewrite error: %s", err)
+    elif "text/css" in ctype_lower and body_bytes:
+        try:
+            css_text = body_bytes.decode("utf-8", errors="replace")
+            css_text = re.sub(
+                r"url\(\s*(['\"]?)/(?!/|proxy/)",
+                rf"url(\1{proxy_prefix}/",
+                css_text,
+                flags=re.IGNORECASE,
+            )
+            body_bytes = css_text.encode("utf-8")
+        except Exception as err:
+            logger.debug("CSS rewrite error: %s", err)
 
     return Response(
         content=body_bytes,

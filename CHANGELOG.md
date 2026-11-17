@@ -5,6 +5,12 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-11-17
+
+### Fixed
+- **CSS & Single-Quoted Asset URL Rewriting in Reverse Proxy (`backend/core/reverse_proxy.py`)**:
+  - Added `text/css` `url(/...)` rewriting and inline HTML `<style>` `url(...)` / single-quoted attribute rewriting (`href`/`src`/`action`) under `/proxy/{node_id}/` so legacy Icecast 2.4 stylesheets (`style.css` referencing `/icecast.png`, `/corner_topright.jpg`, `/corner_bottomright.jpg`, `/tunein.png`) resolve through the node proxy without 404 errors.
+
 ## [1.3.0] - 2026-11-17
 
 ### Added
