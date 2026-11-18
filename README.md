@@ -1,7 +1,7 @@
 # ffmpeg-gui-cloudhub
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version: 1.3.1](https://img.shields.io/badge/version-1.3.1-blue.svg)](https://github.com/alexolivan/ffmpeg-gui-cloudhub)
+[![Version: 1.4.0](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://github.com/alexolivan/ffmpeg-gui-cloudhub)
 [![Python: 3.10+](https://img.shields.io/badge/Python-3.10%2B-green.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com)
 [![React: 19](https://img.shields.io/badge/React-19.0-61dafb.svg)](https://react.dev)
@@ -53,6 +53,7 @@ In professional broadcast, live production, and remote transmission environments
   - **Platform Superadmin (Owner)**: Full platform ownership, tenant lifecycle, global fleet directory or tenant-filtered view, platform branding, and network/SSL settings.
   - **Tenant Administrator**: Scoped control over their assigned organization's users, appliances, and logical groups.
   - **Group Operator**: Restricted strictly to assigned appliance groups (e.g., *Studio 1*, *Mobile Unit*), with zero access to administrative settings or audit logs.
+- **RBAC Teams & Fine-Grained Node Authorization Claims**: Define reusable team capability templates and per-appliance domain, service, or task overrides (`none`, `monitor`, `operate`, `manage`, `admin`) enforced cryptographically end-to-end on enrolled edge nodes.
 - **UNIX-Style Seed Prefixes**: Tenant seeds (`slug`) provide strict namespace separation (`[slug]_operator`), preventing cross-tenant username collisions while allowing intuitive, familiar naming.
 - **Cascade Renaming**: Superadmin changes to a tenant seed automatically propagate to associated user logins with collision validation.
 

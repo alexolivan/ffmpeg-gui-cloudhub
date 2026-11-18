@@ -5,6 +5,17 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-11-18
+
+### Added
+- **RBAC Teams & Fine-Grained Edge Authorization Claims (`backend/database/`, `backend/core/permissions_compiler.py`, `backend/core/reverse_proxy.py`, `backend/core/tunnel_server.py`, `backend/routers/permissions_routes.py`)**:
+  - Added `Team`, `TeamMember`, and `NodePermissionOverride` models (`DB_SCHEMA_VERSION = "1.1.0"`) with automatic default conservative operator team initialization per organization.
+  - Added HMAC-SHA256 signed `authz_assertion` forwarding across HTTP, streaming HTTP, and WebSocket tunnel frames when `group_operator` users access enrolled edge nodes supporting `authz_claims`, with HTTP `426` / WebSocket `4003` legacy node guards for restricted accounts.
+  - Added `/api/hub/orgs/{org_id}/teams`, `/api/hub/teams/{team_id}`, `/api/hub/nodes/{node_id}/permissions`, `/api/hub/nodes/{node_id}/catalog`, and orphan rule purge endpoints.
+- **CloudHub Teams & Appliance Permissions UI (`frontend/src/components/views/settings/TeamsTab.tsx`, `frontend/src/components/modals/NodePermissionsModal.tsx`)**:
+  - Added the **Teams & Permissions** tab in CloudHub Settings (`superadmin` / `org_admin`) to manage domain/process capability templates and operator memberships.
+  - Added the **Appliance Permissions** modal in Fleet View displaying live edge service/task catalogs, dependency-derived `Auto-Monitor` hints, orphaned override cleanup, and team/user override matrices.
+
 ## [1.3.1] - 2026-11-17
 
 ### Fixed
