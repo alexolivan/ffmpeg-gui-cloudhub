@@ -44,6 +44,58 @@ const LEVEL_RANK: Record<CapabilityLevel, number> = {
   admin: 4,
 };
 
+interface ServiceTypeStyle {
+  label: string;
+  badgeClass: string;
+  rowAccentClass: string;
+}
+
+const SERVICE_TYPE_STYLES: Record<string, ServiceTypeStyle> = {
+  ffmpeg_stream: {
+    label: 'FFmpeg',
+    badgeClass: 'bg-brand-orange/10 text-brand-orange border-brand-orange/30',
+    rowAccentClass: 'border-l-2 border-l-brand-orange/70 bg-brand-orange/[0.03]',
+  },
+  mediamtx_hub: {
+    label: 'MediaMTX',
+    badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+    rowAccentClass: 'border-l-2 border-l-emerald-500/70 bg-emerald-500/[0.03]',
+  },
+  icecast_server: {
+    label: 'Icecast',
+    badgeClass: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
+    rowAccentClass: 'border-l-2 border-l-blue-500/70 bg-blue-500/[0.03]',
+  },
+  kiosk_browser: {
+    label: 'Web Kiosk',
+    badgeClass: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+    rowAccentClass: 'border-l-2 border-l-amber-500/70 bg-amber-500/[0.03]',
+  },
+  desktop: {
+    label: 'Desktop',
+    badgeClass: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
+    rowAccentClass: 'border-l-2 border-l-cyan-500/70 bg-cyan-500/[0.03]',
+  },
+  pipewire_hub: {
+    label: 'PipeWire',
+    badgeClass: 'bg-brand-lime/10 text-brand-lime border-brand-lime/30',
+    rowAccentClass: 'border-l-2 border-l-brand-lime/70 bg-brand-lime/[0.03]',
+  },
+};
+
+const DEFAULT_SERVICE_STYLE: ServiceTypeStyle = {
+  label: 'Service',
+  badgeClass: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
+  rowAccentClass: 'border-l-2 border-l-purple-500/70 bg-purple-500/[0.03]',
+};
+
+const TASK_STYLE = {
+  badgeClass: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
+  rowAccentClass: 'border-l-2 border-l-purple-500/70 bg-purple-500/[0.03]',
+};
+
+const FIXED_ROW_GRID_CLASS = 'grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_165px_215px] sm:items-center gap-2.5 sm:gap-3';
+
 const serializeOverrideMap = (map: Record<string, CapabilityLevel>): string =>
   JSON.stringify(
     Object.keys(map)
@@ -63,6 +115,7 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
 
   const [subjectType, setSubjectType] = useState<SubjectType>('team');
   const [selectedTeamId, setSelectedTeamId] = useState<number>(0);
+  const [lastTeamId, setLastTeamId] = useState<number>(0);
   const [selectedUserId, setSelectedUserId] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<ModalTab>('domains');
 
@@ -124,6 +177,7 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
           if (teamList.length > 0) {
             setSubjectType('team');
             setSelectedTeamId(teamList[0].id);
+            setLastTeamId(teamList[0].id);
           }
         }
         if (usersRes.ok) {
@@ -197,34 +251,32 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
   };
 
   const handleSelectTeam = (teamId: number) => {
+    if (teamId === 0) return;
     if (subjectType === 'team' && teamId === selectedTeamId) return;
     if (!confirmDiscardIfDirty()) return;
     setStatusMessage(null);
     setSelectedTeamId(teamId);
-    setSelectedUserId(0);
-    setSubjectType('team');
-  };
-
-  const handleFocusTeamSelector = () => {
-    if (subjectType === 'team') return;
-    if (!selectedTeamId && teams.length === 0) return;
-    if (!confirmDiscardIfDirty()) return;
-    setStatusMessage(null);
-    if (!selectedTeamId && teams.length > 0) {
-      setSelectedTeamId(teams[0].id);
-    }
+    setLastTeamId(teamId);
     setSelectedUserId(0);
     setSubjectType('team');
   };
 
   const handleSelectOperator = (uid: number) => {
     if (uid === 0) {
-      handleFocusTeamSelector();
+      if (subjectType === 'team') return;
+      if (!confirmDiscardIfDirty()) return;
+      const restoreId = lastTeamId || teams[0]?.id || 0;
+      setStatusMessage(null);
+      setSelectedUserId(0);
+      setSelectedTeamId(restoreId);
+      setSubjectType('team');
       return;
     }
     if (subjectType === 'user' && uid === selectedUserId) return;
     if (!confirmDiscardIfDirty()) return;
     setStatusMessage(null);
+    if (selectedTeamId) setLastTeamId(selectedTeamId);
+    setSelectedTeamId(0);
     setSelectedUserId(uid);
     setSubjectType('user');
   };
@@ -359,13 +411,13 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
   const effectiveProcDefault: CapabilityLevel =
     overrideMap['process_type:default'] || baseScopes.processes.default;
 
-  const getDomainInherited = (dk: (typeof DOMAIN_KEYS)[number]): { level: CapabilityLevel; source: string } => {
-    const source =
+  const getDomainInherited = (dk: (typeof DOMAIN_KEYS)[number]): { level: CapabilityLevel; source: string } => ({
+    level: baseScopes[dk],
+    source:
       subjectType === 'team'
         ? t('nodePermissions.sourceTeamTemplate', 'Team template')
-        : t('nodePermissions.sourceInheritedTeam', 'Team rules');
-    return { level: baseScopes[dk], source };
-  };
+        : t('nodePermissions.sourceInheritedTeam', 'Team rules'),
+  });
 
   const getProcDefaultInherited = (): { level: CapabilityLevel; source: string } => ({
     level: baseScopes.processes.default,
@@ -465,6 +517,30 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
     };
   };
 
+  // Direct level per service (before dependency cascade) & active dependency elevation map
+  const { directServiceLevels, activeAutoMonitorConsumers } = useMemo(() => {
+    const services = catalog?.services || [];
+    const directMap: Record<string, CapabilityLevel> = {};
+    for (const svc of services) {
+      const sid = String(svc.id);
+      const ov = overrideMap[`service:${sid}`];
+      directMap[sid] = ov || getServiceInherited(sid, svc.service_type).level;
+    }
+
+    const consumersMap: Record<string, string[]> = {};
+    for (const consumer of services) {
+      const cSid = String(consumer.id);
+      const cLevel = directMap[cSid] || 'none';
+      if (LEVEL_RANK[cLevel] < LEVEL_RANK.monitor) continue;
+      for (const depId of consumer.dependencies || []) {
+        const depKey = String(depId);
+        if (!consumersMap[depKey]) consumersMap[depKey] = [];
+        consumersMap[depKey].push(consumer.alias || consumer.name || `#${cSid}`);
+      }
+    }
+    return { directServiceLevels: directMap, activeAutoMonitorConsumers: consumersMap };
+  }, [catalog, overrideMap, baseScopes, inheritedPreview, subjectType]);
+
   const tabCounts = useMemo(() => {
     let domains = 0;
     let services = 0;
@@ -487,8 +563,7 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
       return (
         (svc.alias || '').toLowerCase().includes(q) ||
         (svc.name || '').toLowerCase().includes(q) ||
-        (svc.service_type || '').toLowerCase().includes(q) ||
-        sid.includes(q)
+        (svc.service_type || '').toLowerCase().includes(q)
       );
     });
   }, [catalog, serviceSearch, onlyOverridesFilter, overrideMap]);
@@ -503,8 +578,7 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
       return (
         (tsk.alias || '').toLowerCase().includes(q) ||
         (tsk.name || '').toLowerCase().includes(q) ||
-        (tsk.schedule_type || '').toLowerCase().includes(q) ||
-        tid.includes(q)
+        (tsk.schedule_type || '').toLowerCase().includes(q)
       );
     });
   }, [catalog, taskSearch, onlyOverridesFilter, overrideMap]);
@@ -516,20 +590,23 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
   const activeBadgeClass = isTeamActive
     ? 'bg-brand-lime/15 text-brand-lime border-brand-lime/30'
     : 'bg-cyan-500/15 text-cyan-400 border-cyan-400/30';
-
-  const implicitMonitors = catalog?.implicit_monitors || {};
   const orphanedCount = catalog?.orphaned_overrides?.length || 0;
 
-  const formatInheritedLabel = (level: CapabilityLevel, source: string) =>
+  const formatModuleInheritedLabel = (level: CapabilityLevel, source: string) =>
     `${t(`rbac.levels.${level}`, level)} — ${t('nodePermissions.inheritedFrom', 'Inherited ({{source}})', {
       source,
     })}`;
+
+  const formatCompactInheritedLabel = (level: CapabilityLevel) =>
+    t('nodePermissions.shortInherited', 'Inherited ({{level}})', {
+      level: t(`rbac.levels.${level}`, level),
+    });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
       <div className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl">
         {/* Header */}
-        <div className="p-4 border-b border-[var(--glass-border)] flex items-center justify-between gap-3">
+        <div className="p-4 border-b border-[var(--glass-border)] flex items-center justify-between gap-3 shrink-0">
           <div className="min-w-0">
             <h3 className="text-base font-bold text-[var(--text-primary)] flex items-center gap-2 truncate">
               <ShieldIcon size={18} className="text-brand-lime shrink-0" />
@@ -580,9 +657,8 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
           </div>
         </div>
 
-        {/* Fixed Dual-Selector Scope Header + Tabs */}
-        <div className="px-5 pt-4 pb-3 border-b border-[var(--glass-border)] space-y-3 bg-[var(--bg-card)]">
-          {/* Orphaned Override Warning */}
+        {/* Fixed Top Controls: Scope Selectors + Context Banner + Tabs + Sticky Table Controls */}
+        <div className="px-5 pt-4 border-b border-[var(--glass-border)] space-y-3 bg-[var(--bg-card)] shrink-0">
           {orphanedCount > 0 && (
             <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="text-xs text-amber-300">
@@ -614,17 +690,14 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
             </div>
           )}
 
-          {/* Side-by-side Dual Selectors with Active Focus Border */}
+          {/* Symmetric Side-by-Side Dual Selectors */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* Team Selector Box */}
             <div
-              onClick={() => {
-                if (!isTeamActive) handleFocusTeamSelector();
-              }}
               className={`p-3 rounded-xl border transition-all ${
                 isTeamActive
                   ? 'border-brand-lime ring-2 ring-brand-lime/25 bg-brand-lime/5'
-                  : 'border-[var(--glass-border)] bg-[var(--input-bg)]/60 opacity-80 hover:opacity-100 cursor-pointer'
+                  : 'border-[var(--glass-border)] bg-[var(--input-bg)]/75'
               }`}
             >
               <div className="flex items-center justify-between gap-2 mb-1.5">
@@ -641,11 +714,15 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
               <select
                 value={selectedTeamId}
                 onChange={(e) => handleSelectTeam(Number(e.target.value))}
-                onClick={(e) => e.stopPropagation()}
                 className={`w-full bg-[var(--bg-card)] border rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] cursor-pointer focus:outline-none ${
                   isTeamActive ? 'border-brand-lime/60' : 'border-[var(--glass-border)]'
                 }`}
               >
+                {!isTeamActive && (
+                  <option value={0} className="bg-[var(--bg-card)] text-[var(--text-secondary)]">
+                    — {t('nodePermissions.selectTeamOption', 'Select team template...')} —
+                  </option>
+                )}
                 {teams.length === 0 ? (
                   <option value={0}>{t('nodePermissions.noTeams', 'No teams available')}</option>
                 ) : (
@@ -765,7 +842,7 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
           </div>
 
           {/* 3 Context-Separating Tabs */}
-          <div className="flex items-center gap-2 pt-0.5 overflow-x-auto">
+          <div className={`flex items-center gap-2 overflow-x-auto ${activeTab === 'domains' ? 'pb-3' : 'pb-1'}`}>
             <button
               type="button"
               onClick={() => setActiveTab('domains')}
@@ -821,6 +898,55 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
               )}
             </button>
           </div>
+
+          {/* Sticky Search Filter + Fixed Column Headers for Services & Tasks */}
+          {(activeTab === 'services' || activeTab === 'tasks') && activeSubjectId > 0 && !isLoadingPerms && (
+            <div className="space-y-2.5 pb-2.5">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
+                <div className="relative flex-1">
+                  <SearchIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
+                  <input
+                    type="text"
+                    value={activeTab === 'services' ? serviceSearch : taskSearch}
+                    onChange={(e) =>
+                      activeTab === 'services'
+                        ? setServiceSearch(e.target.value)
+                        : setTaskSearch(e.target.value)
+                    }
+                    placeholder={
+                      activeTab === 'services'
+                        ? t('nodePermissions.searchServicesPlaceholder', 'Filter services by name or type...')
+                        : t('nodePermissions.searchTasksPlaceholder', 'Filter tasks by name or schedule...')
+                    }
+                    className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl pl-8 pr-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOnlyOverridesFilter((v) => !v)}
+                  className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-colors cursor-pointer shrink-0 ${
+                    onlyOverridesFilter
+                      ? activeBadgeClass
+                      : 'bg-[var(--input-bg)] border-[var(--glass-border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  {t('nodePermissions.onlyOverrides', 'Only Overrides')} (
+                  {activeTab === 'services' ? tabCounts.services : tabCounts.tasks})
+                </button>
+              </div>
+
+              {/* Fixed Column Titles */}
+              <div className={`hidden sm:grid ${FIXED_ROW_GRID_CLASS} px-3.5 pt-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]`}>
+                <div>
+                  {activeTab === 'services'
+                    ? t('nodePermissions.colService', 'Service')
+                    : t('nodePermissions.colTask', 'Scheduled Task')}
+                </div>
+                <div>{t('nodePermissions.colEffectiveAccess', 'Computed Access')}</div>
+                <div>{t('nodePermissions.colOverride', 'Override')}</div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Single Scrollable Body (Zero Nested Scroll) */}
@@ -897,7 +1023,7 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
                           className="w-full bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-primary)] cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand-lime"
                         >
                           <option value="inherit" className="bg-[var(--bg-card)] text-[var(--text-secondary)]">
-                            {formatInheritedLabel(inherited.level, inherited.source)}
+                            {formatModuleInheritedLabel(inherited.level, inherited.source)}
                           </option>
                           {CAPABILITY_LEVELS.map((lvl) => (
                             <option key={lvl} value={lvl} className="bg-[var(--bg-card)] text-[var(--text-primary)]">
@@ -955,7 +1081,7 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
                           className="w-full bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-primary)] cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand-lime"
                         >
                           <option value="inherit" className="bg-[var(--bg-card)] text-[var(--text-secondary)]">
-                            {formatInheritedLabel(inherited.level, inherited.source)}
+                            {formatModuleInheritedLabel(inherited.level, inherited.source)}
                           </option>
                           {CAPABILITY_LEVELS.map((lvl) => (
                             <option key={lvl} value={lvl} className="bg-[var(--bg-card)] text-[var(--text-primary)]">
@@ -1014,7 +1140,7 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
                           className="w-full bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-lg px-2 py-1.5 text-xs text-[var(--text-primary)] cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand-lime"
                         >
                           <option value="inherit" className="bg-[var(--bg-card)] text-[var(--text-secondary)]">
-                            {formatInheritedLabel(inherited.level, inherited.source)}
+                            {formatModuleInheritedLabel(inherited.level, inherited.source)}
                           </option>
                           {CAPABILITY_LEVELS.map((lvl) => (
                             <option key={lvl} value={lvl} className="bg-[var(--bg-card)] text-[var(--text-primary)]">
@@ -1029,244 +1155,202 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
               </div>
             </div>
           ) : activeTab === 'services' ? (
-            <div className="space-y-3">
-              {/* Filter Bar */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
-                <div className="relative flex-1">
-                  <SearchIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
-                  <input
-                    type="text"
-                    value={serviceSearch}
-                    onChange={(e) => setServiceSearch(e.target.value)}
-                    placeholder={t('nodePermissions.searchServicesPlaceholder', 'Filter services by name, ID, or type...')}
-                    className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl pl-8 pr-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setOnlyOverridesFilter((v) => !v)}
-                  className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-colors cursor-pointer shrink-0 ${
-                    onlyOverridesFilter
-                      ? activeBadgeClass
-                      : 'bg-[var(--input-bg)] border-[var(--glass-border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  {t('nodePermissions.onlyOverrides', 'Only Overrides')} ({tabCounts.services})
-                </button>
-              </div>
+            catalogLoading ? (
+              <p className="text-xs text-[var(--text-secondary)] font-mono py-8 text-center">
+                {t('common.loading', 'Loading...')}
+              </p>
+            ) : filteredServices.length === 0 ? (
+              <p className="text-xs text-[var(--text-secondary)] italic py-8 text-center">
+                {catalog?.services?.length === 0
+                  ? t('nodePermissions.noServicesInCatalog', 'No services reported by appliance.')
+                  : t('nodePermissions.noMatchingItems', 'No matching items found.')}
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {filteredServices.map((svc) => {
+                  const sid = String(svc.id);
+                  const val = getOverrideVal('service', sid);
+                  const isOverridden = val !== 'inherit';
+                  const inherited = getServiceInherited(sid, svc.service_type);
+                  const directLevel = directServiceLevels[sid] || inherited.level;
+                  const activeConsumers = activeAutoMonitorConsumers[sid] || [];
+                  const autoMonitored = activeConsumers.length > 0 && LEVEL_RANK[directLevel] < LEVEL_RANK.monitor;
+                  const computedLevel: CapabilityLevel = autoMonitored ? 'monitor' : directLevel;
+                  const typeStyle = SERVICE_TYPE_STYLES[svc.service_type] || DEFAULT_SERVICE_STYLE;
+                  const hasDistinctAlias = Boolean(svc.alias && svc.name && svc.alias !== svc.name);
 
-              {catalogLoading ? (
-                <p className="text-xs text-[var(--text-secondary)] font-mono py-6 text-center">
-                  {t('common.loading', 'Loading...')}
-                </p>
-              ) : filteredServices.length === 0 ? (
-                <p className="text-xs text-[var(--text-secondary)] italic py-8 text-center">
-                  {catalog?.services?.length === 0
-                    ? t('nodePermissions.noServicesInCatalog', 'No services reported by appliance.')
-                    : t('nodePermissions.noMatchingItems', 'No matching items found.')}
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {filteredServices.map((svc) => {
-                    const sid = String(svc.id);
-                    const consumers = implicitMonitors[sid] || [];
-                    const val = getOverrideVal('service', sid);
-                    const isOverridden = val !== 'inherit';
-                    const inherited = getServiceInherited(sid, svc.service_type);
-                    const effectiveLevel = isOverridden ? (val as CapabilityLevel) : inherited.level;
-                    const autoMonitored = consumers.length > 0 && LEVEL_RANK[effectiveLevel] < LEVEL_RANK.monitor;
-
-                    return (
-                      <div
-                        key={sid}
-                        className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors ${
-                          isOverridden
-                            ? activeAccentCardClass
-                            : 'bg-[var(--input-bg)] border-[var(--glass-border)]'
-                        }`}
-                      >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-bold text-[var(--text-primary)] truncate">
-                              {svc.alias || svc.name}
-                            </span>
-                            {isOverridden ? (
-                              <span className={`text-[9px] font-mono uppercase px-1.5 py-0.5 rounded border ${activeBadgeClass}`}>
-                                {t('nodePermissions.overrideBadge', 'Override')}
-                              </span>
-                            ) : (
-                              <span
-                                className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${levelBadgeClass(
-                                  autoMonitored ? 'monitor' : effectiveLevel
-                                )}`}
-                              >
-                                {autoMonitored ? 'monitor' : effectiveLevel}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                            <span className="text-[10px] font-mono text-[var(--text-secondary)]">
-                              #{sid} · {svc.service_type}
-                            </span>
-                            {consumers.length > 0 && (
-                              <span
-                                className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30"
-                                title={consumers.join(', ')}
-                              >
-                                🔗{' '}
-                                {t('nodePermissions.autoMonitorVia', 'Auto-Monitor (via {{consumer}})', {
-                                  consumer: consumers[0],
-                                })}
-                                {consumers.length > 1 ? ` +${consumers.length - 1}` : ''}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <select
-                            value={val}
-                            onChange={(e) => setOverride('service', sid, e.target.value)}
-                            className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-primary)] cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand-lime min-w-[230px]"
+                  return (
+                    <div
+                      key={sid}
+                      className={`p-3 rounded-xl border transition-colors ${FIXED_ROW_GRID_CLASS} ${
+                        isOverridden
+                          ? activeAccentCardClass
+                          : `border-[var(--glass-border)] ${typeStyle.rowAccentClass}`
+                      }`}
+                    >
+                      {/* Col 1: Service Type Badge + Alias + Full Name Description */}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className={`text-[9px] uppercase font-mono px-2 py-0.5 rounded border font-bold shrink-0 ${typeStyle.badgeClass}`}
                           >
-                            <option value="inherit" className="bg-[var(--bg-card)] text-[var(--text-secondary)]">
-                              {formatInheritedLabel(inherited.level, inherited.source)}
+                            {t(`rbac.processTypes.${svc.service_type}`, typeStyle.label)}
+                          </span>
+                          <span className="text-xs font-bold text-[var(--text-primary)] truncate">
+                            {svc.alias || svc.name}
+                          </span>
+                        </div>
+                        {hasDistinctAlias && (
+                          <div className="text-[11px] text-[var(--text-secondary)] mt-1 truncate" title={svc.name}>
+                            {svc.name}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Col 2: Computed Effective Access */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded border ${levelBadgeClass(computedLevel)}`}>
+                          {computedLevel}
+                        </span>
+                        {autoMonitored && (
+                          <span
+                            className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 truncate max-w-[95px]"
+                            title={activeConsumers.join(', ')}
+                          >
+                            {t('nodePermissions.viaDependency', 'via {{consumer}}', {
+                              consumer: activeConsumers[0],
+                            })}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Col 3: Node Override Selector */}
+                      <div className="flex items-center gap-1.5">
+                        <select
+                          value={val}
+                          onChange={(e) => setOverride('service', sid, e.target.value)}
+                          className="w-[178px] bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-primary)] cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand-lime"
+                        >
+                          <option value="inherit" className="bg-[var(--bg-card)] text-[var(--text-secondary)]">
+                            {formatCompactInheritedLabel(inherited.level)}
+                          </option>
+                          {CAPABILITY_LEVELS.map((lvl) => (
+                            <option key={lvl} value={lvl} className="bg-[var(--bg-card)] text-[var(--text-primary)]">
+                              {t(`rbac.levels.${lvl}`, lvl)}
                             </option>
-                            {CAPABILITY_LEVELS.map((lvl) => (
-                              <option key={lvl} value={lvl} className="bg-[var(--bg-card)] text-[var(--text-primary)]">
-                                {t(`rbac.levels.${lvl}`, lvl)}
-                              </option>
-                            ))}
-                          </select>
+                          ))}
+                        </select>
+                        <div className="w-7 flex justify-center shrink-0">
                           {isOverridden && (
                             <button
                               type="button"
                               onClick={() => setOverride('service', sid, 'inherit')}
                               title={t('nodePermissions.resetToInherited', 'Reset to inherited')}
-                              className="px-2 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--glass-border)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+                              className="px-2 py-1 rounded-lg bg-[var(--bg-card)] border border-[var(--glass-border)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
                             >
                               ↺
                             </button>
                           )}
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {/* Filter Bar */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
-                <div className="relative flex-1">
-                  <SearchIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
-                  <input
-                    type="text"
-                    value={taskSearch}
-                    onChange={(e) => setTaskSearch(e.target.value)}
-                    placeholder={t('nodePermissions.searchTasksPlaceholder', 'Filter tasks by name, ID, or schedule...')}
-                    className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl pl-8 pr-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setOnlyOverridesFilter((v) => !v)}
-                  className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-colors cursor-pointer shrink-0 ${
-                    onlyOverridesFilter
-                      ? activeBadgeClass
-                      : 'bg-[var(--input-bg)] border-[var(--glass-border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  {t('nodePermissions.onlyOverrides', 'Only Overrides')} ({tabCounts.tasks})
-                </button>
+                    </div>
+                  );
+                })}
               </div>
+            )
+          ) : catalogLoading ? (
+            <p className="text-xs text-[var(--text-secondary)] font-mono py-8 text-center">
+              {t('common.loading', 'Loading...')}
+            </p>
+          ) : filteredTasks.length === 0 ? (
+            <p className="text-xs text-[var(--text-secondary)] italic py-8 text-center">
+              {catalog?.tasks?.length === 0
+                ? t('nodePermissions.noTasksInCatalog', 'No tasks reported by appliance.')
+                : t('nodePermissions.noMatchingItems', 'No matching items found.')}
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {filteredTasks.map((tsk) => {
+                const tid = String(tsk.id);
+                const val = getOverrideVal('task', tid);
+                const isOverridden = val !== 'inherit';
+                const inherited = getTaskInherited(tid);
+                const computedLevel: CapabilityLevel = isOverridden ? (val as CapabilityLevel) : inherited.level;
+                const hasDistinctAlias = Boolean(tsk.alias && tsk.name && tsk.alias !== tsk.name);
 
-              {catalogLoading ? (
-                <p className="text-xs text-[var(--text-secondary)] font-mono py-6 text-center">
-                  {t('common.loading', 'Loading...')}
-                </p>
-              ) : filteredTasks.length === 0 ? (
-                <p className="text-xs text-[var(--text-secondary)] italic py-8 text-center">
-                  {catalog?.tasks?.length === 0
-                    ? t('nodePermissions.noTasksInCatalog', 'No tasks reported by appliance.')
-                    : t('nodePermissions.noMatchingItems', 'No matching items found.')}
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {filteredTasks.map((tsk) => {
-                    const tid = String(tsk.id);
-                    const val = getOverrideVal('task', tid);
-                    const isOverridden = val !== 'inherit';
-                    const inherited = getTaskInherited(tid);
-                    const effectiveLevel = isOverridden ? (val as CapabilityLevel) : inherited.level;
-
-                    return (
-                      <div
-                        key={tid}
-                        className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors ${
-                          isOverridden
-                            ? activeAccentCardClass
-                            : 'bg-[var(--input-bg)] border-[var(--glass-border)]'
-                        }`}
-                      >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-bold text-[var(--text-primary)] truncate">
-                              {tsk.alias || tsk.name}
-                            </span>
-                            {isOverridden ? (
-                              <span className={`text-[9px] font-mono uppercase px-1.5 py-0.5 rounded border ${activeBadgeClass}`}>
-                                {t('nodePermissions.overrideBadge', 'Override')}
-                              </span>
-                            ) : (
-                              <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${levelBadgeClass(effectiveLevel)}`}>
-                                {effectiveLevel}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[10px] font-mono text-[var(--text-secondary)] mt-1 truncate">
-                            #{tid} · {tsk.schedule_type || 'task'}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <select
-                            value={val}
-                            onChange={(e) => setOverride('task', tid, e.target.value)}
-                            className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-primary)] cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand-lime min-w-[230px]"
-                          >
-                            <option value="inherit" className="bg-[var(--bg-card)] text-[var(--text-secondary)]">
-                              {formatInheritedLabel(inherited.level, inherited.source)}
-                            </option>
-                            {CAPABILITY_LEVELS.map((lvl) => (
-                              <option key={lvl} value={lvl} className="bg-[var(--bg-card)] text-[var(--text-primary)]">
-                                {t(`rbac.levels.${lvl}`, lvl)}
-                              </option>
-                            ))}
-                          </select>
-                          {isOverridden && (
-                            <button
-                              type="button"
-                              onClick={() => setOverride('task', tid, 'inherit')}
-                              title={t('nodePermissions.resetToInherited', 'Reset to inherited')}
-                              className="px-2 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--glass-border)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
-                            >
-                              ↺
-                            </button>
-                          )}
-                        </div>
+                return (
+                  <div
+                    key={tid}
+                    className={`p-3 rounded-xl border transition-colors ${FIXED_ROW_GRID_CLASS} ${
+                      isOverridden
+                        ? activeAccentCardClass
+                        : `border-[var(--glass-border)] ${TASK_STYLE.rowAccentClass}`
+                    }`}
+                  >
+                    {/* Col 1: Task Type Badge + Alias + Full Name Description */}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className={`text-[9px] uppercase font-mono px-2 py-0.5 rounded border font-bold shrink-0 ${TASK_STYLE.badgeClass}`}
+                        >
+                          {tsk.schedule_type || t('rbac.processTypes.task', 'Task')}
+                        </span>
+                        <span className="text-xs font-bold text-[var(--text-primary)] truncate">
+                          {tsk.alias || tsk.name}
+                        </span>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+                      {hasDistinctAlias && (
+                        <div className="text-[11px] text-[var(--text-secondary)] mt-1 truncate" title={tsk.name}>
+                          {tsk.name}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Col 2: Computed Effective Access */}
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded border ${levelBadgeClass(computedLevel)}`}>
+                        {computedLevel}
+                      </span>
+                    </div>
+
+                    {/* Col 3: Node Override Selector */}
+                    <div className="flex items-center gap-1.5">
+                      <select
+                        value={val}
+                        onChange={(e) => setOverride('task', tid, e.target.value)}
+                        className="w-[178px] bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-primary)] cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand-lime"
+                      >
+                        <option value="inherit" className="bg-[var(--bg-card)] text-[var(--text-secondary)]">
+                          {formatCompactInheritedLabel(inherited.level)}
+                        </option>
+                        {CAPABILITY_LEVELS.map((lvl) => (
+                          <option key={lvl} value={lvl} className="bg-[var(--bg-card)] text-[var(--text-primary)]">
+                            {t(`rbac.levels.${lvl}`, lvl)}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="w-7 flex justify-center shrink-0">
+                        {isOverridden && (
+                          <button
+                            type="button"
+                            onClick={() => setOverride('task', tid, 'inherit')}
+                            title={t('nodePermissions.resetToInherited', 'Reset to inherited')}
+                            className="px-2 py-1 rounded-lg bg-[var(--bg-card)] border border-[var(--glass-border)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+                          >
+                            ↺
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-[var(--glass-border)] flex flex-wrap items-center justify-between gap-3">
+        <div className="p-4 border-t border-[var(--glass-border)] flex flex-wrap items-center justify-between gap-3 shrink-0">
           <div className="text-[11px] font-mono text-[var(--text-secondary)]">
             {isDirty && (
               <span className={isTeamActive ? 'text-brand-lime' : 'text-cyan-400'}>

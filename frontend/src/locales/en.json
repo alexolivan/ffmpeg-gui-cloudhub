@@ -553,6 +553,13 @@
     "unsavedChanges": "Unsaved changes",
     "confirmDiscard": "You have unsaved permission changes for the current selection. Discard them and switch?",
     "saveTeamButton": "Save Rules for {{name}}",
-    "saveOperatorButton": "Save Exception for @{{username}}"
+    "saveOperatorButton": "Save Exception for @{{username}}",
+    "selectTeamOption": "Select team template...",
+    "colService": "Service",
+    "colTask": "Scheduled Task",
+    "colEffectiveAccess": "Computed Access",
+    "colOverride": "Override",
+    "shortInherited": "Inherited ({{level}})",
+    "viaDependency": "via {{consumer}}"
   }
 }

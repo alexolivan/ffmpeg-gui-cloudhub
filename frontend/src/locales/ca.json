@@ -553,6 +553,13 @@
     "unsavedChanges": "Canvis sense desar",
     "confirmDiscard": "Tens canvis de permisos sense desar per a la selecció actual. Vols descartar-los i canviar?",
     "saveTeamButton": "Desar Regles de {{name}}",
-    "saveOperatorButton": "Desar Excepció de @{{username}}"
+    "saveOperatorButton": "Desar Excepció de @{{username}}",
+    "selectTeamOption": "Selecciona plantilla d'equip...",
+    "colService": "Servei",
+    "colTask": "Tasca Programada",
+    "colEffectiveAccess": "Accés Efectiu",
+    "colOverride": "Override",
+    "shortInherited": "Heretat ({{level}})",
+    "viaDependency": "via {{consumer}}"
   }
 }

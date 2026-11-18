@@ -553,6 +553,13 @@
     "unsavedChanges": "Cambios sin guardar",
     "confirmDiscard": "Tienes cambios de permisos sin guardar para la selección actual. ¿Descartarlos y cambiar?",
     "saveTeamButton": "Guardar Reglas de {{name}}",
-    "saveOperatorButton": "Guardar Excepción de @{{username}}"
+    "saveOperatorButton": "Guardar Excepción de @{{username}}",
+    "selectTeamOption": "Selecciona plantilla de equipo...",
+    "colService": "Servicio",
+    "colTask": "Tarea Programada",
+    "colEffectiveAccess": "Acceso Efectivo",
+    "colOverride": "Override",
+    "shortInherited": "Heredado ({{level}})",
+    "viaDependency": "vía {{consumer}}"
   }
 }
