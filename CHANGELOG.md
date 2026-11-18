@@ -5,6 +5,12 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.4] - 2026-11-18
+
+### Changed
+- **4-Column Service/Task Table Layout in Appliance Permissions (`frontend/src/components/modals/NodePermissionsModal.tsx`)**:
+  - Moved service and task type badges into a dedicated 2nd fixed-width column (`120px`) between **Service / Scheduled Task** and **Computed Access**, keeping left edges of all titles cleanly aligned across rows and widened modal container (`max-w-5xl`).
+
 ## [1.4.3] - 2026-11-18
 
 ### Changed

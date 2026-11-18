@@ -557,6 +557,7 @@
     "selectTeamOption": "Select team template...",
     "colService": "Service",
     "colTask": "Scheduled Task",
+    "colType": "Type",
     "colEffectiveAccess": "Computed Access",
     "colOverride": "Override",
     "shortInherited": "Inherited ({{level}})",

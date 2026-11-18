@@ -94,7 +94,7 @@ const TASK_STYLE = {
   rowAccentClass: 'border-l-2 border-l-purple-500/70 bg-purple-500/[0.03]',
 };
 
-const FIXED_ROW_GRID_CLASS = 'grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_165px_215px] sm:items-center gap-2.5 sm:gap-3';
+const FIXED_ROW_GRID_CLASS = 'grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_120px_150px_215px] sm:items-center gap-2.5 sm:gap-3';
 
 const serializeOverrideMap = (map: Record<string, CapabilityLevel>): string =>
   JSON.stringify(
@@ -604,7 +604,7 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl">
+      <div className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl">
         {/* Header */}
         <div className="p-4 border-b border-[var(--glass-border)] flex items-center justify-between gap-3 shrink-0">
           <div className="min-w-0">
@@ -942,6 +942,7 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
                     ? t('nodePermissions.colService', 'Service')
                     : t('nodePermissions.colTask', 'Scheduled Task')}
                 </div>
+                <div>{t('nodePermissions.colType', 'Type')}</div>
                 <div>{t('nodePermissions.colEffectiveAccess', 'Computed Access')}</div>
                 <div>{t('nodePermissions.colOverride', 'Override')}</div>
               </div>
@@ -1188,26 +1189,28 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
                           : `border-[var(--glass-border)] ${typeStyle.rowAccentClass}`
                       }`}
                     >
-                      {/* Col 1: Service Type Badge + Alias + Full Name Description */}
+                      {/* Col 1: Alias + Full Name Description */}
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span
-                            className={`text-[9px] uppercase font-mono px-2 py-0.5 rounded border font-bold shrink-0 ${typeStyle.badgeClass}`}
-                          >
-                            {t(`rbac.processTypes.${svc.service_type}`, typeStyle.label)}
-                          </span>
-                          <span className="text-xs font-bold text-[var(--text-primary)] truncate">
-                            {svc.alias || svc.name}
-                          </span>
+                        <div className="text-xs font-bold text-[var(--text-primary)] truncate">
+                          {svc.alias || svc.name}
                         </div>
                         {hasDistinctAlias && (
-                          <div className="text-[11px] text-[var(--text-secondary)] mt-1 truncate" title={svc.name}>
+                          <div className="text-[11px] text-[var(--text-secondary)] mt-0.5 truncate" title={svc.name}>
                             {svc.name}
                           </div>
                         )}
                       </div>
 
-                      {/* Col 2: Computed Effective Access */}
+                      {/* Col 2: Dedicated Service Type Column */}
+                      <div className="flex items-center">
+                        <span
+                          className={`text-[9px] uppercase font-mono px-2 py-0.5 rounded border font-bold whitespace-nowrap ${typeStyle.badgeClass}`}
+                        >
+                          {t(`rbac.processTypes.${svc.service_type}`, typeStyle.label)}
+                        </span>
+                      </div>
+
+                      {/* Col 3: Computed Effective Access */}
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className={`text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded border ${levelBadgeClass(computedLevel)}`}>
                           {computedLevel}
@@ -1287,26 +1290,28 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
                         : `border-[var(--glass-border)] ${TASK_STYLE.rowAccentClass}`
                     }`}
                   >
-                    {/* Col 1: Task Type Badge + Alias + Full Name Description */}
+                    {/* Col 1: Alias + Full Name Description */}
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span
-                          className={`text-[9px] uppercase font-mono px-2 py-0.5 rounded border font-bold shrink-0 ${TASK_STYLE.badgeClass}`}
-                        >
-                          {tsk.schedule_type || t('rbac.processTypes.task', 'Task')}
-                        </span>
-                        <span className="text-xs font-bold text-[var(--text-primary)] truncate">
-                          {tsk.alias || tsk.name}
-                        </span>
+                      <div className="text-xs font-bold text-[var(--text-primary)] truncate">
+                        {tsk.alias || tsk.name}
                       </div>
                       {hasDistinctAlias && (
-                        <div className="text-[11px] text-[var(--text-secondary)] mt-1 truncate" title={tsk.name}>
+                        <div className="text-[11px] text-[var(--text-secondary)] mt-0.5 truncate" title={tsk.name}>
                           {tsk.name}
                         </div>
                       )}
                     </div>
 
-                    {/* Col 2: Computed Effective Access */}
+                    {/* Col 2: Dedicated Task Type Column */}
+                    <div className="flex items-center">
+                      <span
+                        className={`text-[9px] uppercase font-mono px-2 py-0.5 rounded border font-bold whitespace-nowrap ${TASK_STYLE.badgeClass}`}
+                      >
+                        {tsk.schedule_type || t('rbac.processTypes.task', 'Task')}
+                      </span>
+                    </div>
+
+                    {/* Col 3: Computed Effective Access */}
                     <div className="flex items-center gap-1.5">
                       <span className={`text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded border ${levelBadgeClass(computedLevel)}`}>
                         {computedLevel}

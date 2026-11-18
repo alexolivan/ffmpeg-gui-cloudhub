@@ -557,6 +557,7 @@
     "selectTeamOption": "Selecciona plantilla d'equip...",
     "colService": "Servei",
     "colTask": "Tasca Programada",
+    "colType": "Tipus",
     "colEffectiveAccess": "Accés Efectiu",
     "colOverride": "Override",
     "shortInherited": "Heretat ({{level}})",

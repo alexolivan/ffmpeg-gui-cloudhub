@@ -557,6 +557,7 @@
     "selectTeamOption": "Selecciona plantilla de equipo...",
     "colService": "Servicio",
     "colTask": "Tarea Programada",
+    "colType": "Tipo",
     "colEffectiveAccess": "Acceso Efectivo",
     "colOverride": "Override",
     "shortInherited": "Heredado ({{level}})",
