@@ -2,10 +2,12 @@
 
 import os
 import time
+import json
 import hmac
+import base64
 import hashlib
 import logging
-from typing import Optional, Callable
+from typing import Optional, Callable, Dict, Any
 from sqlalchemy.orm import Session
 
 from backend.database.models import User, EnrolledNode, UserGroupPermission
@@ -16,6 +18,20 @@ DEFAULT_SERVER_SECRET = os.environ.get(
     "CLOUDHUB_SECRET_KEY", "cloudhub-default-insecure-secret-key-change-me"
 )
 PBKDF2_ITERATIONS = 600_000
+
+FULL_ADMIN_SCOPES: Dict[str, Any] = {
+    "dashboard": "admin",
+    "hardware": "admin",
+    "media": "admin",
+    "settings": "admin",
+    "forge": "admin",
+    "processes": {
+        "default": "admin",
+        "by_type": {},
+        "services": {},
+        "tasks": {},
+    },
+}
 
 
 class AuthManager:
@@ -174,6 +190,70 @@ class AuthManager:
             hashlib.sha256,
         ).hexdigest()
         return f"{payload}:{signature}"
+
+    @staticmethod
+    def create_authz_assertion(
+        node_id: str,
+        tunnel_secret: str,
+        username: str,
+        claims: Dict[str, Any],
+        ttl_seconds: int = 60,
+    ) -> str:
+        """
+        Create a time-limited HMAC-SHA256 capability claims assertion.
+        Format: {node_id}:{username}:{claims_b64}:{timestamp}:{expiry}:{sig}
+        """
+        now = int(time.time())
+        expiry = now + ttl_seconds
+        claims_json = json.dumps(claims, separators=(",", ":"), sort_keys=True)
+        claims_b64 = base64.urlsafe_b64encode(claims_json.encode("utf-8")).decode("ascii")
+        payload = f"{node_id}:{username}:{claims_b64}:{now}:{expiry}"
+        signature = hmac.new(
+            tunnel_secret.encode("utf-8"),
+            payload.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+        return f"{payload}:{signature}"
+
+    @staticmethod
+    def verify_authz_assertion(
+        assertion: str,
+        tunnel_secret: str,
+        expected_node_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Validate HMAC-SHA256 capability claims assertion and return decoded claims dict."""
+        if not assertion or not tunnel_secret:
+            return None
+        try:
+            parts = assertion.split(":")
+            if len(parts) != 6:
+                return None
+            node_id, username, claims_b64, ts_str, exp_str, signature = parts
+            if expected_node_id and node_id != expected_node_id:
+                return None
+            now = int(time.time())
+            ts = int(ts_str)
+            exp = int(exp_str)
+            if now > exp or abs(now - ts) > 60:
+                return None
+            payload = f"{node_id}:{username}:{claims_b64}:{ts_str}:{exp_str}"
+            expected_sig = hmac.new(
+                tunnel_secret.encode("utf-8"),
+                payload.encode("utf-8"),
+                hashlib.sha256,
+            ).hexdigest()
+            if not hmac.compare_digest(expected_sig, signature):
+                return None
+            # Re-pad urlsafe base64 if needed
+            padded = claims_b64 + "=" * (-len(claims_b64) % 4)
+            decoded = base64.urlsafe_b64decode(padded.encode("ascii")).decode("utf-8")
+            claims = json.loads(decoded)
+            if not isinstance(claims, dict):
+                return None
+            return claims
+        except Exception as err:
+            logger.debug("Authz assertion validation error: %s", err)
+            return None
 
     @staticmethod
     def verify_edge_handshake(

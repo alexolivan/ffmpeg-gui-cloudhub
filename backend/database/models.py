@@ -39,6 +39,7 @@ class Organization(Base):
     users = relationship("User", back_populates="organization", cascade="all, delete-orphan")
     groups = relationship("NodeGroup", back_populates="organization", cascade="all, delete-orphan")
     nodes = relationship("EnrolledNode", back_populates="organization", cascade="all, delete-orphan")
+    teams = relationship("Team", back_populates="organization", cascade="all, delete-orphan")
     enrollment_tokens = relationship(
         "EnrollmentToken", back_populates="organization", cascade="all, delete-orphan"
     )
@@ -85,6 +86,12 @@ class User(Base):
     organization = relationship("Organization", back_populates="users")
     group_permissions = relationship(
         "UserGroupPermission", back_populates="user", cascade="all, delete-orphan"
+    )
+    team_memberships = relationship(
+        "TeamMember", back_populates="user", cascade="all, delete-orphan"
+    )
+    node_overrides = relationship(
+        "NodePermissionOverride", back_populates="user", cascade="all, delete-orphan"
     )
 
 
@@ -151,6 +158,9 @@ class EnrolledNode(Base):
 
     organization = relationship("Organization", back_populates="nodes")
     group = relationship("NodeGroup", back_populates="nodes")
+    permission_overrides = relationship(
+        "NodePermissionOverride", back_populates="node", cascade="all, delete-orphan"
+    )
 
 
 class AuditLog(Base):
@@ -177,3 +187,72 @@ class SystemSettings(Base):
 
     key = Column(String(100), primary_key=True)
     value = Column(Text, nullable=False)
+
+
+class Team(Base):
+    """Operator capability template / profile scoped to a tenant organization."""
+    __tablename__ = "teams"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    org_id = Column(
+        Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name = Column(String(150), nullable=False)
+    description = Column(Text, nullable=True)
+    is_default_template = Column(Boolean, default=False, nullable=False)
+    default_claims_json = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)
+
+    organization = relationship("Organization", back_populates="teams")
+    members = relationship(
+        "TeamMember", back_populates="team", cascade="all, delete-orphan"
+    )
+    node_overrides = relationship(
+        "NodePermissionOverride", back_populates="team", cascade="all, delete-orphan"
+    )
+
+
+class TeamMember(Base):
+    """Mapping associating an operator User with a Team profile."""
+    __tablename__ = "team_members"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    team_id = Column(
+        Integer, ForeignKey("teams.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+
+    __table_args__ = (
+        UniqueConstraint("team_id", "user_id", name="uq_team_member"),
+    )
+
+    team = relationship("Team", back_populates="members")
+    user = relationship("User", back_populates="team_memberships")
+
+
+class NodePermissionOverride(Base):
+    """Per-appliance domain, process-type, service, or task override for a Team or User."""
+    __tablename__ = "node_permission_overrides"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    node_id = Column(
+        String(64), ForeignKey("enrolled_nodes.node_id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    team_id = Column(
+        Integer, ForeignKey("teams.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    scope_type = Column(String(32), nullable=False)  # domain | process_type | service | task
+    target_key = Column(String(64), nullable=False)
+    level = Column(String(16), nullable=False)  # none | monitor | operate | manage | admin
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)
+
+    node = relationship("EnrolledNode", back_populates="permission_overrides")
+    team = relationship("Team", back_populates="node_overrides")
+    user = relationship("User", back_populates="node_overrides")

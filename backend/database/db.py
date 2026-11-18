@@ -1,12 +1,68 @@
 """Database engine, session management, and bootstrap initialization."""
 
 import os
+import json
 import logging
-from typing import Generator, Optional
+from typing import Generator, Optional, Dict, Any
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
 
-from backend.database.models import Base, User
+from backend.database.models import Base, User, Organization, Team, TeamMember
+
+DEFAULT_CONSERVATIVE_SCOPES: Dict[str, Any] = {
+    "dashboard": "monitor",
+    "hardware": "none",
+    "media": "none",
+    "settings": "none",
+    "forge": "none",
+    "processes": {
+        "default": "none",
+        "by_type": {},
+        "services": {},
+        "tasks": {},
+    },
+}
+
+DEFAULT_CONSERVATIVE_SCOPES_JSON = json.dumps(DEFAULT_CONSERVATIVE_SCOPES)
+
+
+def ensure_default_team_for_org(session: Session, org_id: int) -> Team:
+    """
+    Guarantee every Organization owns an immutable default conservative Team template
+    and enroll any group_operator without team memberships into it.
+    """
+    default_team = (
+        session.query(Team)
+        .filter(Team.org_id == org_id, Team.is_default_template == True)
+        .first()
+    )
+    if not default_team:
+        default_team = Team(
+            org_id=org_id,
+            name="Default Operators",
+            description="Default conservative capability template for tenant operators.",
+            is_default_template=True,
+            default_claims_json=DEFAULT_CONSERVATIVE_SCOPES_JSON,
+        )
+        session.add(default_team)
+        session.flush()
+
+    operators = (
+        session.query(User)
+        .filter(User.org_id == org_id, User.role == "group_operator")
+        .all()
+    )
+    for op in operators:
+        has_team = (
+            session.query(TeamMember)
+            .join(Team, Team.id == TeamMember.team_id)
+            .filter(TeamMember.user_id == op.id, Team.org_id == org_id)
+            .first()
+        )
+        if not has_team:
+            session.add(TeamMember(team_id=default_team.id, user_id=op.id))
+
+    return default_team
 
 logger = logging.getLogger("cloudhub.db")
 
@@ -132,3 +188,8 @@ def init_db(db_engine=None) -> None:
             logger.warning(
                 "============================================================"
             )
+
+        # Ensure every existing organization has an immutable Default Conservative Team
+        for org_row in session.query(Organization).all():
+            ensure_default_team_for_org(session, org_row.id)
+        session.commit()

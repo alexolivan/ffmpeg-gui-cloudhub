@@ -144,6 +144,7 @@ class TunnelServer:
         body: Optional[bytes] = None,
         sso_assertion: Optional[str] = None,
         timeout: float = 30.0,
+        authz_assertion: Optional[str] = None,
     ) -> Tuple[int, List[List[str]], bytes]:
         """
         Forward an HTTP request to edge node over the multiplexed reverse tunnel.
@@ -166,6 +167,7 @@ class TunnelServer:
             headers=headers,
             body=body,
             sso_assertion=sso_assertion,
+            authz_assertion=authz_assertion,
         )
 
         try:
@@ -191,6 +193,7 @@ class TunnelServer:
         body: Optional[bytes] = None,
         sso_assertion: Optional[str] = None,
         timeout: float = 30.0,
+        authz_assertion: Optional[str] = None,
     ) -> Tuple[int, List[List[str]], bool, Union[bytes, AsyncIterator[bytes]]]:
         """
         Forward an HTTP request over the reverse tunnel with chunked streaming support.
@@ -213,6 +216,7 @@ class TunnelServer:
             body=body,
             sso_assertion=sso_assertion,
             supports_stream=True,
+            authz_assertion=authz_assertion,
         )
 
         try:
@@ -490,6 +494,7 @@ class TunnelServer:
         headers: Dict[str, str],
         sso_assertion: Optional[str] = None,
         user_id: Optional[int] = None,
+        authz_assertion: Optional[str] = None,
     ) -> None:
         """
         Bridge an incoming browser WebSocket connection into the edge node reverse tunnel.
@@ -510,6 +515,7 @@ class TunnelServer:
             query=query,
             headers=headers,
             sso_assertion=sso_assertion,
+            authz_assertion=authz_assertion,
         )
 
         try:

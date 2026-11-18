@@ -10,6 +10,11 @@ from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from backend.database.db import SessionLocal
 from backend.database.models import User, EnrolledNode, AuditLog
 from backend.core.auth_manager import AuthManager
+from backend.core.telemetry_collector import telemetry_collector
+from backend.core.permissions_compiler import (
+    compile_effective_claims,
+    is_restricted_claims,
+)
 from backend.core.tunnel_server import tunnel_server
 
 logger = logging.getLogger("cloudhub.proxy")
@@ -244,6 +249,16 @@ def authenticate_user_from_ws(websocket: WebSocket, db) -> Optional[User]:
     return AuthManager.validate_session(token, lookup)
 
 
+def _node_lacks_authz_support(node_id: str, user: Optional[User], claims: dict) -> bool:
+    """Block restricted operators if edge node reported heartbeat without authz_claims capability."""
+    if not user or user.role != "group_operator" or not is_restricted_claims(claims):
+        return False
+    latest_hb = telemetry_collector.get_latest_payload(node_id)
+    if latest_hb is None:
+        return False
+    return not telemetry_collector.supports_capability(node_id, "authz_claims")
+
+
 @router.websocket("/proxy/{node_id}/{subpath:path}")
 @router.websocket("/proxy/{node_id}")
 async def proxy_websocket_endpoint(
@@ -273,10 +288,25 @@ async def proxy_websocket_endpoint(
             await websocket.close(code=4003, reason="Access denied to this appliance")
             return
 
+        claims = compile_effective_claims(db, user, node)
+        if _node_lacks_authz_support(node_id, user, claims):
+            await websocket.close(
+                code=4003,
+                reason="Appliance firmware upgrade required for fine-grained permissions",
+            )
+            return
+
         sso_assertion = AuthManager.create_sso_assertion(
             node_id=node.node_id,
             tunnel_secret=node.tunnel_secret,
             username=user.username,
+            ttl_seconds=60,
+        )
+        authz_assertion = AuthManager.create_authz_assertion(
+            node_id=node.node_id,
+            tunnel_secret=node.tunnel_secret,
+            username=user.username,
+            claims=claims,
             ttl_seconds=60,
         )
 
@@ -293,6 +323,7 @@ async def proxy_websocket_endpoint(
         headers=headers,
         sso_assertion=sso_assertion,
         user_id=user.id,
+        authz_assertion=authz_assertion,
     )
 
 
@@ -332,11 +363,25 @@ async def proxy_http_endpoint(
                 detail="Access denied to this node",
             )
 
+        claims = compile_effective_claims(db, user, node)
+        if _node_lacks_authz_support(node_id, user, claims):
+            raise HTTPException(
+                status_code=426,
+                detail="Appliance firmware upgrade required for fine-grained permissions",
+            )
+
         username = user.username if user else "anonymous"
         sso_assertion = AuthManager.create_sso_assertion(
             node_id=node.node_id,
             tunnel_secret=node.tunnel_secret,
             username=username,
+            ttl_seconds=60,
+        )
+        authz_assertion = AuthManager.create_authz_assertion(
+            node_id=node.node_id,
+            tunnel_secret=node.tunnel_secret,
+            username=username,
+            claims=claims,
             ttl_seconds=60,
         )
 
@@ -377,6 +422,7 @@ async def proxy_http_endpoint(
             headers=req_headers,
             body=req_body,
             sso_assertion=sso_assertion,
+            authz_assertion=authz_assertion,
         )
     except ConnectionError as conn_err:
         raise HTTPException(

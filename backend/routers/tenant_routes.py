@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from backend.database.db import get_db
+from backend.database.db import get_db, ensure_default_team_for_org
 from backend.database.models import (
     User,
     Organization,
@@ -19,6 +19,8 @@ from backend.database.models import (
     EnrolledNode,
     AuditLog,
     SystemSettings,
+    Team,
+    TeamMember,
 )
 from backend.core.auth_manager import AuthManager
 from backend.core.telemetry_collector import telemetry_collector
@@ -62,6 +64,7 @@ class CreateUserRequest(BaseModel):
     password: str = Field(..., min_length=6)
     role: str = Field("group_operator", pattern="^(org_admin|group_operator)$")
     group_ids: Optional[List[int]] = None
+    team_ids: Optional[List[int]] = None
 
 
 class CreateUserGlobalRequest(BaseModel):
@@ -70,6 +73,7 @@ class CreateUserGlobalRequest(BaseModel):
     role: str = Field("group_operator", pattern="^(org_admin|group_operator)$")
     org_id: Optional[int] = None
     group_ids: Optional[List[int]] = None
+    team_ids: Optional[List[int]] = None
 
 
 class UpdateUserRequest(BaseModel):
@@ -175,6 +179,7 @@ def create_organization(
         org_id=org.id,
     )
     db.add(org_admin)
+    ensure_default_team_for_org(db, org.id)
 
     db.add(
         AuditLog(
@@ -592,6 +597,7 @@ def create_user_global(
             password=req.password,
             role=req.role,
             group_ids=req.group_ids,
+            team_ids=req.team_ids,
         ),
         current_user=current_user,
         db=db,
@@ -670,6 +676,17 @@ def create_user(
             g = db.query(NodeGroup).filter(NodeGroup.id == gid, NodeGroup.org_id == org_id).first()
             if g:
                 db.add(UserGroupPermission(user_id=new_user.id, group_id=gid))
+
+    if req.role == "group_operator":
+        assigned_team = False
+        if req.team_ids:
+            for tid in req.team_ids:
+                tm = db.query(Team).filter(Team.id == tid, Team.org_id == org_id).first()
+                if tm:
+                    db.add(TeamMember(team_id=tm.id, user_id=new_user.id))
+                    assigned_team = True
+        if not assigned_team:
+            ensure_default_team_for_org(db, org_id)
 
     db.commit()
     return {"status": "ok", "user": {"id": new_user.id, "username": new_user.username, "role": new_user.role}}

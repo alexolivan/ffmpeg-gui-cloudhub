@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from backend.version import __version__
 from backend.database.version import DB_SCHEMA_VERSION
 from backend.database.db import init_db
-from backend.routers import auth_routes, tenant_routes, edge_routes, settings_routes, backup_routes
+from backend.routers import auth_routes, tenant_routes, edge_routes, settings_routes, backup_routes, permissions_routes
 from backend.core import reverse_proxy
 from backend.services.maintenance_scheduler import setup_cloudhub_logging, maintenance_scheduler
 
@@ -247,6 +247,7 @@ app.include_router(tenant_routes.router)
 app.include_router(edge_routes.router)
 app.include_router(settings_routes.router)
 app.include_router(backup_routes.router)
+app.include_router(permissions_routes.router)
 app.include_router(reverse_proxy.router)
 
 

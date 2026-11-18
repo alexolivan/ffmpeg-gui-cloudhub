@@ -64,6 +64,16 @@ class TelemetryCollector:
             rec = self._vitality_cache.get(node_id)
             return rec.get("payload") if rec else None
 
+    def supports_capability(self, node_id: str, capability: str) -> bool:
+        """Check whether edge node advertised a specific capability in its latest heartbeat."""
+        payload = self.get_latest_payload(node_id)
+        if not payload or not isinstance(payload, dict):
+            return False
+        caps = payload.get("capabilities")
+        if not isinstance(caps, dict):
+            return False
+        return bool(caps.get(capability, False))
+
     def set_lcd_locator_state(self, node_id: str, active: bool) -> None:
         """Update in-memory LCD locator beacon state for a node."""
         with self._lock:

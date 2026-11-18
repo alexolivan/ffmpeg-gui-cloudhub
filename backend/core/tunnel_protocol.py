@@ -46,6 +46,7 @@ def create_http_request_frame(
     body: Optional[bytes] = None,
     sso_assertion: Optional[str] = None,
     supports_stream: bool = True,
+    authz_assertion: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Construct a multiplexed HTTP request frame to be forwarded to edge node."""
     return {
@@ -58,6 +59,7 @@ def create_http_request_frame(
         "body": encode_body(body),
         "sso_assertion": sso_assertion,
         "supports_stream": supports_stream,
+        "authz_assertion": authz_assertion,
     }
 
 
@@ -91,6 +93,7 @@ def create_ws_open_frame(
     query: str,
     headers: Dict[str, str],
     sso_assertion: Optional[str] = None,
+    authz_assertion: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Construct a WebSocket open frame forwarding browser connection to edge node."""
     return {
@@ -100,6 +103,7 @@ def create_ws_open_frame(
         "query": query,
         "headers": headers,
         "sso_assertion": sso_assertion,
+        "authz_assertion": authz_assertion,
     }
 
 
