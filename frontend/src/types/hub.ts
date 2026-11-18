@@ -165,3 +165,21 @@ export interface NodeCatalogResponse {
   implicit_monitors: Record<string, string[]>;
   orphaned_overrides: NodePermissionOverride[];
 }
+
+export interface SubjectTeamSummary {
+  id: number;
+  name: string;
+  is_default_template: boolean;
+}
+
+export interface NodePermissionsResponse {
+  node_id: string;
+  overrides: NodePermissionOverride[];
+  compiled_preview?: Record<string, any> | null;
+  inherited_preview?: Record<string, any> | null;
+  subject_teams?: SubjectTeamSummary[];
+  override_counts?: {
+    teams: Record<string, number>;
+    users: Record<string, number>;
+  };
+}

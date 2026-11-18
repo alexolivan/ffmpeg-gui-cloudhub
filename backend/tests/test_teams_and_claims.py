@@ -253,6 +253,21 @@ class TestTeamsAndClaims(unittest.TestCase):
         )
         self.assertEqual(put_user_ov.status_code, 200)
 
+        perm_res = self.client.get(
+            f"/api/hub/nodes/ch_node_one/permissions?user_id={self.op1_id}",
+            headers=headers,
+        )
+        self.assertEqual(perm_res.status_code, 200)
+        perm_json = perm_res.json()
+        self.assertEqual(perm_json["inherited_preview"]["scopes"]["processes"]["services"]["2"], "operate")
+        self.assertEqual(perm_json["compiled_preview"]["scopes"]["processes"]["services"]["2"], "monitor")
+        self.assertEqual(perm_json["inherited_preview"]["scopes"]["forge"], "none")
+        self.assertEqual(perm_json["compiled_preview"]["scopes"]["forge"], "monitor")
+        team_names = {tm["name"] for tm in perm_json["subject_teams"]}
+        self.assertTrue({"Sound Ops", "Playout Leads"}.issubset(team_names))
+        self.assertEqual(perm_json["override_counts"]["users"][str(self.op1_id)], 2)
+        self.assertEqual(perm_json["override_counts"]["teams"][str(team1_id)], 2)
+
         with self.SessionFactory() as db:
             node1 = db.query(EnrolledNode).filter(EnrolledNode.node_id == "ch_node_one").first()
             op1 = db.query(User).filter(User.id == self.op1_id).first()

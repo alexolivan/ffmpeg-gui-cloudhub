@@ -5,6 +5,15 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2] - 2026-11-18
+
+### Changed
+- **Appliance Permissions Modal UX (`frontend/src/components/modals/NodePermissionsModal.tsx`, `backend/core/permissions_compiler.py`, `backend/routers/permissions_routes.py`)**:
+  - Replaced ambiguous mode buttons with side-by-side **Team / Policy Template** and **Individual Operator Exception** selectors featuring migrating focus borders (`brand-lime` vs `cyan`), contextual banners, and dynamic Save CTA labels.
+  - Listed operators without access to the appliance's group as disabled/greyed options while keeping them visible.
+  - Split permissions into 3 context-separated tabs (**Modules & Types**, **Services**, **Scheduled Tasks**) eliminating nested scrolling, with search and override-only filters on Services/Tasks.
+  - Exposed live inherited baseline values (`inherited_preview`, `subject_teams`, and `override_counts` in `GET /api/hub/nodes/{node_id}/permissions`) so every selector displays the exact inherited level and origin alongside one-click reset to inherited.
+
 ## [1.4.1] - 2026-11-18
 
 ### Added

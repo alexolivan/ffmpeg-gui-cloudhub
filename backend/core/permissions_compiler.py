@@ -158,10 +158,25 @@ def _apply_overrides(
         scopes["processes"]["tasks"][tid] = lvl
 
 
+def get_user_effective_teams(db: Session, user: User, node: EnrolledNode) -> List[Team]:
+    """Return the user's effective teams in node.org_id (falling back to default template)."""
+    user_teams = (
+        db.query(Team)
+        .join(TeamMember, TeamMember.team_id == Team.id)
+        .filter(TeamMember.user_id == user.id, Team.org_id == node.org_id)
+        .all()
+    )
+    if not user_teams:
+        default_team = ensure_default_team_for_org(db, node.org_id)
+        user_teams = [default_team]
+    return user_teams
+
+
 def compile_effective_claims(
     db: Session,
     user: Optional[User],
     node: EnrolledNode,
+    include_user_overrides: bool = True,
 ) -> Dict[str, Any]:
     """
     Compile the canonical capability claims dictionary for `(user, node)`:
@@ -169,7 +184,7 @@ def compile_effective_claims(
     2. Layer 1 reachability gate (`AuthManager.can_user_access_node`).
     3. Union of user's Teams in `node.org_id` via `max_level` (fallback: default template).
     4. Per-node Team overrides replace team defaults for the specified target keys.
-    5. Per-node User overrides take highest precedence for the exact target keys.
+    5. Per-node User overrides take highest precedence when `include_user_overrides` is True.
     """
     if not user:
         return _empty_none_claims("anonymous")
@@ -184,15 +199,7 @@ def compile_effective_claims(
     if not AuthManager.can_user_access_node(db, user, node):
         return _empty_none_claims(user.username)
 
-    user_teams = (
-        db.query(Team)
-        .join(TeamMember, TeamMember.team_id == Team.id)
-        .filter(TeamMember.user_id == user.id, Team.org_id == node.org_id)
-        .all()
-    )
-    if not user_teams:
-        default_team = ensure_default_team_for_org(db, node.org_id)
-        user_teams = [default_team]
+    user_teams = get_user_effective_teams(db, user, node)
 
     # Merge team base policies using max_level across teams
     merged_scopes = _empty_none_claims(user.username)["scopes"]
@@ -224,9 +231,10 @@ def compile_effective_claims(
     if team_overrides:
         _apply_overrides(merged_scopes, team_overrides, merge_with_max=True)
 
-    user_overrides = [ov for ov in node_overrides if ov.user_id == user.id]
-    if user_overrides:
-        _apply_overrides(merged_scopes, user_overrides, merge_with_max=False)
+    if include_user_overrides:
+        user_overrides = [ov for ov in node_overrides if ov.user_id == user.id]
+        if user_overrides:
+            _apply_overrides(merged_scopes, user_overrides, merge_with_max=False)
 
     return {
         "user": user.username,

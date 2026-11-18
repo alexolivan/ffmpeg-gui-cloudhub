@@ -28,6 +28,7 @@ from backend.core.permissions_compiler import (
     DOMAIN_KEYS,
     LEVEL_RANK,
     compile_effective_claims,
+    get_user_effective_teams,
     normalize_level,
     parse_team_claims,
 )
@@ -335,23 +336,52 @@ def get_node_permissions(
     db: Session = Depends(get_db),
 ):
     node = _get_authorized_node(db, current_user, node_id)
-    query = db.query(NodePermissionOverride).filter(NodePermissionOverride.node_id == node.node_id)
-    if team_id is not None:
-        query = query.filter(NodePermissionOverride.team_id == team_id)
-    if user_id is not None:
-        query = query.filter(NodePermissionOverride.user_id == user_id)
+    all_node_overrides = (
+        db.query(NodePermissionOverride)
+        .filter(NodePermissionOverride.node_id == node.node_id)
+        .all()
+    )
 
-    overrides = query.all()
+    team_counts: Dict[str, int] = {}
+    user_counts: Dict[str, int] = {}
+    for ov in all_node_overrides:
+        if ov.user_id is not None:
+            ukey = str(ov.user_id)
+            user_counts[ukey] = user_counts.get(ukey, 0) + 1
+        elif ov.team_id is not None:
+            tkey = str(ov.team_id)
+            team_counts[tkey] = team_counts.get(tkey, 0) + 1
+
+    overrides = all_node_overrides
+    if team_id is not None:
+        overrides = [ov for ov in overrides if ov.team_id == team_id and ov.user_id is None]
+    if user_id is not None:
+        overrides = [ov for ov in overrides if ov.user_id == user_id]
+
     compiled_preview = None
+    inherited_preview = None
+    subject_teams: List[Dict[str, Any]] = []
     if user_id is not None:
         target_user = db.query(User).filter(User.id == user_id, User.org_id == node.org_id).first()
         if target_user:
-            compiled_preview = compile_effective_claims(db, target_user, node)
+            compiled_preview = compile_effective_claims(db, target_user, node, include_user_overrides=True)
+            inherited_preview = compile_effective_claims(db, target_user, node, include_user_overrides=False)
+            subject_teams = [
+                {
+                    "id": tm.id,
+                    "name": tm.name,
+                    "is_default_template": bool(tm.is_default_template),
+                }
+                for tm in get_user_effective_teams(db, target_user, node)
+            ]
 
     return {
         "node_id": node.node_id,
         "overrides": [_serialize_override(ov) for ov in overrides],
         "compiled_preview": compiled_preview,
+        "inherited_preview": inherited_preview,
+        "subject_teams": subject_teams,
+        "override_counts": {"teams": team_counts, "users": user_counts},
     }
 
 
