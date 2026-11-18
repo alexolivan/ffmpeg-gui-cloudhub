@@ -709,6 +709,9 @@ def update_user(
     ):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
+    prev_role = target_user.role
+    prev_org_id = target_user.org_id
+
     if req.username:
         new_username = req.username.strip()
         if new_username != target_user.username:
@@ -758,6 +761,14 @@ def update_user(
                 ).first()
                 if g:
                     db.add(UserGroupPermission(user_id=target_user.id, group_id=gid))
+
+    if target_user.role != "group_operator":
+        db.query(TeamMember).filter(TeamMember.user_id == target_user.id).delete()
+    else:
+        if prev_org_id != target_user.org_id:
+            db.query(TeamMember).filter(TeamMember.user_id == target_user.id).delete()
+        if target_user.org_id:
+            ensure_default_team_for_org(db, target_user.org_id)
 
     db.commit()
     return {"status": "ok", "message": "User updated"}

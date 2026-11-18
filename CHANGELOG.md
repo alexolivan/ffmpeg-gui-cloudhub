@@ -5,6 +5,17 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-11-18
+
+### Added
+- **Tunnel Lifecycle Audit Logging (`backend/core/tunnel_server.py`, `backend/routers/edge_routes.py`, `frontend/src/components/views/AuditLogsView.tsx`)**:
+  - Persisted `NODE_ONLINE` and `NODE_OFFLINE` events to `AuditLog` with tenant `org_id`, `node_id`, `channel="cloudhub"`, client IP, and session duration (excluding duplicate/superseded socket replacements and voluntary unlink/revoke transitions), with green/red action badges in Audit Log.
+
+### Fixed
+- **Teams & Default Operators Tenant Selector UX (`frontend/src/components/views/settings/TeamsTab.tsx`, `backend/routers/tenant_routes.py`)**:
+  - Excluded the virtual `Default` system organization from **Settings → Teams** so superadmins no longer land on an empty virtual `Default Operators` template; when multiple tenants exist and no global tenant filter is selected, prompts the superadmin to choose a tenant locally without mutating the global Fleet filter, while auto-selecting when only a single tenant exists.
+  - Updated `PUT/PATCH /api/hub/users/{user_id}` to enroll teamless `group_operator` users into their tenant's `Default Operators` template on save and prune `TeamMember` rows when promoted to `org_admin` or reassigned to another organization.
+
 ## [1.4.0] - 2026-11-18
 
 ### Added

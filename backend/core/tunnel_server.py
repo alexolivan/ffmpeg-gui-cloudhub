@@ -5,6 +5,7 @@ import json
 import uuid
 import time
 import logging
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional, Tuple, List, Union, AsyncIterator
 from fastapi import WebSocket, WebSocketDisconnect
 
@@ -26,9 +27,10 @@ logger = logging.getLogger("cloudhub.tunnel")
 class ActiveTunnel:
     """Represents an active multiplexed WebSocket connection to an edge node."""
 
-    def __init__(self, node_id: str, websocket: WebSocket):
+    def __init__(self, node_id: str, websocket: WebSocket, client_ip: Optional[str] = None):
         self.node_id = node_id
         self.websocket = websocket
+        self.client_ip = client_ip
         self.connected_at = time.time()
         self.pending_http: Dict[str, asyncio.Future] = {}
         self.pending_http_streams: Dict[str, asyncio.Queue] = {}
@@ -73,13 +75,59 @@ class TunnelServer:
         tunnel.active_ws_streams.clear()
         tunnel.active_ws_users.clear()
 
-    async def register_tunnel(self, node_id: str, websocket: WebSocket) -> ActiveTunnel:
+    def _record_tunnel_lifecycle_audit(
+        self,
+        node_id: str,
+        action: str,
+        details_suffix: str,
+        ip_address: Optional[str] = None,
+    ) -> None:
+        """Persist tunnel lifecycle event (NODE_ONLINE / NODE_OFFLINE) into AuditLog."""
+        from backend.database.models import AuditLog, EnrolledNode
+
+        try:
+            with SessionLocal() as db:
+                node = db.query(EnrolledNode).filter(EnrolledNode.node_id == node_id).first()
+                if not node:
+                    return
+                entry = AuditLog(
+                    timestamp=datetime.now(timezone.utc),
+                    org_id=node.org_id,
+                    node_id=node_id,
+                    channel="cloudhub",
+                    username=f"edge:{node_id}",
+                    action=action,
+                    target_type="node",
+                    target_id=node_id,
+                    ip_address=ip_address,
+                    details=f"Appliance '{node.name}' ({node_id}) {details_suffix}",
+                )
+                db.add(entry)
+                db.commit()
+        except Exception as exc:
+            logger.debug("Failed to record tunnel audit event '%s' for node '%s': %s", action, node_id, exc)
+
+    async def register_tunnel(
+        self,
+        node_id: str,
+        websocket: WebSocket,
+        client_ip: Optional[str] = None,
+    ) -> ActiveTunnel:
         """Register a newly connected and authenticated edge appliance tunnel."""
-        tunnel = ActiveTunnel(node_id, websocket)
+        resolved_ip = client_ip or getattr(getattr(websocket, "client", None), "host", None)
+        tunnel = ActiveTunnel(node_id, websocket, client_ip=resolved_ip)
         async with self._lock:
             old_tunnel = self._tunnels.get(node_id)
             self._tunnels[node_id] = tunnel
             logger.info("Reverse tunnel registered for node '%s'", node_id)
+
+        if old_tunnel is None:
+            self._record_tunnel_lifecycle_audit(
+                node_id,
+                "NODE_ONLINE",
+                "tunnel connected",
+                ip_address=resolved_ip,
+            )
 
         if old_tunnel and old_tunnel is not tunnel:
             logger.warning("Closing superseded tunnel connection for node '%s'", node_id)
@@ -109,10 +157,13 @@ class TunnelServer:
                 await tunnel.websocket.close(code=4004, reason="Node enrollment revoked by CloudHub")
             except Exception as e:
                 logger.debug("Failed to send clean revoke frame to node '%s': %s", node_id, e)
-            await self.unregister_tunnel(node_id, expected_tunnel=tunnel)
+            await self.unregister_tunnel(node_id, expected_tunnel=tunnel, record_audit=False)
 
     async def unregister_tunnel(
-        self, node_id: str, expected_tunnel: Optional[ActiveTunnel] = None
+        self,
+        node_id: str,
+        expected_tunnel: Optional[ActiveTunnel] = None,
+        record_audit: bool = True,
     ) -> None:
         """Unregister tunnel only if it is still the active instance for node_id."""
         async with self._lock:
@@ -129,6 +180,14 @@ class TunnelServer:
             logger.info("Reverse tunnel unregistered for node '%s'", node_id)
             await self._cleanup_tunnel_streams(tunnel)
             telemetry_collector.mark_disconnected(node_id)
+            if record_audit:
+                duration_sec = int(max(0, time.time() - tunnel.connected_at))
+                self._record_tunnel_lifecycle_audit(
+                    node_id,
+                    "NODE_OFFLINE",
+                    f"tunnel disconnected (session duration: {duration_sec}s)",
+                    ip_address=tunnel.client_ip,
+                )
 
     def is_connected(self, node_id: str) -> bool:
         """Check whether an active tunnel exists for the given node_id."""
@@ -354,7 +413,7 @@ class TunnelServer:
 
             elif msg_type == TunnelMessageType.UNLINK_NOTIFY:
                 self._handle_edge_unlink_notify(node_id, msg)
-                await self.unregister_tunnel(node_id, expected_tunnel=tunnel)
+                await self.unregister_tunnel(node_id, expected_tunnel=tunnel, record_audit=False)
 
         except Exception as err:
             logger.error("Error processing tunnel frame from node '%s': %s", node_id, err)

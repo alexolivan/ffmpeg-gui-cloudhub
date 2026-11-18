@@ -23,13 +23,16 @@ export const TeamsTab: React.FC<TeamsTabProps> = ({ currentUser, selectedOrgId }
   const isSuperadmin = currentUser.role === 'superadmin';
 
   const [orgs, setOrgs] = useState<Organization[]>([]);
+  const [orgsLoaded, setOrgsLoaded] = useState(false);
   const [activeOrgId, setActiveOrgId] = useState<number>(
-    selectedOrgId || currentUser.org_id || 1
+    selectedOrgId || currentUser.org_id || 0
   );
   const [teams, setTeams] = useState<Team[]>([]);
   const [orgOperators, setOrgOperators] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const realOrgs = useMemo(() => orgs.filter((o) => o.slug !== 'default'), [orgs]);
 
   // Create / Edit Modal
   const [showModal, setShowModal] = useState(false);
@@ -43,11 +46,22 @@ export const TeamsTab: React.FC<TeamsTabProps> = ({ currentUser, selectedOrgId }
 
   useEffect(() => {
     if (selectedOrgId) {
-      setActiveOrgId(selectedOrgId);
+      const selectedIsDefault = orgs.some((o) => o.id === selectedOrgId && o.slug === 'default');
+      if (selectedIsDefault && realOrgs.length > 0) {
+        setActiveOrgId(0);
+      } else {
+        setActiveOrgId(selectedOrgId);
+      }
     } else if (!isSuperadmin && currentUser.org_id) {
       setActiveOrgId(currentUser.org_id);
+    } else if (isSuperadmin && orgsLoaded) {
+      if (realOrgs.length === 1) {
+        setActiveOrgId(realOrgs[0].id);
+      } else {
+        setActiveOrgId((prev) => (realOrgs.some((o) => o.id === prev) ? prev : 0));
+      }
     }
-  }, [selectedOrgId, isSuperadmin, currentUser.org_id]);
+  }, [selectedOrgId, isSuperadmin, currentUser.org_id, orgs, realOrgs, orgsLoaded]);
 
   useEffect(() => {
     const loadOrgs = async () => {
@@ -56,17 +70,15 @@ export const TeamsTab: React.FC<TeamsTabProps> = ({ currentUser, selectedOrgId }
         if (res.ok) {
           const data: Organization[] = await res.json();
           setOrgs(data);
-          if (!selectedOrgId && isSuperadmin && data.length > 0) {
-            const preferred = data.find((o) => o.slug !== 'default') || data[0];
-            setActiveOrgId((prev) => (data.some((o) => o.id === prev) ? prev : preferred.id));
-          }
         }
       } catch (err) {
         console.error('Failed to load orgs in TeamsTab:', err);
+      } finally {
+        setOrgsLoaded(true);
       }
     };
     loadOrgs();
-  }, [isSuperadmin, selectedOrgId]);
+  }, []);
 
   const fetchTeamsAndOperators = async (orgId: number) => {
     if (!orgId) return;
@@ -99,8 +111,12 @@ export const TeamsTab: React.FC<TeamsTabProps> = ({ currentUser, selectedOrgId }
   useEffect(() => {
     if (activeOrgId) {
       fetchTeamsAndOperators(activeOrgId);
+    } else if (orgsLoaded) {
+      setTeams([]);
+      setOrgOperators([]);
+      setIsLoading(false);
     }
-  }, [activeOrgId]);
+  }, [activeOrgId, orgsLoaded]);
 
   const activeOrgName = useMemo(() => {
     return orgs.find((o) => o.id === activeOrgId)?.name || `#${activeOrgId}`;
@@ -208,13 +224,20 @@ export const TeamsTab: React.FC<TeamsTabProps> = ({ currentUser, selectedOrgId }
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          {isSuperadmin && !selectedOrgId && orgs.length > 0 && (
+          {isSuperadmin && !selectedOrgId && realOrgs.length > 0 && (
             <select
               value={activeOrgId}
               onChange={(e) => setActiveOrgId(Number(e.target.value))}
-              className="bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime cursor-pointer"
+              className={`bg-[var(--input-bg)] border rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime cursor-pointer ${
+                !activeOrgId ? 'border-brand-lime/50' : 'border-[var(--glass-border)]'
+              }`}
             >
-              {orgs.map((org) => (
+              {realOrgs.length > 1 && (
+                <option value={0} className="bg-[var(--bg-card)] text-[var(--text-secondary)]">
+                  — {t('teams.selectTenantOption', 'Select tenant organization...')} —
+                </option>
+              )}
+              {realOrgs.map((org) => (
                 <option key={org.id} value={org.id} className="bg-[var(--bg-card)] text-[var(--text-primary)]">
                   {org.name} ({org.slug})
                 </option>
@@ -224,7 +247,8 @@ export const TeamsTab: React.FC<TeamsTabProps> = ({ currentUser, selectedOrgId }
           <button
             type="button"
             onClick={openCreateModal}
-            className="px-4 py-2 rounded-xl bg-brand-lime text-black font-bold text-xs flex items-center gap-1.5 hover:bg-brand-lime/90 transition-all cursor-pointer shadow-sm"
+            disabled={!activeOrgId}
+            className="px-4 py-2 rounded-xl bg-brand-lime text-black font-bold text-xs flex items-center gap-1.5 hover:bg-brand-lime/90 transition-all cursor-pointer shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <PlusIcon size={14} />
             <span>{t('teams.createTeam', 'Create Team')}</span>
@@ -239,7 +263,27 @@ export const TeamsTab: React.FC<TeamsTabProps> = ({ currentUser, selectedOrgId }
       )}
 
       {/* Teams List */}
-      {isLoading ? (
+      {isSuperadmin && orgsLoaded && realOrgs.length === 0 ? (
+        <div className="py-12 px-6 text-center bg-[var(--bg-card)] border border-dashed border-[var(--glass-border)] rounded-2xl space-y-2">
+          <ShieldIcon size={24} className="mx-auto text-[var(--text-secondary)]" />
+          <h4 className="text-sm font-bold text-[var(--text-primary)]">
+            {t('teams.noTenantsTitle', 'No Tenant Organizations Configured')}
+          </h4>
+          <p className="text-xs text-[var(--text-secondary)] max-w-md mx-auto">
+            {t('teams.noTenantsDesc', 'Teams and operator policies belong to tenant organizations. Create a tenant first in Tenants & Orgs.')}
+          </p>
+        </div>
+      ) : !activeOrgId ? (
+        <div className="py-12 px-6 text-center bg-[var(--bg-card)] border border-dashed border-brand-lime/30 rounded-2xl space-y-2">
+          <ShieldIcon size={24} className="mx-auto text-brand-lime" />
+          <h4 className="text-sm font-bold text-[var(--text-primary)]">
+            {t('teams.selectTenantTitle', 'Select a Tenant Organization')}
+          </h4>
+          <p className="text-xs text-[var(--text-secondary)] max-w-md mx-auto">
+            {t('teams.selectTenantDesc', 'Choose a tenant organization from the selector above to inspect its Default Operators template and manage teams (your global Fleet filter remains unchanged).')}
+          </p>
+        </div>
+      ) : isLoading ? (
         <div className="py-12 text-center text-xs text-[var(--text-secondary)] font-mono">
           {t('common.loading', 'Loading...')}
         </div>

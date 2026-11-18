@@ -14,6 +14,7 @@ from backend.database.models import EnrollmentToken, EnrolledNode, AuditLog
 from backend.core.auth_manager import AuthManager
 from backend.core.telemetry_collector import telemetry_collector
 from backend.core.tunnel_server import tunnel_server
+from backend.routers.auth_routes import get_client_ip
 
 logger = logging.getLogger("cloudhub.api.edge")
 router = APIRouter(prefix="/api/edge", tags=["edge"])
@@ -208,7 +209,8 @@ async def edge_reverse_tunnel_websocket(websocket: WebSocket):
             return
 
     # Register active tunnel
-    tunnel = await tunnel_server.register_tunnel(node_id, websocket)
+    client_ip = get_client_ip(websocket)
+    tunnel = await tunnel_server.register_tunnel(node_id, websocket, client_ip=client_ip)
     telemetry_collector.record_heartbeat(node_id, {"status": "connected"})
 
     try:

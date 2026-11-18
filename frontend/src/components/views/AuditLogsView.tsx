@@ -234,7 +234,9 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ currentUser, selec
       action.includes('DELETE') ||
       action.includes('LOCKOUT') ||
       action.includes('STOP') ||
-      action.includes('REVOKE')
+      action.includes('REVOKE') ||
+      action.includes('OFFLINE') ||
+      action.includes('DISCONNECT')
     ) {
       return 'bg-red-500/15 text-red-400 border-red-500/30';
     }
@@ -243,7 +245,8 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ currentUser, selec
       action.includes('ENROLL') ||
       action.includes('CREATE') ||
       action.includes('START') ||
-      action.includes('ISSUE')
+      action.includes('ISSUE') ||
+      action.includes('ONLINE')
     ) {
       return 'bg-brand-lime/15 text-brand-lime border-brand-lime/30';
     }

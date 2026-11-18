@@ -334,6 +334,51 @@ class TestTeamsAndClaims(unittest.TestCase):
         self.assertEqual(purge_res.status_code, 200)
         self.assertEqual(purge_res.json()["deleted"], 1)
 
+    def test_update_user_enrolls_default_team_and_cleans_on_admin_promotion(self):
+        from backend.database.models import Team, TeamMember
+
+        headers = {"Authorization": f"Bearer {self.admin1_token}"}
+        # Create an org_admin in org1, then demote to group_operator via PUT /users/{id}
+        create_res = self.client.post(
+            f"/api/hub/orgs/{self.org1_id}/users",
+            headers=headers,
+            json={"username": "promoted_tmp", "password": "Password123!", "role": "org_admin"},
+        )
+        self.assertEqual(create_res.status_code, 200)
+        uid = create_res.json()["user"]["id"]
+
+        put_op = self.client.put(
+            f"/api/hub/users/{uid}",
+            headers=headers,
+            json={"role": "group_operator"},
+        )
+        self.assertEqual(put_op.status_code, 200)
+
+        with self.SessionFactory() as db:
+            default_team = (
+                db.query(Team)
+                .filter(Team.org_id == self.org1_id, Team.is_default_template == True)
+                .first()
+            )
+            self.assertIsNotNone(default_team)
+            membership = (
+                db.query(TeamMember)
+                .filter(TeamMember.team_id == default_team.id, TeamMember.user_id == uid)
+                .first()
+            )
+            self.assertIsNotNone(membership)
+
+        # Promoting back to org_admin removes team memberships
+        put_adm = self.client.put(
+            f"/api/hub/users/{uid}",
+            headers=headers,
+            json={"role": "org_admin"},
+        )
+        self.assertEqual(put_adm.status_code, 200)
+        with self.SessionFactory() as db:
+            remaining = db.query(TeamMember).filter(TeamMember.user_id == uid).all()
+            self.assertEqual(remaining, [])
+
 
 if __name__ == "__main__":
     unittest.main()

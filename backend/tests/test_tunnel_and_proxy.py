@@ -357,6 +357,42 @@ class TestTunnelAndProxy(unittest.TestCase):
         self.assertIn("src='/proxy/ch_node_alpha/api/processes/8/icecast-proxy/icecast.png'", html_resp.text)
         self.assertIn("url(/proxy/ch_node_alpha/api/processes/8/icecast-proxy/tunein.png)", html_resp.text)
 
+    def test_tunnel_online_offline_audit_logs_and_superseded_dedupe(self):
+        from backend.database.models import AuditLog
+
+        async def scenario():
+            ws_a = MockEdgeTunnelClient("ch_node_alpha", self.node_secret)
+            ws_b = MockEdgeTunnelClient("ch_node_alpha", self.node_secret)
+
+            tunnel_a = await tunnel_server.register_tunnel("ch_node_alpha", ws_a, client_ip="203.0.113.10")
+            # Superseded reconnect should NOT emit duplicate NODE_ONLINE or false NODE_OFFLINE
+            tunnel_b = await tunnel_server.register_tunnel("ch_node_alpha", ws_b, client_ip="203.0.113.11")
+            await tunnel_server.unregister_tunnel("ch_node_alpha", expected_tunnel=tunnel_a)
+
+            # Real disconnect emits NODE_OFFLINE
+            await tunnel_server.unregister_tunnel("ch_node_alpha", expected_tunnel=tunnel_b)
+
+        asyncio.run(scenario())
+
+        with self.SessionFactory() as db:
+            node = db.query(EnrolledNode).filter(EnrolledNode.node_id == "ch_node_alpha").first()
+            events = (
+                db.query(AuditLog)
+                .filter(
+                    AuditLog.node_id == "ch_node_alpha",
+                    AuditLog.action.in_(["NODE_ONLINE", "NODE_OFFLINE"]),
+                )
+                .order_by(AuditLog.id.asc())
+                .all()
+            )
+            self.assertEqual([e.action for e in events], ["NODE_ONLINE", "NODE_OFFLINE"])
+            self.assertEqual(events[0].org_id, node.org_id)
+            self.assertEqual(events[0].ip_address, "203.0.113.10")
+            self.assertEqual(events[0].channel, "cloudhub")
+            self.assertEqual(events[1].org_id, node.org_id)
+            self.assertEqual(events[1].ip_address, "203.0.113.11")
+            self.assertIn("session duration:", events[1].details)
+
 
 if __name__ == "__main__":
     unittest.main()
