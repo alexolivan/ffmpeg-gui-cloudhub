@@ -252,6 +252,7 @@
       "tenants": "Tenants & Orgs",
       "groups": "Appliance Groups",
       "users": "Users & RBAC",
+      "teams": "Teams & Permissions",
       "backup": "Backup & Restore"
     },
     "backup": {
@@ -449,5 +450,80 @@
     "standaloneClusters": "Platform & Standalone Clusters",
     "platformStandaloneOption": "Platform / Standalone (Superadmin)",
     "noTenantsFoundDesc": "No tenant organizations have been created yet. Click \"Create Tenant\" to establish isolated client environments."
+  },
+  "rbac": {
+    "processesDefault": "Processes Default",
+    "inheritDefault": "Inherit Default",
+    "domains": {
+      "dashboard": "Dashboard",
+      "hardware": "Hardware / I/O",
+      "media": "Media Library",
+      "settings": "Settings",
+      "forge": "Forge Compiler"
+    },
+    "levels": {
+      "none": "None",
+      "monitor": "Monitor (Read-Only)",
+      "operate": "Operate",
+      "manage": "Manage",
+      "admin": "Admin"
+    },
+    "processTypes": {
+      "ffmpeg_stream": "FFmpeg Stream",
+      "mediamtx_hub": "MediaMTX Hub",
+      "icecast_server": "Icecast2 Server",
+      "desktop": "Virtual Desktop",
+      "kiosk_browser": "Web Kiosk",
+      "pipewire_hub": "PipeWire Hub",
+      "task": "Scheduled Task"
+    }
+  },
+  "teams": {
+    "title": "RBAC Teams & Capability Templates",
+    "subtitle": "Define reusable domain and service permission policies and assign tenant operators.",
+    "createTeam": "Create Team",
+    "editTeam": "Edit Team Policy",
+    "defaultTemplateBadge": "Default Template",
+    "description": "Description",
+    "descriptionPlaceholder": "Optional role description",
+    "domainScopesTitle": "Domain Capabilities",
+    "processTypesTitle": "Default By Service / Task Type",
+    "assignOperators": "Assigned Operators",
+    "noOperatorsInOrg": "No operators exist in this organization yet.",
+    "membersCount": "{{count}} members",
+    "noTeams": "No RBAC teams configured for {{org}}.",
+    "nameRequired": "Team name is required",
+    "loadError": "Failed to load teams",
+    "saveError": "Failed to save team",
+    "deleteError": "Failed to delete team",
+    "confirmDelete": "Delete team \"{{name}}\"?"
+  },
+  "nodePermissions": {
+    "buttonTitle": "Permissions & Access Control",
+    "title": "Appliance Permissions",
+    "catalogOffline": "Offline Cache",
+    "catalogCached": "Cached",
+    "catalogLive": "Live Catalog",
+    "refreshCatalog": "Refresh live service & task catalog",
+    "orphanWarningTitle": "Orphaned Permission Rules Detected ({{count}})",
+    "orphanWarningDesc": "Some stored overrides point to services or tasks that no longer exist on this appliance.",
+    "cleanOrphans": "Clean Up Orphans",
+    "targetTeam": "Team Policy",
+    "targetOperator": "Operator Override",
+    "noTeams": "No teams available",
+    "noOperators": "No operators in tenant",
+    "selectSubjectPrompt": "Select a team or operator to configure appliance rules.",
+    "domainOverrides": "Module & Default Overrides",
+    "processTypeOverrides": "Service & Task Type Overrides",
+    "servicesCatalog": "Services",
+    "tasksCatalog": "Scheduled Tasks",
+    "noServicesInCatalog": "No services reported by appliance.",
+    "noTasksInCatalog": "No tasks reported by appliance.",
+    "autoMonitorVia": "Auto-Monitor (via {{consumer}})",
+    "saveError": "Failed to save permissions",
+    "saveSuccess": "Permissions saved for this appliance.",
+    "purgeError": "Failed to remove orphaned overrides",
+    "purgeSuccess": "Cleaned up {{count}} orphaned rule(s).",
+    "saveButton": "Save Node Permissions"
   }
 }

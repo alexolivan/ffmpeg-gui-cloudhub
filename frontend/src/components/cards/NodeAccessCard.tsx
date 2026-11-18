@@ -6,6 +6,7 @@ interface NodeAccessCardProps {
   node: EnrolledNode;
   onEdit?: (node: EnrolledNode) => void;
   onDelete?: (nodeId: string) => void;
+  onPermissions?: (node: EnrolledNode) => void;
   canManage?: boolean;
 }
 
@@ -13,6 +14,7 @@ export const NodeAccessCard: React.FC<NodeAccessCardProps> = ({
   node,
   onEdit,
   onDelete,
+  onPermissions,
   canManage = false,
 }) => {
   const { t } = useTranslation();
@@ -417,9 +419,29 @@ export const NodeAccessCard: React.FC<NodeAccessCardProps> = ({
             )}
           </button>
 
-          {/* Node Edit / Delete Actions */}
+          {/* Node Permissions / Edit / Delete Actions */}
           {canManage && (
-            <div className="w-14 flex items-center justify-end gap-0.5 shrink-0">
+            <div className="flex items-center justify-end gap-0.5 shrink-0">
+              {onPermissions && (
+                <button
+                  onClick={() => onPermissions(node)}
+                  className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-brand-lime hover:bg-brand-lime/10 transition-colors cursor-pointer"
+                  title={t('nodePermissions.buttonTitle', 'Permissions & Access Control')}
+                  aria-label={t('nodePermissions.buttonTitle', 'Permissions & Access Control')}
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  </svg>
+                </button>
+              )}
               {onEdit && (
                 <button
                   onClick={() => onEdit(node)}

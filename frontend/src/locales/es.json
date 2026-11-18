@@ -252,6 +252,7 @@
       "tenants": "Tenants y Orgs",
       "groups": "Grupos de Dispositivos",
       "users": "Usuarios y RBAC",
+      "teams": "Equipos y Permisos",
       "backup": "Copia y Restauración"
     },
     "backup": {
@@ -449,5 +450,80 @@
     "standaloneClusters": "Clusters y Grupos de la Plataforma (Standalone)",
     "platformStandaloneOption": "Plataforma / Standalone (Superadmin)",
     "noTenantsFoundDesc": "Aún no se han creado organizaciones de tenant. Haz clic en \"Crear Tenant\" para establecer entornos de cliente aislados."
+  },
+  "rbac": {
+    "processesDefault": "Procesos por defecto",
+    "inheritDefault": "Heredar por defecto",
+    "domains": {
+      "dashboard": "Panel",
+      "hardware": "Hardware / E/S",
+      "media": "Biblioteca Multimedia",
+      "settings": "Ajustes",
+      "forge": "Compilador Forge"
+    },
+    "levels": {
+      "none": "Sin acceso",
+      "monitor": "Monitor (Solo lectura)",
+      "operate": "Operar",
+      "manage": "Gestionar",
+      "admin": "Administrador"
+    },
+    "processTypes": {
+      "ffmpeg_stream": "Stream FFmpeg",
+      "mediamtx_hub": "MediaMTX Hub",
+      "icecast_server": "Servidor Icecast2",
+      "desktop": "Escritorio Virtual",
+      "kiosk_browser": "Kiosco Web",
+      "pipewire_hub": "Hub PipeWire",
+      "task": "Tarea Programada"
+    }
+  },
+  "teams": {
+    "title": "Equipos RBAC y Plantillas de Capacidad",
+    "subtitle": "Define políticas reutilizables de permisos por dominio y servicio y asigna operadores del tenant.",
+    "createTeam": "Crear Equipo",
+    "editTeam": "Editar Política del Equipo",
+    "defaultTemplateBadge": "Plantilla por Defecto",
+    "description": "Descripción",
+    "descriptionPlaceholder": "Descripción opcional del rol",
+    "domainScopesTitle": "Capacidades por Dominio",
+    "processTypesTitle": "Por Defecto Según Tipo de Servicio / Tarea",
+    "assignOperators": "Operadores Asignados",
+    "noOperatorsInOrg": "Aún no hay operadores en esta organización.",
+    "membersCount": "{{count}} miembros",
+    "noTeams": "No hay equipos RBAC configurados para {{org}}.",
+    "nameRequired": "El nombre del equipo es obligatorio",
+    "loadError": "Error al cargar los equipos",
+    "saveError": "Error al guardar el equipo",
+    "deleteError": "Error al eliminar el equipo",
+    "confirmDelete": "¿Eliminar el equipo \"{{name}}\"?"
+  },
+  "nodePermissions": {
+    "buttonTitle": "Permisos y Control de Acceso",
+    "title": "Permisos del Appliance",
+    "catalogOffline": "Caché Offline",
+    "catalogCached": "En caché",
+    "catalogLive": "Catálogo en Vivo",
+    "refreshCatalog": "Actualizar catálogo de servicios y tareas en vivo",
+    "orphanWarningTitle": "Reglas Huérfanas Detectadas ({{count}})",
+    "orphanWarningDesc": "Algunas reglas guardadas apuntan a servicios o tareas que ya no existen en este appliance.",
+    "cleanOrphans": "Limpiar Huérfanas",
+    "targetTeam": "Política de Equipo",
+    "targetOperator": "Regla de Operador",
+    "noTeams": "No hay equipos disponibles",
+    "noOperators": "No hay operadores en el tenant",
+    "selectSubjectPrompt": "Selecciona un equipo o un operador para configurar sus reglas.",
+    "domainOverrides": "Módulos y Valores por Defecto",
+    "processTypeOverrides": "Sobreescrituras por Tipo de Servicio / Tarea",
+    "servicesCatalog": "Servicios",
+    "tasksCatalog": "Tareas Programadas",
+    "noServicesInCatalog": "El appliance no reportó servicios.",
+    "noTasksInCatalog": "El appliance no reportó tareas.",
+    "autoMonitorVia": "Auto-Monitor (vía {{consumer}})",
+    "saveError": "Error al guardar permisos",
+    "saveSuccess": "Permisos guardados para este appliance.",
+    "purgeError": "Error al eliminar reglas huérfanas",
+    "purgeSuccess": "Se limpiaron {{count}} regla(s) huérfana(s).",
+    "saveButton": "Guardar Permisos del Nodo"
   }
 }

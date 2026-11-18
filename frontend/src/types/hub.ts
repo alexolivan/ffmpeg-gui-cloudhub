@@ -109,3 +109,59 @@ export interface SslStatus {
   listen_port?: number;
   listen_scheme?: string;
 }
+
+export interface TeamMemberSummary {
+  id: number;
+  username: string;
+}
+
+export interface Team {
+  id: number;
+  org_id: number;
+  name: string;
+  description?: string | null;
+  is_default_template: boolean;
+  default_claims: Record<string, any>;
+  member_user_ids: number[];
+  members: TeamMemberSummary[];
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface NodePermissionOverride {
+  id?: number;
+  node_id?: string;
+  team_id?: number | null;
+  user_id?: number | null;
+  scope_type: 'domain' | 'process_type' | 'service' | 'task';
+  target_key: string;
+  level: 'none' | 'monitor' | 'operate' | 'manage' | 'admin';
+}
+
+export interface NodeCatalogService {
+  id: number | string;
+  name: string;
+  alias?: string | null;
+  service_type: string;
+  status?: string;
+  dependencies?: Array<number | string>;
+}
+
+export interface NodeCatalogTask {
+  id: number | string;
+  name: string;
+  alias?: string | null;
+  command?: string;
+  schedule_type?: string;
+}
+
+export interface NodeCatalogResponse {
+  node_id: string;
+  offline: boolean;
+  cached: boolean;
+  fetched_at?: number | null;
+  services: NodeCatalogService[];
+  tasks: NodeCatalogTask[];
+  implicit_monitors: Record<string, string[]>;
+  orphaned_overrides: NodePermissionOverride[];
+}

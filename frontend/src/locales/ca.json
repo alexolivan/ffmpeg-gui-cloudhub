@@ -252,6 +252,7 @@
       "tenants": "Tenants i Orgs",
       "groups": "Grups de Dispositius",
       "users": "Usuaris i RBAC",
+      "teams": "Equips i Permisos",
       "backup": "Còpia i Restauració"
     },
     "backup": {
@@ -449,5 +450,80 @@
     "standaloneClusters": "Clústers i Grups de la Plataforma (Standalone)",
     "platformStandaloneOption": "Plataforma / Standalone (Superadmin)",
     "noTenantsFoundDesc": "Encara no s'han creat organitzacions de tenant. Fes clic a \"Crear Tenant\" per establir entorns de client aïllats."
+  },
+  "rbac": {
+    "processesDefault": "Processos per defecte",
+    "inheritDefault": "Heretar per defecte",
+    "domains": {
+      "dashboard": "Tauler",
+      "hardware": "Maquinari / E/S",
+      "media": "Biblioteca Multimèdia",
+      "settings": "Paràmetres",
+      "forge": "Compilador Forge"
+    },
+    "levels": {
+      "none": "Sense accés",
+      "monitor": "Monitor (Només lectura)",
+      "operate": "Operar",
+      "manage": "Gestionar",
+      "admin": "Administrador"
+    },
+    "processTypes": {
+      "ffmpeg_stream": "Stream FFmpeg",
+      "mediamtx_hub": "MediaMTX Hub",
+      "icecast_server": "Servidor Icecast2",
+      "desktop": "Escriptori Virtual",
+      "kiosk_browser": "Quiosc Web",
+      "pipewire_hub": "Hub PipeWire",
+      "task": "Tasca Programada"
+    }
+  },
+  "teams": {
+    "title": "Equips RBAC i Plantilles de Capacitat",
+    "subtitle": "Defineix polítiques reutilitzables de permisos per domini i servei i assigna operadors del tenant.",
+    "createTeam": "Crear Equip",
+    "editTeam": "Editar Política de l'Equip",
+    "defaultTemplateBadge": "Plantilla per Defecte",
+    "description": "Descripció",
+    "descriptionPlaceholder": "Descripció opcional del rol",
+    "domainScopesTitle": "Capacitats per Domini",
+    "processTypesTitle": "Per Defecte Segons Tipus de Servei / Tasca",
+    "assignOperators": "Operadors Assignats",
+    "noOperatorsInOrg": "Encara no hi ha operadors en aquesta organització.",
+    "membersCount": "{{count}} membres",
+    "noTeams": "No hi ha equips RBAC configurats per a {{org}}.",
+    "nameRequired": "El nom de l'equip és obligatori",
+    "loadError": "Error en carregar els equips",
+    "saveError": "Error en desar l'equip",
+    "deleteError": "Error en eliminar l'equip",
+    "confirmDelete": "Vols eliminar l'equip \"{{name}}\"?"
+  },
+  "nodePermissions": {
+    "buttonTitle": "Permisos i Control d'Accés",
+    "title": "Permisos de l'Appliance",
+    "catalogOffline": "Memòria Cau Offline",
+    "catalogCached": "En memòria cau",
+    "catalogLive": "Catàleg en Directe",
+    "refreshCatalog": "Actualitzar catàleg de serveis i tasques en directe",
+    "orphanWarningTitle": "Regles Òrfenes Detectades ({{count}})",
+    "orphanWarningDesc": "Algunes regles desades apunten a serveis o tasques que ja no existeixen en aquest appliance.",
+    "cleanOrphans": "Netejar Òrfenes",
+    "targetTeam": "Política d'Equip",
+    "targetOperator": "Regla d'Operador",
+    "noTeams": "No hi ha equips disponibles",
+    "noOperators": "No hi ha operadors al tenant",
+    "selectSubjectPrompt": "Selecciona un equip o un operador per configurar-ne les regles.",
+    "domainOverrides": "Mòduls i Valors per Defecte",
+    "processTypeOverrides": "Sobreescriptures per Tipus de Servei / Tasca",
+    "servicesCatalog": "Serveis",
+    "tasksCatalog": "Tasques Programades",
+    "noServicesInCatalog": "L'appliance no ha reportat serveis.",
+    "noTasksInCatalog": "L'appliance no ha reportat tasques.",
+    "autoMonitorVia": "Auto-Monitor (via {{consumer}})",
+    "saveError": "Error en desar permisos",
+    "saveSuccess": "Permisos desats per a aquest appliance.",
+    "purgeError": "Error en eliminar regles òrfenes",
+    "purgeSuccess": "S'han netejat {{count}} regla(es) òrfena(es).",
+    "saveButton": "Desar Permisos del Node"
   }
 }

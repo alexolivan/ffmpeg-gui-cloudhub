@@ -4,6 +4,7 @@ import type { User, EnrolledNode, Organization, NodeGroup } from '../../types/hu
 import { GroupAccordionSection } from '../cards/GroupAccordionSection';
 import { SearchIcon, PlusIcon, RefreshIcon, FleetIcon, LayersIcon } from '../Icons';
 import { copyToClipboard } from '../../utils/clipboard';
+import { NodePermissionsModal } from '../modals/NodePermissionsModal';
 
 interface FleetViewProps {
   currentUser: User;
@@ -36,6 +37,7 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
   const [editOrgId, setEditOrgId] = useState<number>(1);
   const [editIconData, setEditIconData] = useState<string>('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [permissionsNode, setPermissionsNode] = useState<EnrolledNode | null>(null);
 
   const canManage =
     currentUser.role === 'superadmin' ||
@@ -420,6 +422,7 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
                 nodes={groupNodes}
                 onEditNode={openEditModal}
                 onDeleteNode={handleDeleteNode}
+                onPermissionsNode={setPermissionsNode}
                 canManage={canManage}
               />
             );
@@ -437,6 +440,7 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
                 nodes={unassignedNodes}
                 onEditNode={openEditModal}
                 onDeleteNode={handleDeleteNode}
+                onPermissionsNode={setPermissionsNode}
                 canManage={canManage}
               />
             );
@@ -724,6 +728,14 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Per-Appliance RBAC Permissions Modal ── */}
+      {permissionsNode && (
+        <NodePermissionsModal
+          node={permissionsNode}
+          onClose={() => setPermissionsNode(null)}
+        />
       )}
     </div>
   );

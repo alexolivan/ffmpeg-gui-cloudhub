@@ -12,6 +12,7 @@ interface GroupAccordionSectionProps {
   defaultExpanded?: boolean;
   onEditNode?: (node: EnrolledNode) => void;
   onDeleteNode?: (nodeId: string) => void;
+  onPermissionsNode?: (node: EnrolledNode) => void;
   canManage?: boolean;
 }
 
@@ -23,6 +24,7 @@ export const GroupAccordionSection: React.FC<GroupAccordionSectionProps> = ({
   defaultExpanded = true,
   onEditNode,
   onDeleteNode,
+  onPermissionsNode,
   canManage = false,
 }) => {
   const { t } = useTranslation();
@@ -98,6 +100,7 @@ export const GroupAccordionSection: React.FC<GroupAccordionSectionProps> = ({
                   node={node}
                   onEdit={onEditNode}
                   onDelete={onDeleteNode}
+                  onPermissions={onPermissionsNode}
                   canManage={canManage}
                 />
               ))}
