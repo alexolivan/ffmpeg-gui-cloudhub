@@ -45,7 +45,7 @@ The script will:
 1. Create a Python virtual environment in `venv/`.
 2. Install Python backend dependencies.
 3. Build the frontend SPA bundle in `frontend/dist/`.
-4. Initialize the SQLite database (`cloudhub.db`) and bootstrap the initial superadmin user.
+4. Initialize the SQLite database (`data/cloudhub.db`) and bootstrap the initial superadmin user.
 5. Create and enable the systemd service `ffmpeg-gui-cloudhub.service`.
 
 ---
@@ -148,6 +148,9 @@ To enroll an edge node into CloudHub:
    ```
 5. The edge node establishes the reverse tunnel and begins streaming telemetry.
 
+> [!NOTE]
+> Chunked HTTP streaming (`http_stream`) for live previews/audio relays and fine-grained operator permission enforcement (`authz_claims`) require edge appliances running `ffmpeg-gui >= 2.68.0`. Older appliances remain accessible to `superadmin` and `org_admin` users, while restricted `group_operator` accounts receive `HTTP 426` / `WS 4003` until the edge node is updated.
+
 ---
 
 ## 7. Fail2ban Security Guard
@@ -172,7 +175,7 @@ sudo fail2ban-client status ffmpeg-gui-cloudhub
 
 - **Status:** `sudo systemctl status ffmpeg-gui-cloudhub`
 - **Start / Stop:** `sudo systemctl start ffmpeg-gui-cloudhub` / `sudo systemctl stop ffmpeg-gui-cloudhub`
-- **Live Logs:** `sudo journalctl -u ffmpeg-gui-cloudhub -f`
+- **Live Logs:** `sudo journalctl -u ffmpeg-gui-cloudhub -f` and rotated file logs under `data/logs/cloudhub.log`
 - **Non-disruptive Updates:**
   ```bash
   cd /opt/ffmpeg-gui-cloudhub

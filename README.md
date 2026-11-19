@@ -28,8 +28,8 @@ In professional broadcast, live production, and remote transmission environments
 
 ### 🌐 1. Outbound Reverse Tunnels & Firewall Traversal
 - **Outbound-Only Multiplexing**: Edge appliances initiate and maintain persistent WebSocket connections (`/api/edge/tunnel`) over TLS.
-- **Resilient Reconnection**: Built-in exponential backoff, keepalive pings, and dual handshake authentication (supporting both HTTP request headers and URL query parameter fallbacks for compatibility across CDNs and reverse proxies).
-- **In-Memory Streaming**: Low-latency multiplexing for HTTP requests, server-sent events, and real-time interactive controls.
+- **Resilient Reconnection**: Built-in exponential backoff, keepalive pings, dual handshake authentication (supporting HTTP request headers and URL query parameter fallbacks for compatibility across CDNs and reverse proxies), and stale superseded-socket guards preventing race conditions during rapid WAN failovers.
+- **Chunked HTTP & In-Memory Streaming**: Supports both chunked HTTP streaming (`http_resp_start`/`http_resp_chunk`/`http_resp_end`/`http_req_cancel`) and buffered dispatching over the reverse tunnel for live Icecast audio mountpoints (`audio/*`, `application/ogg`), MJPEG multipart video previews, and CSS/HTML proxy URL rewriting under `/proxy/{node_id}/`.
 
 ### 🔑 2. Zero-Knowledge Ephemeral SSO & Tab Isolation
 - **Short-Lived Signed Assertions**: Single Sign-On relies on ephemeral HMAC-SHA256 tokens (60-second validity window) signed with the edge appliance's unique tunnel secret.
@@ -44,16 +44,16 @@ In professional broadcast, live production, and remote transmission environments
 ![Centralized Audit Trail & Governance](docs/assets/screenshot2.png)
 
 ### 📋 4. Centralized Audit Logging & PDF Reports
-- **Complete Operational Traceability**: Centralizes security events across CloudHub and connected edge appliances (login successes/failures, user management, appliance enrollments, configuration backups, and edge session launches).
+- **Complete Operational Traceability**: Centralizes security and lifecycle events across CloudHub and connected edge appliances (login successes/failures, user and RBAC team/permission changes like `CREATE_TEAM`/`UPDATE_TEAM`/`UPDATE_NODE_PERMISSIONS`, appliance enrollments, configuration backups, edge session launches, and tunnel `NODE_ONLINE`/`NODE_OFFLINE` events with remote IP and session duration scoped to `superadmin` and each tenant's `org_admin`).
 - **Granular Multi-Filter Console**: Search and filter records by actor, appliance, origin, action category, or date range.
 - **Compliance PDF Reports**: Generates formal, branded audit log export reports (via ReportLab) with platform logo/monogram headers, filter summaries, and chronological event logs.
 
 ### 🏢 5. Multi-Tenant Governance & Hierarchical RBAC
 - **Three Governance Tiers**:
   - **Platform Superadmin (Owner)**: Full platform ownership, tenant lifecycle, global fleet directory or tenant-filtered view, platform branding, and network/SSL settings.
-  - **Tenant Administrator**: Scoped control over their assigned organization's users, appliances, and logical groups.
+  - **Tenant Administrator**: Scoped control over their assigned organization's users, appliances, RBAC teams, and logical groups.
   - **Group Operator**: Restricted strictly to assigned appliance groups (e.g., *Studio 1*, *Mobile Unit*), with zero access to administrative settings or audit logs.
-- **RBAC Teams & Fine-Grained Node Authorization Claims**: Define reusable team capability templates and per-appliance domain, service, or task overrides (`none`, `monitor`, `operate`, `manage`, `admin`) enforced cryptographically end-to-end on enrolled edge nodes.
+- **RBAC Teams & Fine-Grained Node Authorization Claims**: Define reusable team capability templates (with an automatic conservative `Default Operators` template per tenant) and per-appliance overrides for teams or individual operators (`none`, `monitor`, `operate`, `manage`, `admin`) across domains, service/task types, and individual services/tasks. Includes live appliance service/task catalog inspection, reactive `Auto-Monitor` dependency evaluation, orphaned rule cleanup, end-to-end HMAC-SHA256 `authz_assertion` enforcement, and compatibility guards (`HTTP 426` / `WS 4003`) for restricted operators accessing nodes running `ffmpeg-gui < 2.68.0`.
 - **UNIX-Style Seed Prefixes**: Tenant seeds (`slug`) provide strict namespace separation (`[slug]_operator`), preventing cross-tenant username collisions while allowing intuitive, familiar naming.
 - **Cascade Renaming**: Superadmin changes to a tenant seed automatically propagate to associated user logins with collision validation.
 
