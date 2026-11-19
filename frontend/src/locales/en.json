@@ -456,7 +456,7 @@
     "inheritDefault": "Inherit Default",
     "domains": {
       "dashboard": "Dashboard",
-      "hardware": "Hardware / I/O",
+      "hardware": "Hardware & I/O",
       "media": "Media Library",
       "settings": "Settings",
       "forge": "Forge Compiler"
@@ -539,8 +539,8 @@
     "operatorBanner": "Editing individual exceptions for @{{username}} · Inherits from: {{teams}}",
     "ungroupedWarning": "Appliance has no group assigned",
     "tabModulesAndTypes": "Modules & Types",
-    "searchServicesPlaceholder": "Filter services by name, ID, or type...",
-    "searchTasksPlaceholder": "Filter tasks by name, ID, or schedule...",
+    "searchServicesPlaceholder": "Filter services by name or type...",
+    "searchTasksPlaceholder": "Filter tasks by name or schedule...",
     "onlyOverrides": "Only Overrides",
     "noMatchingItems": "No matching items found.",
     "overrideBadge": "Override",

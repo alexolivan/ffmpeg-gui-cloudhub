@@ -456,7 +456,7 @@
     "inheritDefault": "Heredar por defecto",
     "domains": {
       "dashboard": "Panel",
-      "hardware": "Hardware / E/S",
+      "hardware": "Hardware & E/S",
       "media": "Biblioteca Multimedia",
       "settings": "Ajustes",
       "forge": "Compilador Forge"
@@ -539,8 +539,8 @@
     "operatorBanner": "Editando excepciones individuales para @{{username}} · Hereda de: {{teams}}",
     "ungroupedWarning": "El appliance no tiene grupo asignado",
     "tabModulesAndTypes": "Módulos y Tipos",
-    "searchServicesPlaceholder": "Filtrar servicios por nombre, ID o tipo...",
-    "searchTasksPlaceholder": "Filtrar tareas por nombre, ID o programación...",
+    "searchServicesPlaceholder": "Filtrar servicios por nombre o tipo...",
+    "searchTasksPlaceholder": "Filtrar tareas por nombre o programación...",
     "onlyOverrides": "Solo Overrides",
     "noMatchingItems": "No se encontraron elementos coincidentes.",
     "overrideBadge": "Override",

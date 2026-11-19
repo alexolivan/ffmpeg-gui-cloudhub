@@ -899,9 +899,9 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
             </button>
           </div>
 
-          {/* Sticky Search Filter + Fixed Column Headers for Services & Tasks */}
+          {/* Sticky Search Filter for Services & Tasks */}
           {(activeTab === 'services' || activeTab === 'tasks') && activeSubjectId > 0 && !isLoadingPerms && (
-            <div className="space-y-2.5 pb-2.5">
+            <div className="pb-3">
               <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
                 <div className="relative flex-1">
                   <SearchIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
@@ -934,27 +934,15 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
                   {activeTab === 'services' ? tabCounts.services : tabCounts.tasks})
                 </button>
               </div>
-
-              {/* Fixed Column Titles */}
-              <div className={`hidden sm:grid ${FIXED_ROW_GRID_CLASS} px-3.5 pt-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]`}>
-                <div>
-                  {activeTab === 'services'
-                    ? t('nodePermissions.colService', 'Service')
-                    : t('nodePermissions.colTask', 'Scheduled Task')}
-                </div>
-                <div>{t('nodePermissions.colType', 'Type')}</div>
-                <div>{t('nodePermissions.colEffectiveAccess', 'Computed Access')}</div>
-                <div>{t('nodePermissions.colOverride', 'Override')}</div>
-              </div>
             </div>
           )}
         </div>
 
         {/* Single Scrollable Body (Zero Nested Scroll) */}
-        <div className="p-5 overflow-y-auto space-y-5 flex-1">
+        <div className="px-5 pb-5 overflow-y-auto flex-1">
           {statusMessage && (
             <div
-              className={`p-3 rounded-xl text-xs border ${
+              className={`mt-4 p-3 rounded-xl text-xs border ${
                 statusMessage.type === 'ok'
                   ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
                   : 'bg-red-500/10 border-red-500/30 text-red-400'
@@ -971,7 +959,7 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
                 : t('nodePermissions.selectSubjectPrompt', 'Select a team or operator to configure appliance rules.')}
             </div>
           ) : activeTab === 'domains' ? (
-            <div className="space-y-5">
+            <div className="pt-4 space-y-5">
               {/* 1. Domain & Process Default */}
               <div className="space-y-2.5">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
@@ -1155,8 +1143,25 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
                 </div>
               </div>
             </div>
-          ) : activeTab === 'services' ? (
-            catalogLoading ? (
+          ) : (
+            <div>
+              {((activeTab === 'services' && !catalogLoading && filteredServices.length > 0) ||
+                (activeTab === 'tasks' && !catalogLoading && filteredTasks.length > 0)) && (
+                <div className="sticky top-0 z-10 bg-[var(--bg-card)] backdrop-blur-md pt-3 pb-2 mb-2 border-b border-[var(--glass-border)]/60">
+                  <div className={`hidden sm:grid ${FIXED_ROW_GRID_CLASS} border border-transparent px-3 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]`}>
+                    <div>
+                      {activeTab === 'services'
+                        ? t('nodePermissions.colService', 'Service')
+                        : t('nodePermissions.colTask', 'Scheduled Task')}
+                    </div>
+                    <div>{t('nodePermissions.colType', 'Type')}</div>
+                    <div>{t('nodePermissions.colEffectiveAccess', 'Computed Access')}</div>
+                    <div>{t('nodePermissions.colOverride', 'Override')}</div>
+                  </div>
+                </div>
+              )}
+              {activeTab === 'services' ? (
+                catalogLoading ? (
               <p className="text-xs text-[var(--text-secondary)] font-mono py-8 text-center">
                 {t('common.loading', 'Loading...')}
               </p>
@@ -1350,6 +1355,8 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
                   </div>
                 );
               })}
+            </div>
+          )}
             </div>
           )}
         </div>

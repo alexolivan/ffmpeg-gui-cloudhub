@@ -456,7 +456,7 @@
     "inheritDefault": "Heretar per defecte",
     "domains": {
       "dashboard": "Tauler",
-      "hardware": "Maquinari / E/S",
+      "hardware": "Maquinari & E/S",
       "media": "Biblioteca Multimèdia",
       "settings": "Paràmetres",
       "forge": "Compilador Forge"
@@ -539,8 +539,8 @@
     "operatorBanner": "Editant excepcions individuals per a @{{username}} · Hereta de: {{teams}}",
     "ungroupedWarning": "L'appliance no té grup assignat",
     "tabModulesAndTypes": "Mòduls i Tipus",
-    "searchServicesPlaceholder": "Filtrar serveis per nom, ID o tipus...",
-    "searchTasksPlaceholder": "Filtrar tasques per nom, ID o programació...",
+    "searchServicesPlaceholder": "Filtrar serveis per nom o tipus...",
+    "searchTasksPlaceholder": "Filtrar tasques per nom o programació...",
     "onlyOverrides": "Només Overrides",
     "noMatchingItems": "No s'han trobat elements coincidents.",
     "overrideBadge": "Override",

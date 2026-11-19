@@ -5,6 +5,14 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.5] - 2026-11-19
+
+### Fixed
+- **Cosmetic UI & Multi-Theme Polish (`frontend/src/components/modals/NodePermissionsModal.tsx`, `frontend/src/index.css`, `frontend/src/locales/{en,es,ca}.json`)**:
+  - Moved the sticky **Services / Scheduled Tasks** column header row inside the scrollable container (`sticky top-0` with matching `border border-transparent px-3`) so column headers stay pixel-aligned with the table rows regardless of vertical scrollbar width.
+  - Updated `rbac.domains.hardware` to `Hardware & I/O` (`Hardware & E/S` / `Maquinari & E/S`) for parity with `ffmpeg-gui` and removed `ID` from search placeholders in `NodePermissionsModal`.
+  - Styled `input:-webkit-autofill` using CSS theme tokens (`var(--text-primary)`) so browser password autofill respects dark themes cleanly.
+
 ## [1.4.4] - 2026-11-18
 
 ### Changed
