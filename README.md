@@ -57,7 +57,34 @@ In professional broadcast, live production, and remote transmission environments
 - **UNIX-Style Seed Prefixes**: Tenant seeds (`slug`) provide strict namespace separation (`[slug]_operator`), preventing cross-tenant username collisions while allowing intuitive, familiar naming.
 - **Cascade Renaming**: Superadmin changes to a tenant seed automatically propagate to associated user logins with collision validation.
 
-![Settings, Themes & White-Label Branding](docs/assets/screenshot3.png)
+![RBAC Teams & Capability Templates](docs/assets/screenshot3f.png)
+
+![Per-Appliance Permissions & Service Overrides](docs/assets/screenshot4.png)
+
+![General Settings, Themes & White-Label Branding](docs/assets/screenshot3a.png)
+
+<details>
+<summary>More Screenshots: Settings Tabs, Team Policy Editor &amp; All 5 Themes</summary>
+
+#### Network &amp; SSL/TLS (`Cyberpunk Neon`)
+![Network & SSL/TLS Settings](docs/assets/screenshot3b.png)
+
+#### Tenants &amp; Organizations (`Cyberpunk Neon`)
+![Tenants & Organizations](docs/assets/screenshot3c.png)
+
+#### Appliance Groups (`Nordic Frost`)
+![Appliance Groups](docs/assets/screenshot3d.png)
+
+#### Users &amp; RBAC (`Nordic Frost`)
+![Users & RBAC](docs/assets/screenshot3e.png)
+
+#### Team Policy Editor (`Broadcast Light`)
+![Edit Team Policy Modal](docs/assets/screenshot3g.png)
+
+#### Backup &amp; Restore (`Warm Paper`)
+![Backup & Restore](docs/assets/screenshot3h.png)
+
+</details>
 
 ### 🎨 6. White-Label Branding, 5 Themes & Multi-Language
 - **Custom Visual Branding**: Upload custom logo images (PNG, SVG, JPG, WebP) or set custom monogram badges for the platform and individual tenants.
