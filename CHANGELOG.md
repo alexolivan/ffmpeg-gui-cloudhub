@@ -5,6 +5,12 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.6] - 2026-11-23
+
+### Fixed
+- **First Tenant Visibility & `id === 1` Assumption on Fresh Installs (`backend/routers/tenant_routes.py`, `frontend/src/components/Sidebar.tsx`, `FleetView.tsx`, `TenantsTab.tsx`, `UsersTab.tsx`, `GroupsTab.tsx`)**:
+  - Identified the virtual `Default` organization strictly by `slug === 'default'` instead of `id === 1`. On clean databases where `init_db()` does not seed a virtual `default` organization, the first real tenant created by the superadmin receives `id = 1` and was previously hidden across **Tenants & Orgs**, **Users & RBAC**, **Appliance Groups**, the **Sidebar** tenant switcher, and **Fleet** modals.
+
 ## [1.4.5] - 2026-11-19
 
 ### Fixed

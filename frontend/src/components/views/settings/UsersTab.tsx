@@ -16,9 +16,14 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
   const [modalGroups, setModalGroups] = useState<NodeGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Filter out the virtual 'default' tenant from the tenant organizations list
+  // Filter out the virtual 'default' tenant (identified strictly by slug)
+  const defaultOrgId = useMemo(
+    () => orgs.find((o) => o.slug === 'default')?.id ?? null,
+    [orgs]
+  );
+
   const realOrgs = useMemo(() => {
-    return orgs.filter((o) => o.slug !== 'default' && o.id !== 1);
+    return orgs.filter((o) => o.slug !== 'default');
   }, [orgs]);
 
   // Search & Role Filter State
@@ -115,17 +120,17 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
 
   // Sync modalOrgId when selectedOrgId or realOrgs change
   useEffect(() => {
-    if (selectedOrgId && selectedOrgId !== 1) {
+    if (selectedOrgId && selectedOrgId !== defaultOrgId) {
       setModalOrgId(selectedOrgId);
     } else if (realOrgs.length > 0) {
       setModalOrgId(realOrgs[0].id);
     }
-  }, [selectedOrgId, realOrgs]);
+  }, [selectedOrgId, realOrgs, defaultOrgId]);
 
   // Load groups for the target tenant inside the create modal
   useEffect(() => {
     const targetOrg = isSuperadmin ? modalOrgId : currentUser.org_id;
-    if (targetOrg && targetOrg !== 1) {
+    if (targetOrg && targetOrg !== defaultOrgId) {
       fetch(`/api/hub/orgs/${targetOrg}/groups`, { credentials: 'include' })
         .then((r) => (r.ok ? r.json() : []))
         .then(setModalGroups)
@@ -133,13 +138,13 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
     } else {
       setModalGroups([]);
     }
-  }, [modalOrgId, currentUser.org_id, isSuperadmin]);
+  }, [modalOrgId, currentUser.org_id, isSuperadmin, defaultOrgId]);
 
   // Load groups for the target tenant inside the edit modal
   useEffect(() => {
     if (editingUser) {
       const targetOrg = isSuperadmin ? editOrgId : currentUser.org_id;
-      if (targetOrg && targetOrg !== 1) {
+      if (targetOrg && targetOrg !== defaultOrgId) {
         fetch(`/api/hub/orgs/${targetOrg}/groups`, { credentials: 'include' })
           .then((r) => (r.ok ? r.json() : []))
           .then(setEditGroupsList)
@@ -148,13 +153,13 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
         setEditGroupsList([]);
       }
     }
-  }, [editingUser, editOrgId, currentUser.org_id, isSuperadmin]);
+  }, [editingUser, editOrgId, currentUser.org_id, isSuperadmin, defaultOrgId]);
 
   const openEditUserModal = (user: User) => {
     setEditingUser(user);
     setEditRole(user.role);
     setEditPassword('');
-    const targetOrgId = user.org_id && user.org_id !== 1 ? user.org_id : (realOrgs[0]?.id ?? 0);
+    const targetOrgId = user.org_id && user.org_id !== defaultOrgId ? user.org_id : (realOrgs[0]?.id ?? 0);
     setEditOrgId(targetOrgId);
     setEditSelectedGroupIds(user.group_ids || []);
     setEditErrorMsg(null);
@@ -191,7 +196,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
       role: editRole,
       group_ids: editRole === 'group_operator' ? editSelectedGroupIds : [],
     };
-    if (isSuperadmin && editOrgId && editOrgId !== 1) {
+    if (isSuperadmin && editOrgId && editOrgId !== defaultOrgId) {
       payload.org_id = editOrgId;
     }
     if (editPassword && editPassword.trim()) {
@@ -223,7 +228,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     const targetOrgId = isSuperadmin ? modalOrgId : currentUser.org_id;
-    if (!targetOrgId || targetOrgId === 1) {
+    if (!targetOrgId || targetOrgId === defaultOrgId) {
       setErrorMsg('Please select a valid tenant organization.');
       return;
     }
@@ -307,7 +312,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
       if (u.role === 'superadmin') return false;
 
       if (isSuperadmin) {
-        if (selectedOrgId && selectedOrgId !== 1) {
+        if (selectedOrgId && selectedOrgId !== defaultOrgId) {
           return u.org_id === selectedOrgId;
         }
         return true; // Show all users belonging to real tenants
@@ -479,7 +484,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
             setNewPassword('');
             setSelectedGroupIds([]);
             setNewRole('group_operator');
-            setModalOrgId(selectedOrgId && selectedOrgId !== 1 ? selectedOrgId : (realOrgs[0]?.id ?? 0));
+            setModalOrgId(selectedOrgId && selectedOrgId !== defaultOrgId ? selectedOrgId : (realOrgs[0]?.id ?? 0));
             setShowCreateModal(true);
           }}
           disabled={isSuperadmin && realOrgs.length === 0}
@@ -562,7 +567,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
         <div className="py-12 text-center text-xs font-mono text-[var(--text-secondary)] border border-dashed border-[var(--glass-border)] rounded-2xl">
           {t('settings.noUsersFound', 'No users found matching current filters.')}
         </div>
-      ) : isSuperadmin && (!selectedOrgId || selectedOrgId === 1) ? (
+      ) : isSuperadmin && (!selectedOrgId || selectedOrgId === defaultOrgId) ? (
         /* Superadmin viewing All Tenants: Hierarchical View grouped strictly by Real Tenants */
         <div className="space-y-8">
           {realOrgs.map((org) => {

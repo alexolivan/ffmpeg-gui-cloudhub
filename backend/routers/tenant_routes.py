@@ -123,7 +123,7 @@ def list_organizations(
     result = []
     for o in orgs:
         icon_display = o.icon_data
-        if not icon_display and (o.id == 1 or o.slug == "default"):
+        if not icon_display and o.slug == "default":
             icon_display = plat_logo or plat_text
 
         result.append(

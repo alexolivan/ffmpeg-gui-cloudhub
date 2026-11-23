@@ -17,6 +17,8 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [groups, setGroups] = useState<NodeGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const defaultOrg = useMemo(() => orgs.find((o) => o.slug === 'default') ?? null, [orgs]);
+  const realOrgs = useMemo(() => orgs.filter((o) => o.slug !== 'default'), [orgs]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'online' | 'offline' | 'unlinked'>('all');
 
@@ -545,16 +547,16 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
                       onChange={(e) => setTargetOrgId(Number(e.target.value))}
                       className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime cursor-pointer"
                     >
-                      <option value={1} className="bg-[#18181b] text-white">
-                        👑 {t('settings.platformStandaloneOption', 'Platform / Standalone (Superadmin)')}
-                      </option>
-                      {orgs
-                        .filter((o) => o.slug !== 'default' && o.id !== 1)
-                        .map((o) => (
-                          <option key={o.id} value={o.id} className="bg-[#18181b] text-white">
-                            🏢 {o.name} ({o.slug})
-                          </option>
-                        ))}
+                      {defaultOrg && (
+                        <option value={defaultOrg.id} className="bg-[#18181b] text-white">
+                          👑 {t('settings.platformStandaloneOption', 'Platform / Standalone (Superadmin)')}
+                        </option>
+                      )}
+                      {realOrgs.map((o) => (
+                        <option key={o.id} value={o.id} className="bg-[#18181b] text-white">
+                          🏢 {o.name} ({o.slug})
+                        </option>
+                      ))}
                     </select>
                   </div>
                 )}
@@ -658,16 +660,16 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
                     }}
                     className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime cursor-pointer font-mono"
                   >
-                    <option value={1} className="bg-[#18181b] text-white">
-                      👑 {t('settings.platformStandaloneOption', 'Platform / Standalone (Superadmin)')}
-                    </option>
-                    {orgs
-                      .filter((o) => o.slug !== 'default' && o.id !== 1)
-                      .map((o) => (
-                        <option key={o.id} value={o.id} className="bg-[#18181b] text-white">
-                          🏢 {o.name} ({o.slug})
-                        </option>
-                      ))}
+                    {defaultOrg && (
+                      <option value={defaultOrg.id} className="bg-[#18181b] text-white">
+                        👑 {t('settings.platformStandaloneOption', 'Platform / Standalone (Superadmin)')}
+                      </option>
+                    )}
+                    {realOrgs.map((o) => (
+                      <option key={o.id} value={o.id} className="bg-[#18181b] text-white">
+                        🏢 {o.name} ({o.slug})
+                      </option>
+                    ))}
                   </select>
                 </div>
               )}

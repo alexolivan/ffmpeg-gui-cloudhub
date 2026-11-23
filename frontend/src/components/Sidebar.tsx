@@ -37,7 +37,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const activeOrg = organizations.find((o) => o.id === selectedOrgId);
   const userOrg = organizations.find((o) => o.id === currentUser.org_id);
   const realOrgs = React.useMemo(
-    () => organizations.filter((o) => o.slug !== 'default' && o.id !== 1),
+    () => organizations.filter((o) => o.slug !== 'default'),
     [organizations]
   );
 

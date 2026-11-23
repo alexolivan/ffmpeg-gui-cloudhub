@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { User, Organization, NodeGroup } from '../../../types/hub';
 import { PlusIcon, TrashIcon, LayersIcon, EditIcon } from '../../Icons';
@@ -13,6 +13,8 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ currentUser, selectedOrgId
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [groups, setGroups] = useState<NodeGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const defaultOrg = useMemo(() => orgs.find((o) => o.slug === 'default') ?? null, [orgs]);
+  const realOrgs = useMemo(() => orgs.filter((o) => o.slug !== 'default'), [orgs]);
 
   // Create Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -298,7 +300,7 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ currentUser, selectedOrgId
       <div className="pt-2 border-t border-[var(--glass-border)] flex items-center justify-between text-xs font-mono">
         <span className="text-[var(--text-secondary)] text-[11px]">{t('settings.clusterScope', 'Cluster scope')}:</span>
         <span className="text-brand-lime font-bold text-[11px] truncate max-w-[150px]">
-          {grp.org_id === 1 || grp.org_name === 'Default'
+          {(defaultOrg && grp.org_id === defaultOrg.id) || grp.org_name === 'Default'
             ? t('settings.platformStandaloneOption', 'Platform / Standalone')
             : (grp.org_name || orgMap.get(grp.org_id)?.name || 'Tenant')}
         </span>
@@ -354,7 +356,7 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ currentUser, selectedOrgId
           {orgs.map((org) => {
             const orgGroups = groups.filter((g) => g.org_id === org.id);
             if (orgGroups.length === 0) return null;
-            const isStandalone = org.id === 1 || org.slug === 'default';
+            const isStandalone = org.slug === 'default';
             return (
               <div
                 key={org.id}
@@ -438,16 +440,16 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ currentUser, selectedOrgId
                     onChange={(e) => setCreateOrgId(Number(e.target.value))}
                     className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime font-medium cursor-pointer"
                   >
-                    <option value={1} className="bg-[#18181b] text-white">
-                      👑 {t('settings.platformStandaloneOption', 'Platform / Standalone (Superadmin)')}
-                    </option>
-                    {orgs
-                      .filter((o) => o.slug !== 'default' && o.id !== 1)
-                      .map((o) => (
-                        <option key={o.id} value={o.id} className="bg-[#18181b] text-white">
-                          🏢 {o.name} ({o.slug})
-                        </option>
-                      ))}
+                    {defaultOrg && (
+                      <option value={defaultOrg.id} className="bg-[#18181b] text-white">
+                        👑 {t('settings.platformStandaloneOption', 'Platform / Standalone (Superadmin)')}
+                      </option>
+                    )}
+                    {realOrgs.map((o) => (
+                      <option key={o.id} value={o.id} className="bg-[#18181b] text-white">
+                        🏢 {o.name} ({o.slug})
+                      </option>
+                    ))}
                   </select>
                 </div>
               )}
@@ -587,16 +589,16 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ currentUser, selectedOrgId
                     onChange={(e) => setEditOrgId(Number(e.target.value))}
                     className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime font-medium cursor-pointer"
                   >
-                    <option value={1} className="bg-[#18181b] text-white">
-                      👑 {t('settings.platformStandaloneOption', 'Platform / Standalone (Superadmin)')}
-                    </option>
-                    {orgs
-                      .filter((o) => o.slug !== 'default' && o.id !== 1)
-                      .map((o) => (
-                        <option key={o.id} value={o.id} className="bg-[#18181b] text-white">
-                          🏢 {o.name} ({o.slug})
-                        </option>
-                      ))}
+                    {defaultOrg && (
+                      <option value={defaultOrg.id} className="bg-[#18181b] text-white">
+                        👑 {t('settings.platformStandaloneOption', 'Platform / Standalone (Superadmin)')}
+                      </option>
+                    )}
+                    {realOrgs.map((o) => (
+                      <option key={o.id} value={o.id} className="bg-[#18181b] text-white">
+                        🏢 {o.name} ({o.slug})
+                      </option>
+                    ))}
                   </select>
                 </div>
               )}

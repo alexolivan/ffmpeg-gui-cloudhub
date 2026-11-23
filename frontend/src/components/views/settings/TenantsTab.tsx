@@ -285,7 +285,7 @@ export const TenantsTab: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {(() => {
-          const realOrgs = orgs.filter((o) => o.slug !== 'default' && o.id !== 1);
+          const realOrgs = orgs.filter((o) => o.slug !== 'default');
           if (realOrgs.length === 0) {
             return (
               <div className="col-span-full py-12 px-6 text-center border border-dashed border-[var(--glass-border)] rounded-2xl bg-[var(--bg-card)]/50 space-y-3">
