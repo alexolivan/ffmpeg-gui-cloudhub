@@ -498,14 +498,20 @@ class TestHubApiAndEnrollment(unittest.TestCase):
         for g in scoped_groups:
             self.assertEqual(g["org_id"], org_id)
 
-        # 8. Check Default tenant fallback in GET /api/hub/orgs
+        # 8. Check Default tenant fallback in GET /api/hub/orgs (strictly by slug == 'default', not id == 1)
+        with self.SessionFactory() as db:
+            db.add(Organization(name="Default Virtual Org", slug="default"))
+            db.commit()
+
         orgs_resp = self.client.get("/api/hub/orgs", headers=headers)
         self.assertEqual(orgs_resp.status_code, 200)
         orgs = orgs_resp.json()
-        def_org = next((o for o in orgs if o["id"] == 1 or o["slug"] == "default"), None)
-        if def_org:
-            # Icon data should be platform monogram or logo URL, not null
-            self.assertIsNotNone(def_org["icon_data"])
+        real_org = next(o for o in orgs if o["slug"] == "group-studio-org")
+        self.assertIsNone(real_org["icon_data"])
+        def_org = next((o for o in orgs if o["slug"] == "default"), None)
+        self.assertIsNotNone(def_org)
+        # Icon data for virtual default org should fall back to platform monogram/logo, not null
+        self.assertIsNotNone(def_org["icon_data"])
 
     def test_cannot_assign_user_to_default_tenant(self):
         token = self.superadmin_token
