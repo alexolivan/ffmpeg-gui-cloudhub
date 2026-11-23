@@ -3,7 +3,11 @@ import { useTranslation } from 'react-i18next';
 import type { Organization } from '../../../types/hub';
 import { PlusIcon, TrashIcon, EditIcon, LayersIcon, UsersIcon, FleetIcon } from '../../Icons';
 
-export const TenantsTab: React.FC = () => {
+interface TenantsTabProps {
+  onTenantsUpdated?: () => void;
+}
+
+export const TenantsTab: React.FC<TenantsTabProps> = ({ onTenantsUpdated }) => {
   const { t } = useTranslation();
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -144,6 +148,7 @@ export const TenantsTab: React.FC = () => {
         setIsCustomAdminUsername(false);
         setNewAdminPass('');
         fetchOrgs();
+        onTenantsUpdated?.();
       } else {
         const data = await res.json().catch(() => ({}));
         setCreateErrorMsg(data.detail || 'Failed to create tenant.');
@@ -210,6 +215,7 @@ export const TenantsTab: React.FC = () => {
       if (res.ok) {
         setEditingOrg(null);
         fetchOrgs();
+        onTenantsUpdated?.();
       } else {
         const data = await res.json().catch(() => ({}));
         setEditErrorMsg(data.detail || 'Failed to update tenant.');
@@ -240,6 +246,7 @@ export const TenantsTab: React.FC = () => {
       });
       if (res.ok) {
         fetchOrgs();
+        onTenantsUpdated?.();
       }
     } catch (err) {
       console.error('Failed to delete tenant:', err);

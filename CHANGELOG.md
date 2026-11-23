@@ -5,6 +5,12 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.7] - 2026-11-23
+
+### Fixed
+- **Live Sidebar Tenant Switcher Refresh (`frontend/src/App.tsx`, `SettingsView.tsx`, `TenantsTab.tsx`, `BackupRestoreTab.tsx`)**:
+  - Propagated `onTenantsUpdated` / `onBackupRestored` callbacks from `SettingsView` (`fetchAppData`) to `TenantsTab` and `BackupRestoreTab` so creating, editing, deleting, or restoring tenants refreshes the superadmin Sidebar tenant selector immediately without relogging or reloading the page, and clears `selectedOrgId` if the active tenant is deleted.
+
 ## [1.4.6] - 2026-11-23
 
 ### Fixed

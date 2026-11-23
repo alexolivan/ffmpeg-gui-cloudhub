@@ -103,13 +103,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           />
         )}
         {activeTab === 'network_ssl' && isSuperadmin && <NetworkSslTab />}
-        {activeTab === 'tenants' && isSuperadmin && <TenantsTab />}
+        {activeTab === 'tenants' && isSuperadmin && (
+          <TenantsTab onTenantsUpdated={onSettingsUpdated} />
+        )}
         {activeTab === 'groups' && <GroupsTab currentUser={currentUser} selectedOrgId={selectedOrgId} />}
         {activeTab === 'users' && <UsersTab currentUser={currentUser} selectedOrgId={selectedOrgId} />}
         {activeTab === 'teams' && (isSuperadmin || isOrgAdmin) && (
           <TeamsTab currentUser={currentUser} selectedOrgId={selectedOrgId} />
         )}
-        {activeTab === 'backup' && <BackupRestoreTab currentUser={currentUser} selectedOrgId={selectedOrgId} />}
+        {activeTab === 'backup' && (
+          <BackupRestoreTab
+            currentUser={currentUser}
+            selectedOrgId={selectedOrgId}
+            onBackupRestored={onSettingsUpdated}
+          />
+        )}
       </div>
     </div>
   );

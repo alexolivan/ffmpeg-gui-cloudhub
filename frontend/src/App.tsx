@@ -80,7 +80,11 @@ export const App: React.FC = () => {
     try {
       const orgsRes = await fetch('/api/hub/orgs', { credentials: 'include' });
       if (orgsRes.ok) {
-        setOrganizations(await orgsRes.json());
+        const orgsList: Organization[] = await orgsRes.json();
+        setOrganizations(orgsList);
+        if (selectedOrgId !== null && !orgsList.some((o) => o.id === selectedOrgId)) {
+          setSelectedOrgId(null);
+        }
       }
     } catch {
       // Non-blocking

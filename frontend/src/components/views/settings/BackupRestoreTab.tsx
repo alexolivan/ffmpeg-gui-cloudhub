@@ -6,9 +6,14 @@ import { ExportIcon, ImportIcon, ShieldIcon, LayersIcon, UsersIcon, GearIcon } f
 interface BackupRestoreTabProps {
   currentUser: User;
   selectedOrgId: number | null;
+  onBackupRestored?: () => void;
 }
 
-export const BackupRestoreTab: React.FC<BackupRestoreTabProps> = ({ currentUser, selectedOrgId }) => {
+export const BackupRestoreTab: React.FC<BackupRestoreTabProps> = ({
+  currentUser,
+  selectedOrgId,
+  onBackupRestored,
+}) => {
   const { t } = useTranslation();
   const isSuperadmin = currentUser.role === 'superadmin';
 
@@ -202,6 +207,7 @@ export const BackupRestoreTab: React.FC<BackupRestoreTabProps> = ({ currentUser,
       setImportFile(null);
       setImportPayload(null);
       setValidationInfo(null);
+      onBackupRestored?.();
     } catch (err: any) {
       setImportError(err.message || 'Error executing restore');
     } finally {
