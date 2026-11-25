@@ -916,7 +916,8 @@ def list_nodes(
             if t_payload:
                 t_path = t_payload.get("logo_path")
                 t_text = t_payload.get("logo_text")
-                if t_path:
+                is_reachable = vitality.get("status") not in ("offline", "unlinked")
+                if t_path and is_reachable:
                     icon_display = f"/proxy/{n.node_id}{t_path}"
                 elif t_text:
                     icon_display = t_text.strip().upper()

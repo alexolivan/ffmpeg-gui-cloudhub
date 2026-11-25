@@ -5,6 +5,13 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.8] - 2026-11-25
+
+### Fixed
+- **Instant Virtual LCD Font Rendering & Offline Proxy Icon Guard (`frontend/vite.config.ts`, `backend/routers/tenant_routes.py`)**:
+  - Raised Vite `build.assetsInlineLimit` to `8192` bytes so `DSEG14Classic-Bold.woff2` (5.9 KB) is inlined directly as a data URI inside the stylesheet, eliminating FOIT blank virtual LCD panels without flashing fallback characters (`~`/`!`).
+  - Updated `GET /api/hub/nodes` to skip returning `/proxy/{node_id}/...` icon URLs for `offline` or `unlinked` appliances (falling back to cached `logo_text` / initials), preventing unreachable tunnel icon fetches from stalling browser HTTP/1.1 connection slots.
+
 ## [1.4.7] - 2026-11-23
 
 ### Fixed

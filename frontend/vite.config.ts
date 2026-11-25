@@ -7,6 +7,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   build: {
     cssMinify: false,
+    assetsInlineLimit: 8192,
   },
   server: {
     port: 5174,
