@@ -5,6 +5,17 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-11-25
+
+### Added
+- **Flexible Operator Appliance Access Scope (`backend/database/`, `auth_manager.py`, `tenant_routes.py`, `backup_routes.py`, `UsersTab.tsx`, `NodePermissionsModal.tsx`)**:
+  - Added `all_groups_access` and `include_ungrouped` boolean flags to `User` (`DB_SCHEMA_VERSION = "1.2.0"` with idempotent `ALTER TABLE` migrations and backup export/import support, defaulting to `False` for full backwards compatibility).
+  - Replaced the single group checklist in Create/Edit Operator modals with a mutually exclusive 2-mode selector (**All Tenant Appliances** vs **Specific Groups** with an independent **Include Ungrouped Appliances** checkbox). Tenants without groups default to **All Tenant Appliances** so small single-appliance stations no longer need dummy groups.
+  - Updated `AuthManager.can_user_access_node`, operator scope badges in `UsersTab`, and operator reachability in `NodePermissionsModal` to honor both flags consistently.
+- **Tenant-Grouped Superadmin Fleet View (`frontend/src/components/views/FleetView.tsx`)**:
+  - Grouped **All Tenants** Fleet view hierarchically by Tenant (tenant header with logo/monogram, slug, and online/degraded/offline counts) so groups sharing names across tenants (e.g., `Default`) and ungrouped appliances are clearly isolated per organization.
+  - Rendered appliance cards directly without redundant group accordions when a tenant defines no groups.
+
 ## [1.4.8] - 2026-11-25
 
 ### Fixed

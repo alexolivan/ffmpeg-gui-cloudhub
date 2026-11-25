@@ -254,6 +254,78 @@ class TestModelsAndRBAC(unittest.TestCase):
         self.assertIsNotNone(second)
         self.assertEqual(second.role, "superadmin")
 
+    def test_operator_all_groups_and_include_ungrouped_scope(self):
+        org_a = Organization(name="Small Radio", slug="small-radio")
+        org_b = Organization(name="Other Radio", slug="other-radio")
+        self.db.add_all([org_a, org_b])
+        self.db.commit()
+
+        grp_a1 = NodeGroup(org_id=org_a.id, name="Studio 1")
+        grp_a2 = NodeGroup(org_id=org_a.id, name="Mobile Unit")
+        self.db.add_all([grp_a1, grp_a2])
+        self.db.commit()
+
+        node_grouped_1 = EnrolledNode(
+            node_id="node_g1", name="Enc G1", org_id=org_a.id, group_id=grp_a1.id, tunnel_secret="s1"
+        )
+        node_grouped_2 = EnrolledNode(
+            node_id="node_g2", name="Enc G2", org_id=org_a.id, group_id=grp_a2.id, tunnel_secret="s2"
+        )
+        node_ungrouped = EnrolledNode(
+            node_id="node_u1", name="Enc Ungrouped", org_id=org_a.id, group_id=None, tunnel_secret="s3"
+        )
+        node_other_org = EnrolledNode(
+            node_id="node_ob", name="Enc Other", org_id=org_b.id, group_id=None, tunnel_secret="s4"
+        )
+        self.db.add_all([node_grouped_1, node_grouped_2, node_ungrouped, node_other_org])
+        self.db.commit()
+
+        # 1. Operator with all_groups_access=True sees all nodes in own org (grouped + ungrouped), never other orgs
+        op_all = User(
+            username="op_all",
+            password_hash="h",
+            role="group_operator",
+            org_id=org_a.id,
+            all_groups_access=True,
+            include_ungrouped=False,
+        )
+        # 2. Operator with specific group (grp_a1) + include_ungrouped=True sees grp_a1 and ungrouped, not grp_a2
+        op_g1_plus_ungrouped = User(
+            username="op_g1_u",
+            password_hash="h",
+            role="group_operator",
+            org_id=org_a.id,
+            all_groups_access=False,
+            include_ungrouped=True,
+        )
+        # 3. Operator with neither all_groups_access nor include_ungrouped nor groups sees nothing
+        op_none = User(
+            username="op_none",
+            password_hash="h",
+            role="group_operator",
+            org_id=org_a.id,
+            all_groups_access=False,
+            include_ungrouped=False,
+        )
+        self.db.add_all([op_all, op_g1_plus_ungrouped, op_none])
+        self.db.commit()
+
+        self.db.add(UserGroupPermission(user_id=op_g1_plus_ungrouped.id, group_id=grp_a1.id))
+        self.db.commit()
+
+        self.assertTrue(AuthManager.can_user_access_node(self.db, op_all, node_grouped_1))
+        self.assertTrue(AuthManager.can_user_access_node(self.db, op_all, node_grouped_2))
+        self.assertTrue(AuthManager.can_user_access_node(self.db, op_all, node_ungrouped))
+        self.assertFalse(AuthManager.can_user_access_node(self.db, op_all, node_other_org))
+
+        self.assertTrue(AuthManager.can_user_access_node(self.db, op_g1_plus_ungrouped, node_grouped_1))
+        self.assertFalse(AuthManager.can_user_access_node(self.db, op_g1_plus_ungrouped, node_grouped_2))
+        self.assertTrue(AuthManager.can_user_access_node(self.db, op_g1_plus_ungrouped, node_ungrouped))
+        self.assertFalse(AuthManager.can_user_access_node(self.db, op_g1_plus_ungrouped, node_other_org))
+
+        self.assertFalse(AuthManager.can_user_access_node(self.db, op_none, node_grouped_1))
+        self.assertFalse(AuthManager.can_user_access_node(self.db, op_none, node_ungrouped))
+
 
 if __name__ == "__main__":
     unittest.main()

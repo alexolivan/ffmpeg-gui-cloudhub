@@ -154,9 +154,10 @@ class AuthManager:
             return True
 
         if user.role == "group_operator":
+            if getattr(user, "all_groups_access", False):
+                return True
             if node.group_id is None:
-                # Group operators cannot access ungrouped nodes
-                return False
+                return bool(getattr(user, "include_ungrouped", False))
 
             perm = (
                 db.query(UserGroupPermission)

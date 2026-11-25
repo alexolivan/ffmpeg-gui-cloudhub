@@ -168,6 +168,8 @@ def export_backup_json(
                     "group_names": [
                         p.group.name for p in u.group_permissions if p.group
                     ],
+                    "all_groups_access": bool(getattr(u, "all_groups_access", False)),
+                    "include_ungrouped": bool(getattr(u, "include_ungrouped", False)),
                 }
             )
 
@@ -482,6 +484,13 @@ def import_backup_payload(
                 else:
                     parent_org = get_target_org(u_data.get("org_slug"))
 
+                u_all_groups = bool(u_data.get("all_groups_access", False)) if u_role == "group_operator" else False
+                u_inc_ungrouped = (
+                    bool(u_data.get("include_ungrouped", False))
+                    if (u_role == "group_operator" and not u_all_groups)
+                    else False
+                )
+
                 user = db.query(User).filter(User.username == uname).first()
                 if not user:
                     user = User(
@@ -489,6 +498,8 @@ def import_backup_payload(
                         password_hash=p_hash,
                         role=u_role,
                         org_id=parent_org.id if parent_org and u_role != "superadmin" else None,
+                        all_groups_access=u_all_groups,
+                        include_ungrouped=u_inc_ungrouped,
                     )
                     db.add(user)
                     db.flush()
@@ -497,6 +508,8 @@ def import_backup_payload(
                     if user.id != current_user.id:
                         user.password_hash = p_hash
                         user.role = u_role
+                        user.all_groups_access = u_all_groups
+                        user.include_ungrouped = u_inc_ungrouped
                         if parent_org and u_role != "superadmin":
                             user.org_id = parent_org.id
 

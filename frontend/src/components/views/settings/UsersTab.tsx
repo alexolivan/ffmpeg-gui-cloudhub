@@ -37,6 +37,8 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState<UserRole>('group_operator');
   const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
+  const [newAllGroupsAccess, setNewAllGroupsAccess] = useState(false);
+  const [newIncludeUngrouped, setNewIncludeUngrouped] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -48,6 +50,8 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
   const [editPassword, setEditPassword] = useState('');
   const [editOrgId, setEditOrgId] = useState<number>(0);
   const [editSelectedGroupIds, setEditSelectedGroupIds] = useState<number[]>([]);
+  const [editAllGroupsAccess, setEditAllGroupsAccess] = useState(false);
+  const [editIncludeUngrouped, setEditIncludeUngrouped] = useState(false);
   const [editGroupsList, setEditGroupsList] = useState<NodeGroup[]>([]);
   const [isUpdatingUser, setIsUpdatingUser] = useState(false);
   const [editErrorMsg, setEditErrorMsg] = useState<string | null>(null);
@@ -133,8 +137,17 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
     if (targetOrg && targetOrg !== defaultOrgId) {
       fetch(`/api/hub/orgs/${targetOrg}/groups`, { credentials: 'include' })
         .then((r) => (r.ok ? r.json() : []))
-        .then(setModalGroups)
-        .catch(() => setModalGroups([]));
+        .then((loadedGroups: NodeGroup[]) => {
+          setModalGroups(loadedGroups);
+          // Default to All Tenant Appliances when the tenant has no groups yet
+          setNewAllGroupsAccess(loadedGroups.length === 0);
+          setNewIncludeUngrouped(false);
+        })
+        .catch(() => {
+          setModalGroups([]);
+          setNewAllGroupsAccess(true);
+          setNewIncludeUngrouped(false);
+        });
     } else {
       setModalGroups([]);
     }
@@ -162,6 +175,8 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
     const targetOrgId = user.org_id && user.org_id !== defaultOrgId ? user.org_id : (realOrgs[0]?.id ?? 0);
     setEditOrgId(targetOrgId);
     setEditSelectedGroupIds(user.group_ids || []);
+    setEditAllGroupsAccess(Boolean(user.all_groups_access));
+    setEditIncludeUngrouped(Boolean(user.include_ungrouped));
     setEditErrorMsg(null);
 
     const targetOrg = orgs.find((o) => o.id === targetOrgId);
@@ -194,7 +209,9 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
     const payload: Record<string, any> = {
       username: finalUsername,
       role: editRole,
-      group_ids: editRole === 'group_operator' ? editSelectedGroupIds : [],
+      group_ids: editRole === 'group_operator' && !editAllGroupsAccess ? editSelectedGroupIds : [],
+      all_groups_access: editRole === 'group_operator' ? editAllGroupsAccess : false,
+      include_ungrouped: editRole === 'group_operator' && !editAllGroupsAccess ? editIncludeUngrouped : false,
     };
     if (isSuperadmin && editOrgId && editOrgId !== defaultOrgId) {
       payload.org_id = editOrgId;
@@ -255,7 +272,9 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
           password: newPassword,
           role: newRole,
           org_id: targetOrgId,
-          group_ids: newRole === 'group_operator' ? selectedGroupIds : [],
+          group_ids: newRole === 'group_operator' && !newAllGroupsAccess ? selectedGroupIds : [],
+          all_groups_access: newRole === 'group_operator' ? newAllGroupsAccess : false,
+          include_ungrouped: newRole === 'group_operator' && !newAllGroupsAccess ? newIncludeUngrouped : false,
         }),
       });
       if (res.ok) {
@@ -263,6 +282,8 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
         setNewUsername('');
         setNewPassword('');
         setSelectedGroupIds([]);
+        setNewAllGroupsAccess(false);
+        setNewIncludeUngrouped(false);
         fetchUsers();
       } else {
         const data = await res.json().catch(() => ({}));
@@ -431,18 +452,29 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
               {t('settings.clusterScope', 'Cluster & Group Scope')}:
             </span>
             <div className="flex flex-wrap gap-1.5">
-              {resolvedGroupNames.length > 0 ? (
-                resolvedGroupNames.map((name, idx) => (
-                  <span
-                    key={idx}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-mono font-medium bg-brand-lime/10 border border-brand-lime/25 text-brand-lime"
-                  >
-                    🏷️ {name}
-                  </span>
-                ))
+              {u.all_groups_access ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-mono font-medium bg-brand-lime/10 border border-brand-lime/30 text-brand-lime">
+                  ✓ {t('settings.scopeAllAppliances', 'All Tenant Appliances')}
+                </span>
+              ) : resolvedGroupNames.length > 0 || u.include_ungrouped ? (
+                <>
+                  {resolvedGroupNames.map((name, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-mono font-medium bg-brand-lime/10 border border-brand-lime/25 text-brand-lime"
+                    >
+                      🏷️ {name}
+                    </span>
+                  ))}
+                  {u.include_ungrouped && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-mono font-medium bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+                      📦 {t('settings.ungroupedBadge', 'Ungrouped Appliances')}
+                    </span>
+                  )}
+                </>
               ) : (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-mono italic text-[var(--text-secondary)] bg-white/5 border border-[var(--glass-border)]">
-                  ✓ {t('settings.allGroupsOrFull', 'All / Full Access')}
+                  {t('settings.noAppliancesAssigned', 'No appliances assigned')}
                 </span>
               )}
             </div>
@@ -451,6 +483,97 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
       </div>
     );
   };
+
+  const renderOperatorScopeSelector = (
+    groupsList: NodeGroup[],
+    selectedIds: number[],
+    onChangeIds: (ids: number[]) => void,
+    allGroupsAccess: boolean,
+    onChangeAllGroups: (val: boolean) => void,
+    includeUngrouped: boolean,
+    onChangeIncludeUngrouped: (val: boolean) => void
+  ) => (
+    <div className="space-y-2.5">
+      <label className="block text-xs font-medium text-[var(--text-secondary)]">
+        {t('settings.applianceScope', 'Appliance Access Scope')}
+      </label>
+
+      {/* Mutually exclusive 2-mode toggle */}
+      <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-[var(--input-bg)] border border-[var(--glass-border)]">
+        <button
+          type="button"
+          onClick={() => onChangeAllGroups(true)}
+          className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+            allGroupsAccess
+              ? 'bg-brand-lime text-black shadow-xs'
+              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+          }`}
+        >
+          {t('settings.scopeAllAppliances', 'All Tenant Appliances')}
+        </button>
+        <button
+          type="button"
+          onClick={() => onChangeAllGroups(false)}
+          className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+            !allGroupsAccess
+              ? 'bg-brand-lime text-black shadow-xs'
+              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+          }`}
+        >
+          {t('settings.scopeSpecificGroups', 'Specific Groups')}
+        </button>
+      </div>
+
+      {allGroupsAccess ? (
+        <div className="p-2.5 rounded-xl bg-brand-lime/10 border border-brand-lime/25 text-[11px] text-[var(--text-primary)] leading-relaxed">
+          {t(
+            'settings.scopeAllAppliancesHint',
+            'This operator can access all grouped, ungrouped, and future appliances in this tenant (subject to Team & Appliance permissions).'
+          )}
+        </div>
+      ) : (
+        <div className="max-h-36 overflow-y-auto space-y-1.5 p-2.5 bg-[var(--input-bg)] rounded-xl border border-[var(--glass-border)]">
+          {groupsList.length > 0 ? (
+            groupsList.map((grp) => (
+              <label key={grp.id} className="flex items-center gap-2 text-xs text-[var(--text-primary)] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(grp.id)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      onChangeIds([...selectedIds, grp.id]);
+                    } else {
+                      onChangeIds(selectedIds.filter((id) => id !== grp.id));
+                    }
+                  }}
+                  className="rounded accent-brand-lime"
+                />
+                <span>{grp.name}</span>
+              </label>
+            ))
+          ) : (
+            <p className="text-[11px] italic text-[var(--text-secondary)]">
+              {t('settings.noGroupsInTenant', 'No appliance groups defined in this tenant yet.')}
+            </p>
+          )}
+
+          <div className="pt-1.5 mt-1.5 border-t border-[var(--glass-border)]">
+            <label className="flex items-center gap-2 text-xs text-[var(--text-primary)] cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeUngrouped}
+                onChange={(e) => onChangeIncludeUngrouped(e.target.checked)}
+                className="rounded accent-brand-lime"
+              />
+              <span className="font-medium">
+                {t('settings.includeUngroupedOption', 'Include Ungrouped Appliances')}
+              </span>
+            </label>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
   if (isLoading) {
     return (
@@ -795,32 +918,16 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
                 />
               </div>
 
-              {editGroupsList.length > 0 && editRole === 'group_operator' && (
-                <div>
-                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
-                    {t('settings.restrictGroups', 'Restrict to Specific Groups (Optional)')}
-                  </label>
-                  <div className="max-h-28 overflow-y-auto space-y-1.5 p-2 bg-black/20 rounded-xl border border-[var(--glass-border)]">
-                    {editGroupsList.map((grp) => (
-                      <label key={grp.id} className="flex items-center gap-2 text-xs text-[var(--text-primary)] cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={editSelectedGroupIds.includes(grp.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setEditSelectedGroupIds([...editSelectedGroupIds, grp.id]);
-                            } else {
-                              setEditSelectedGroupIds(editSelectedGroupIds.filter((id) => id !== grp.id));
-                            }
-                          }}
-                          className="rounded accent-brand-lime"
-                        />
-                        <span>{grp.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {editRole === 'group_operator' &&
+                renderOperatorScopeSelector(
+                  editGroupsList,
+                  editSelectedGroupIds,
+                  setEditSelectedGroupIds,
+                  editAllGroupsAccess,
+                  setEditAllGroupsAccess,
+                  editIncludeUngrouped,
+                  setEditIncludeUngrouped
+                )}
 
               <div className="flex items-center justify-end gap-3 pt-3">
                 <button
@@ -952,32 +1059,16 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
                 </select>
               </div>
 
-              {modalGroups.length > 0 && newRole === 'group_operator' && (
-                <div>
-                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
-                    {t('settings.restrictGroups', 'Restrict to Specific Groups (Optional)')}
-                  </label>
-                  <div className="max-h-28 overflow-y-auto space-y-1.5 p-2 bg-black/20 rounded-xl border border-[var(--glass-border)]">
-                    {modalGroups.map((grp) => (
-                      <label key={grp.id} className="flex items-center gap-2 text-xs text-[var(--text-primary)] cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedGroupIds.includes(grp.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedGroupIds([...selectedGroupIds, grp.id]);
-                            } else {
-                              setSelectedGroupIds(selectedGroupIds.filter((id) => id !== grp.id));
-                            }
-                          }}
-                          className="rounded accent-brand-lime"
-                        />
-                        <span>{grp.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {newRole === 'group_operator' &&
+                renderOperatorScopeSelector(
+                  modalGroups,
+                  selectedGroupIds,
+                  setSelectedGroupIds,
+                  newAllGroupsAccess,
+                  setNewAllGroupsAccess,
+                  newIncludeUngrouped,
+                  setNewIncludeUngrouped
+                )}
 
               <div className="flex items-center justify-end gap-3 pt-3">
                 <button

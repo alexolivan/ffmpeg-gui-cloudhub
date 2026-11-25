@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { User, EnrolledNode, Organization, NodeGroup } from '../../types/hub';
 import { GroupAccordionSection } from '../cards/GroupAccordionSection';
+import { NodeAccessCard } from '../cards/NodeAccessCard';
 import { SearchIcon, PlusIcon, RefreshIcon, FleetIcon, LayersIcon } from '../Icons';
 import { copyToClipboard } from '../../utils/clipboard';
 import { NodePermissionsModal } from '../modals/NodePermissionsModal';
@@ -410,43 +411,197 @@ export const FleetView: React.FC<FleetViewProps> = ({ currentUser, selectedOrgId
             </button>
           )}
         </div>
+      ) : currentUser.role === 'superadmin' && selectedOrgId === null ? (
+        /* Superadmin "All Tenants" view: 2-level hierarchy grouped by Tenant -> Groups / Direct Cards */
+        <div className="space-y-4">
+          {(() => {
+            const orgIdsWithNodes = new Set(filteredNodes.map((n) => n.org_id));
+            const orderedOrgs = [
+              ...orgs.filter((o) => orgIdsWithNodes.has(o.id)),
+              ...Array.from(orgIdsWithNodes)
+                .filter((id) => !orgs.some((o) => o.id === id))
+                .map((id) => ({ id, name: `Tenant #${id}`, slug: `tenant-${id}`, icon_data: null } as Organization)),
+            ];
+
+            return orderedOrgs.map((org) => {
+              const tenantNodes = filteredNodes.filter((n) => n.org_id === org.id);
+              if (tenantNodes.length === 0) return null;
+
+              const tenantGroups = groups.filter((g) => g.org_id === org.id);
+              const visibleTenantGroups = tenantGroups.filter((g) =>
+                tenantNodes.some((n) => n.group_id === g.id)
+              );
+              const tenantUnassigned = tenantNodes.filter((n) => !n.group_id);
+
+              const tOnline = tenantNodes.filter((n) => n.vitality?.status === 'online').length;
+              const tDegraded = tenantNodes.filter((n) => n.vitality?.status === 'degraded').length;
+              const tOffline = tenantNodes.length - tOnline - tDegraded;
+
+              const isOrgImg =
+                Boolean(org.icon_data) &&
+                (org.icon_data!.startsWith('data:image') ||
+                  org.icon_data!.startsWith('http://') ||
+                  org.icon_data!.startsWith('https://') ||
+                  org.icon_data!.startsWith('/'));
+
+              return (
+                <section
+                  key={`tenant-section-${org.id}`}
+                  className="rounded-2xl border border-[var(--glass-border)] bg-[var(--bg-card)]/60 p-3 space-y-2.5 shadow-xs"
+                >
+                  {/* Tenant Header */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[var(--glass-border)]">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-7 h-7 rounded-lg bg-brand-lime/10 border border-brand-lime/25 flex items-center justify-center overflow-hidden shrink-0">
+                        {isOrgImg ? (
+                          <img src={org.icon_data!} alt={org.name} className="w-full h-full object-contain p-0.5" />
+                        ) : (
+                          <span className="text-[10px] font-mono font-black text-brand-lime uppercase">
+                            {(org.icon_data || org.name.slice(0, 2)).slice(0, 3)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-baseline gap-2 min-w-0">
+                        <h3 className="text-sm font-black text-[var(--text-primary)] tracking-wide truncate">
+                          {org.name}
+                        </h3>
+                        <span className="text-[11px] font-mono text-[var(--text-secondary)] shrink-0">
+                          ({org.slug})
+                        </span>
+                        <span className="text-[11px] font-mono text-[var(--text-secondary)] shrink-0">
+                          · {tenantNodes.length}{' '}
+                          {tenantNodes.length === 1 ? t('common.node', 'appliance') : t('common.nodes', 'appliances')}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      {tOnline > 0 && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                          {tOnline} {t('common.online', 'Online')}
+                        </span>
+                      )}
+                      {tDegraded > 0 && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                          {tDegraded} {t('common.degraded', 'Degraded')}
+                        </span>
+                      )}
+                      {tOffline > 0 && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
+                          <span className="w-1.5 h-1.5 rounded-full bg-zinc-500" />
+                          {tOffline} {t('common.offline', 'Offline')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Tenant Body: Direct cards if tenant defines no groups; otherwise group accordions + local ungrouped */}
+                  {tenantGroups.length === 0 ? (
+                    <div className="space-y-1.5">
+                      {tenantNodes.map((node) => (
+                        <NodeAccessCard
+                          key={node.node_id}
+                          node={node}
+                          onEdit={openEditModal}
+                          onDelete={handleDeleteNode}
+                          onPermissions={setPermissionsNode}
+                          canManage={canManage}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div>
+                      {visibleTenantGroups.map((group) => {
+                        const groupNodes = tenantNodes.filter((n) => n.group_id === group.id);
+                        return (
+                          <GroupAccordionSection
+                            key={`group-${group.id}`}
+                            groupId={group.id}
+                            groupName={group.name}
+                            groupIcon={group.icon_data}
+                            nodes={groupNodes}
+                            onEditNode={openEditModal}
+                            onDeleteNode={handleDeleteNode}
+                            onPermissionsNode={setPermissionsNode}
+                            canManage={canManage}
+                          />
+                        );
+                      })}
+                      {tenantUnassigned.length > 0 && (
+                        <GroupAccordionSection
+                          key={`unassigned-group-${org.id}`}
+                          groupId={null}
+                          groupName={t('fleet.ungroupedGroup', 'Ungrouped Appliances')}
+                          nodes={tenantUnassigned}
+                          onEditNode={openEditModal}
+                          onDeleteNode={handleDeleteNode}
+                          onPermissionsNode={setPermissionsNode}
+                          canManage={canManage}
+                        />
+                      )}
+                    </div>
+                  )}
+                </section>
+              );
+            });
+          })()}
+        </div>
       ) : (
         <div>
-          {/* Render Groups with Accordions */}
-          {visibleGroups.map((group) => {
-            const groupNodes = filteredNodes.filter((n) => n.group_id === group.id);
-            return (
-              <GroupAccordionSection
-                key={`group-${group.id}`}
-                groupId={group.id}
-                groupName={group.name}
-                groupIcon={group.icon_data}
-                nodes={groupNodes}
-                onEditNode={openEditModal}
-                onDeleteNode={handleDeleteNode}
-                onPermissionsNode={setPermissionsNode}
-                canManage={canManage}
-              />
-            );
-          })}
+          {/* Single-Tenant or Operator View: Direct cards if tenant has no groups; otherwise Group Accordions */}
+          {visibleGroups.length === 0 ? (
+            <div className="space-y-1.5">
+              {filteredNodes.map((node) => (
+                <NodeAccessCard
+                  key={node.node_id}
+                  node={node}
+                  onEdit={openEditModal}
+                  onDelete={handleDeleteNode}
+                  onPermissions={setPermissionsNode}
+                  canManage={canManage}
+                />
+              ))}
+            </div>
+          ) : (
+            <>
+              {visibleGroups.map((group) => {
+                const groupNodes = filteredNodes.filter((n) => n.group_id === group.id);
+                return (
+                  <GroupAccordionSection
+                    key={`group-${group.id}`}
+                    groupId={group.id}
+                    groupName={group.name}
+                    groupIcon={group.icon_data}
+                    nodes={groupNodes}
+                    onEditNode={openEditModal}
+                    onDeleteNode={handleDeleteNode}
+                    onPermissionsNode={setPermissionsNode}
+                    canManage={canManage}
+                  />
+                );
+              })}
 
-          {/* Render Unassigned Accordion for nodes without group */}
-          {(() => {
-            const unassignedNodes = filteredNodes.filter((n) => !n.group_id);
-            if (unassignedNodes.length === 0 && visibleGroups.length > 0) return null;
-            return (
-              <GroupAccordionSection
-                key="unassigned-group"
-                groupId={null}
-                groupName={t('fleet.ungroupedGroup', 'Ungrouped Appliances')}
-                nodes={unassignedNodes}
-                onEditNode={openEditModal}
-                onDeleteNode={handleDeleteNode}
-                onPermissionsNode={setPermissionsNode}
-                canManage={canManage}
-              />
-            );
-          })()}
+              {/* Render Unassigned Accordion for nodes without group */}
+              {(() => {
+                const unassignedNodes = filteredNodes.filter((n) => !n.group_id);
+                if (unassignedNodes.length === 0) return null;
+                return (
+                  <GroupAccordionSection
+                    key="unassigned-group"
+                    groupId={null}
+                    groupName={t('fleet.ungroupedGroup', 'Ungrouped Appliances')}
+                    nodes={unassignedNodes}
+                    onEditNode={openEditModal}
+                    onDeleteNode={handleDeleteNode}
+                    onPermissionsNode={setPermissionsNode}
+                    canManage={canManage}
+                  />
+                );
+              })()}
+            </>
+          )}
         </div>
       )}
 

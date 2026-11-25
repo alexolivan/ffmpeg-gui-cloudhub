@@ -1,3 +1,3 @@
 """Database schema version SSOT."""
 
-DB_SCHEMA_VERSION = "1.1.0"
+DB_SCHEMA_VERSION = "1.2.0"

@@ -391,8 +391,11 @@ export const NodePermissionsModal: React.FC<NodePermissionsModalProps> = ({ node
     [operators, selectedUserId]
   );
 
-  const canOperatorAccessNode = (op: User): boolean =>
-    Boolean(node.group_id && Array.isArray(op.group_ids) && op.group_ids.includes(node.group_id));
+  const canOperatorAccessNode = (op: User): boolean => {
+    if (op.all_groups_access) return true;
+    if (!node.group_id) return Boolean(op.include_ungrouped);
+    return Boolean(Array.isArray(op.group_ids) && op.group_ids.includes(node.group_id));
+  };
 
   const sortedOperators = useMemo(() => {
     const reachable = operators.filter(canOperatorAccessNode);

@@ -78,6 +78,8 @@ class User(Base):
     org_id = Column(
         Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True
     )
+    all_groups_access = Column(Boolean, default=False, nullable=False)
+    include_ungrouped = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=utcnow, nullable=False)
     updated_at = Column(
         DateTime, default=utcnow, onupdate=utcnow, nullable=False

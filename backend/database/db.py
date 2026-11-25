@@ -153,6 +153,16 @@ def init_db(db_engine=None) -> None:
             conn.commit()
         except Exception:
             pass
+        try:
+            conn.execute(text("ALTER TABLE users ADD COLUMN all_groups_access BOOLEAN DEFAULT 0"))
+            conn.commit()
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE users ADD COLUMN include_ungrouped BOOLEAN DEFAULT 0"))
+            conn.commit()
+        except Exception:
+            pass
 
     session_factory = sessionmaker(autocommit=False, autoflush=False, bind=target_engine)
 

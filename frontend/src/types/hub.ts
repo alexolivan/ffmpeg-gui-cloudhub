@@ -11,6 +11,8 @@ export interface User {
   group_ids?: number[];
   group_names?: string[];
   groups?: Array<{ id: number; name: string }>;
+  all_groups_access?: boolean;
+  include_ungrouped?: boolean;
   created_at?: string;
 }
 

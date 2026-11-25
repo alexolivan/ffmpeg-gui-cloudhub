@@ -65,6 +65,8 @@ class CreateUserRequest(BaseModel):
     role: str = Field("group_operator", pattern="^(org_admin|group_operator)$")
     group_ids: Optional[List[int]] = None
     team_ids: Optional[List[int]] = None
+    all_groups_access: bool = False
+    include_ungrouped: bool = False
 
 
 class CreateUserGlobalRequest(BaseModel):
@@ -74,6 +76,8 @@ class CreateUserGlobalRequest(BaseModel):
     org_id: Optional[int] = None
     group_ids: Optional[List[int]] = None
     team_ids: Optional[List[int]] = None
+    all_groups_access: bool = False
+    include_ungrouped: bool = False
 
 
 class UpdateUserRequest(BaseModel):
@@ -82,6 +86,8 @@ class UpdateUserRequest(BaseModel):
     role: Optional[str] = Field(None, pattern="^(org_admin|group_operator)$")
     org_id: Optional[int] = None
     group_ids: Optional[List[int]] = None
+    all_groups_access: Optional[bool] = None
+    include_ungrouped: Optional[bool] = None
 
 
 class CreateTokenRequest(BaseModel):
@@ -555,6 +561,8 @@ def list_all_users(
             "group_ids": [p.group_id for p in u.group_permissions],
             "group_names": [group_map.get(p.group_id, f"Group #{p.group_id}") for p in u.group_permissions if p.group_id in group_map],
             "groups": [{"id": p.group_id, "name": group_map.get(p.group_id, f"Group #{p.group_id}")} for p in u.group_permissions if p.group_id in group_map],
+            "all_groups_access": bool(getattr(u, "all_groups_access", False)),
+            "include_ungrouped": bool(getattr(u, "include_ungrouped", False)),
             "created_at": u.created_at.isoformat() if u.created_at else None,
         }
         for u in users
@@ -598,6 +606,8 @@ def create_user_global(
             role=req.role,
             group_ids=req.group_ids,
             team_ids=req.team_ids,
+            all_groups_access=req.all_groups_access,
+            include_ungrouped=req.include_ungrouped,
         ),
         current_user=current_user,
         db=db,
@@ -628,6 +638,8 @@ def list_users(
             "group_ids": [p.group_id for p in u.group_permissions],
             "group_names": [group_map.get(p.group_id, f"Group #{p.group_id}") for p in u.group_permissions if p.group_id in group_map],
             "groups": [{"id": p.group_id, "name": group_map.get(p.group_id, f"Group #{p.group_id}")} for p in u.group_permissions if p.group_id in group_map],
+            "all_groups_access": bool(getattr(u, "all_groups_access", False)),
+            "include_ungrouped": bool(getattr(u, "include_ungrouped", False)),
             "created_at": u.created_at.isoformat() if u.created_at else None,
         }
         for u in users
@@ -661,16 +673,22 @@ def create_user(
             detail=f"Username '{username_clean}' already taken",
         )
 
+    is_operator = req.role == "group_operator"
+    all_groups_flag = bool(req.all_groups_access) if is_operator else False
+    include_ungrouped_flag = bool(req.include_ungrouped) if (is_operator and not all_groups_flag) else False
+
     new_user = User(
         username=username_clean,
         password_hash=AuthManager.hash_password(req.password),
         role=req.role,
         org_id=org_id,
+        all_groups_access=all_groups_flag,
+        include_ungrouped=include_ungrouped_flag,
     )
     db.add(new_user)
     db.flush()
 
-    if req.role == "group_operator" and req.group_ids:
+    if is_operator and not all_groups_flag and req.group_ids:
         for gid in req.group_ids:
             # Verify group belongs to this org
             g = db.query(NodeGroup).filter(NodeGroup.id == gid, NodeGroup.org_id == org_id).first()
@@ -752,9 +770,22 @@ def update_user(
         target_user.org_id = target_org.id
         db.query(UserGroupPermission).filter(UserGroupPermission.user_id == target_user.id).delete()
 
-    if req.group_ids is not None:
+    if req.all_groups_access is not None:
+        target_user.all_groups_access = bool(req.all_groups_access)
+    if req.include_ungrouped is not None:
+        target_user.include_ungrouped = bool(req.include_ungrouped)
+
+    if target_user.role != "group_operator":
+        target_user.all_groups_access = False
+        target_user.include_ungrouped = False
         db.query(UserGroupPermission).filter(UserGroupPermission.user_id == user_id).delete()
-        if target_user.role == "group_operator":
+        db.query(TeamMember).filter(TeamMember.user_id == target_user.id).delete()
+    else:
+        if target_user.all_groups_access:
+            target_user.include_ungrouped = False
+            db.query(UserGroupPermission).filter(UserGroupPermission.user_id == user_id).delete()
+        elif req.group_ids is not None:
+            db.query(UserGroupPermission).filter(UserGroupPermission.user_id == user_id).delete()
             for gid in req.group_ids:
                 g = db.query(NodeGroup).filter(
                     NodeGroup.id == gid, NodeGroup.org_id == target_user.org_id
@@ -762,9 +793,6 @@ def update_user(
                 if g:
                     db.add(UserGroupPermission(user_id=target_user.id, group_id=gid))
 
-    if target_user.role != "group_operator":
-        db.query(TeamMember).filter(TeamMember.user_id == target_user.id).delete()
-    else:
         if prev_org_id != target_user.org_id:
             db.query(TeamMember).filter(TeamMember.user_id == target_user.id).delete()
         if target_user.org_id:
