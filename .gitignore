@@ -65,8 +65,8 @@ certs/
 *.crt
 *.pfx
 
-# Application runtime configuration
-ffmpeg-gui-cloudhub.conf
+# Application runtime configuration (root only, so packaging/fail2ban/filter.d/ffmpeg-gui-cloudhub.conf stays tracked)
+/ffmpeg-gui-cloudhub.conf
 
 # Log files
 *.log

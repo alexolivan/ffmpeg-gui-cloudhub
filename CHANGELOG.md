@@ -5,6 +5,14 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.3] - 2026-11-25
+
+### Fixed
+- **Fail2ban Filter Tracking & Regex Matching (`.gitignore`, `packaging/fail2ban/filter.d/ffmpeg-gui-cloudhub.conf`, `backend/tests/test_packaging_scripts.py`)**:
+  - Anchored `/ffmpeg-gui-cloudhub.conf` to the repository root in `.gitignore` so `packaging/fail2ban/filter.d/ffmpeg-gui-cloudhub.conf` is properly tracked and distributed in the repository.
+  - Fixed both `failregex` patterns to match the actual security warnings emitted by `auth_routes.py` (`Failed CloudHub login attempt for non-existent user '...'` and `Failed password attempt for valid user '...'`) as well as W3C/Nginx HTTP `access.log` lines (`"POST /api/hub/auth/login HTTP/..." 401|429`).
+  - Expanded `test_fail2ban_filter_regex` to assert all real log formats and reject successful `200` logins.
+
 ## [1.5.2] - 2026-11-25
 
 ### Added
