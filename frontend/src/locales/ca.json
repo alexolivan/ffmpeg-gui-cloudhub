@@ -485,9 +485,12 @@
       "none": "Sense accés",
       "monitor": "Monitor (Només lectura)",
       "operate": "Operar",
-      "manage": "Gestionar",
-      "admin": "Administrador"
+      "manage": "Gestionar (Editar existents)",
+      "admin": "Administrador (Cicle complet)"
     },
+    "levelGuide": "Gestionar ajusta/edita elements existents (filtres, bitrates, horaris) sense crear, clonar, exportar, esborrar ni canviar el tipus de servei o mode àudio/vídeo. Administrador atorga control complet de cicle de vida i estructura.",
+    "settingsAdminWarningTitle": "Advertència d'Alt Privilegi: Paràmetres = Administrador",
+    "settingsAdminWarningDesc": "Concedir accés Administrador a Paràmetres permet reiniciar l'appliance, modificar la seguretat local, restaurar còpies de seguretat i desvincular aquest node de CloudHub.",
     "processTypes": {
       "ffmpeg_stream": "Stream FFmpeg",
       "mediamtx_hub": "MediaMTX Hub",

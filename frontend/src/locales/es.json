@@ -485,9 +485,12 @@
       "none": "Sin acceso",
       "monitor": "Monitor (Solo lectura)",
       "operate": "Operar",
-      "manage": "Gestionar",
-      "admin": "Administrador"
+      "manage": "Gestionar (Editar existentes)",
+      "admin": "Administrador (Ciclo completo)"
     },
+    "levelGuide": "Gestionar ajusta/edita elementos existentes (filtros, bitrates, horarios) sin crear, clonar, exportar, borrar ni cambiar el tipo de servicio o modo audio/vídeo. Administrador otorga control total de ciclo de vida y estructura.",
+    "settingsAdminWarningTitle": "Advertencia de Alto Privilegio: Ajustes = Administrador",
+    "settingsAdminWarningDesc": "Conceder acceso Administrador en Ajustes permite reiniciar el appliance, modificar la seguridad local, restaurar copias de seguridad y desvincular este nodo de CloudHub.",
     "processTypes": {
       "ffmpeg_stream": "Stream FFmpeg",
       "mediamtx_hub": "MediaMTX Hub",

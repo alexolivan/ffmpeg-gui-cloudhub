@@ -11,7 +11,7 @@ import {
   type CapabilityLevel,
   type TeamClaims,
 } from '../../../utils/rbacClaims';
-import { EditIcon, PlusIcon, ShieldIcon, TrashIcon, UsersIcon } from '../../Icons';
+import { AlertTriangleIcon, EditIcon, PlusIcon, ShieldIcon, TrashIcon, UsersIcon } from '../../Icons';
 
 interface TeamsTabProps {
   currentUser: User;
@@ -504,6 +504,28 @@ export const TeamsTab: React.FC<TeamsTabProps> = ({ currentUser, selectedOrgId }
                     </select>
                   </div>
                 </div>
+                <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                  {t(
+                    'rbac.levelGuide',
+                    'Manage tunes/edits existing items (filters, bitrates, schedules) without creating, cloning, exporting, deleting, or changing service/A-V mode. Admin grants full lifecycle and structural control.'
+                  )}
+                </p>
+                {formClaims.settings === 'admin' && (
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2.5">
+                    <AlertTriangleIcon size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                    <div className="space-y-0.5 min-w-0">
+                      <p className="text-xs font-bold text-amber-500">
+                        {t('rbac.settingsAdminWarningTitle', 'High-Privilege Warning: Settings = Admin')}
+                      </p>
+                      <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                        {t(
+                          'rbac.settingsAdminWarningDesc',
+                          'Granting Admin access to Settings allows restarting the appliance, changing local security, restoring backups, and unlinking this node from CloudHub.'
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Process Type Scopes */}

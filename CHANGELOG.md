@@ -5,6 +5,13 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.2] - 2026-11-25
+
+### Added
+- **RBAC High-Privilege Warning & Level Clarity (`TeamsTab.tsx`, `NodePermissionsModal.tsx`, `locales/{en,es,ca}.json`)**:
+  - Added an amber high-privilege warning banner whenever `Settings = Admin` is configured (or inherited as effective level) in Team Policies or Appliance Permission overrides, alerting administrators that this level permits appliance restarts, local security changes, backup restores, and unlinking the node from CloudHub.
+  - Clarified `Manage` (*Edit Existing*) vs `Admin` (*Full Lifecycle*) capability labels and added a concise helper legend explaining the operational boundary across domains and services.
+
 ## [1.5.1] - 2026-11-25
 
 ### Added

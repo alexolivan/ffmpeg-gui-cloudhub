@@ -485,9 +485,12 @@
       "none": "None",
       "monitor": "Monitor (Read-Only)",
       "operate": "Operate",
-      "manage": "Manage",
-      "admin": "Admin"
+      "manage": "Manage (Edit Existing)",
+      "admin": "Admin (Full Lifecycle)"
     },
+    "levelGuide": "Manage tunes/edits existing items (filters, bitrates, schedules) without creating, cloning, exporting, deleting, or changing service/A-V mode. Admin grants full lifecycle and structural control.",
+    "settingsAdminWarningTitle": "High-Privilege Warning: Settings = Admin",
+    "settingsAdminWarningDesc": "Granting Admin access to Settings allows restarting the appliance, changing local security, restoring backups, and unlinking this node from CloudHub.",
     "processTypes": {
       "ffmpeg_stream": "FFmpeg Stream",
       "mediamtx_hub": "MediaMTX Hub",
