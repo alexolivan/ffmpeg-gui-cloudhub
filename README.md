@@ -1,7 +1,7 @@
 # ffmpeg-gui-cloudhub
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version: 1.5.0](https://img.shields.io/badge/version-1.5.0-blue.svg)](https://github.com/alexolivan/ffmpeg-gui-cloudhub)
+[![Version: 1.5.1](https://img.shields.io/badge/version-1.5.1-blue.svg)](https://github.com/alexolivan/ffmpeg-gui-cloudhub)
 [![Python: 3.10+](https://img.shields.io/badge/Python-3.10%2B-green.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com)
 [![React: 19](https://img.shields.io/badge/React-19.0-61dafb.svg)](https://react.dev)
@@ -51,8 +51,8 @@ In professional broadcast, live production, and remote transmission environments
 ### 🏢 5. Multi-Tenant Governance & Hierarchical RBAC
 - **Three Governance Tiers**:
   - **Platform Superadmin (Owner)**: Full platform ownership, tenant lifecycle, global fleet directory or tenant-filtered view, platform branding, and network/SSL settings.
-  - **Tenant Administrator**: Scoped control over their assigned organization's users, appliances, RBAC teams, and logical groups.
-  - **Group Operator**: Restricted strictly to assigned appliance groups (e.g., *Studio 1*, *Mobile Unit*), with zero access to administrative settings or audit logs.
+  - **Tenant Administrator**: Scoped control over their assigned organization's branding (display name & logo, read-only slug), users, appliances, RBAC teams, and logical groups.
+  - **Group Operator**: Restricted to assigned appliance scope (all tenant appliances, specific groups, and/or ungrouped appliances) with personal Settings access only (language, theme, and own password), and zero access to administrative settings or audit logs.
 - **RBAC Teams & Fine-Grained Node Authorization Claims**: Define reusable team capability templates (with an automatic conservative `Default Operators` template per tenant) and per-appliance overrides for teams or individual operators (`none`, `monitor`, `operate`, `manage`, `admin`) across domains, service/task types, and individual services/tasks. Includes live appliance service/task catalog inspection, reactive `Auto-Monitor` dependency evaluation, orphaned rule cleanup, end-to-end HMAC-SHA256 `authz_assertion` enforcement, and compatibility guards (`HTTP 426` / `WS 4003`) for restricted operators accessing nodes running `ffmpeg-gui < 2.68.0`.
 - **UNIX-Style Seed Prefixes**: Tenant seeds (`slug`) provide strict namespace separation (`[slug]_operator`), preventing cross-tenant username collisions while allowing intuitive, familiar naming.
 - **Cascade Renaming**: Superadmin changes to a tenant seed automatically propagate to associated user logins with collision validation.

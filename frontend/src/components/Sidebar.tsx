@@ -66,8 +66,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   if (canViewGovernance) {
     items.push({ id: 'audit', icon: <AuditIcon size={20} />, label: t('nav.audit', 'Audit Log') });
-    items.push({ id: 'settings', icon: <GearIcon size={20} />, label: t('nav.settings', 'Settings') });
   }
+  items.push({ id: 'settings', icon: <GearIcon size={20} />, label: t('nav.settings', 'Settings') });
 
   const roleLabel =
     currentUser.role === 'superadmin'

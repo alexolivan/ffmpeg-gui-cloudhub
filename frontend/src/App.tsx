@@ -167,7 +167,7 @@ export const App: React.FC = () => {
       <Sidebar
         activeView={activeView}
         onViewChange={(v) => {
-          if (v === 'settings' && (currentUser.role === 'operator' || currentUser.role === 'group_operator')) {
+          if (v === 'audit' && (currentUser.role === 'operator' || currentUser.role === 'group_operator')) {
             setActiveView('fleet');
           } else {
             setActiveView(v);
@@ -196,19 +196,16 @@ export const App: React.FC = () => {
             <AuditLogsView currentUser={currentUser} selectedOrgId={selectedOrgId} />
           )}
 
-        {activeView === 'settings' &&
-          (currentUser.role === 'superadmin' ||
-            currentUser.role === 'org_admin' ||
-            currentUser.role === 'tenant_admin') && (
-            <SettingsView
-              currentUser={currentUser}
-              selectedOrgId={selectedOrgId}
-              currentTheme={theme}
-              onThemeChange={setTheme}
-              onSettingsUpdated={fetchAppData}
-              onUserUpdated={checkAuth}
-            />
-          )}
+        {activeView === 'settings' && (
+          <SettingsView
+            currentUser={currentUser}
+            selectedOrgId={selectedOrgId}
+            currentTheme={theme}
+            onThemeChange={setTheme}
+            onSettingsUpdated={fetchAppData}
+            onUserUpdated={checkAuth}
+          />
+        )}
       </main>
     </div>
   );

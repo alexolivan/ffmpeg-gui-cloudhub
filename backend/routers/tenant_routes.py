@@ -24,7 +24,7 @@ from backend.database.models import (
 )
 from backend.core.auth_manager import AuthManager
 from backend.core.telemetry_collector import telemetry_collector
-from backend.routers.auth_routes import get_current_user, require_roles
+from backend.routers.auth_routes import get_current_user, require_roles, get_client_ip
 
 logger = logging.getLogger("cloudhub.api.tenants")
 router = APIRouter(prefix="/api/hub", tags=["tenants"])
@@ -715,6 +715,7 @@ def create_user(
 def update_user(
     user_id: int,
     req: UpdateUserRequest,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -726,6 +727,18 @@ def update_user(
         current_user.role != "org_admin" or current_user.org_id != target_user.org_id
     ):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    if current_user.role != "superadmin":
+        if target_user.role != "group_operator":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only superadmin can modify or reset a Tenant Administrator",
+            )
+        if req.role is not None and req.role != "group_operator":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only superadmin can assign Tenant Administrator role",
+            )
 
     prev_role = target_user.role
     prev_org_id = target_user.org_id
@@ -758,6 +771,17 @@ def update_user(
 
     if req.password:
         target_user.password_hash = AuthManager.hash_password(req.password)
+        db.add(
+            AuditLog(
+                username=current_user.username,
+                org_id=target_user.org_id,
+                action="RESET_USER_PASSWORD",
+                target_type="user",
+                target_id=str(target_user.id),
+                ip_address=get_client_ip(request),
+                details=f"Password reset for user '{target_user.username}' by '{current_user.username}'",
+            )
+        )
     if req.role:
         target_user.role = req.role
     if req.org_id is not None and current_user.role == "superadmin":
@@ -819,6 +843,12 @@ def delete_user(
         current_user.role != "org_admin" or current_user.org_id != target_user.org_id
     ):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    if current_user.role != "superadmin" and target_user.role != "group_operator":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only superadmin can delete a Tenant Administrator",
+        )
 
     db.delete(target_user)
     db.commit()

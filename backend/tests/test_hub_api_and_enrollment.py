@@ -551,6 +551,96 @@ class TestHubApiAndEnrollment(unittest.TestCase):
         self.assertEqual(resp2.status_code, 400)
         self.assertIn("virtual Default tenant", resp2.json()["detail"])
 
+    def test_password_change_audit_and_hierarchical_reset_rules(self):
+        from backend.database.models import AuditLog
+
+        sa_headers = {"Authorization": f"Bearer {self.superadmin_token}"}
+        org_resp = self.client.post(
+            "/api/hub/orgs",
+            json={
+                "name": "Broadcast One",
+                "slug": "bcast1",
+                "admin_username": "bcast1_admin1",
+                "admin_password": "Admin1Password!",
+            },
+            headers=sa_headers,
+        )
+        self.assertEqual(org_resp.status_code, 200)
+        org_id = org_resp.json()["organization"]["id"]
+
+        # Create a second org_admin and a group_operator in same tenant
+        admin2_resp = self.client.post(
+            f"/api/hub/orgs/{org_id}/users",
+            json={"username": "bcast1_admin2", "password": "Admin2Password!", "role": "org_admin"},
+            headers=sa_headers,
+        )
+        self.assertEqual(admin2_resp.status_code, 200)
+        admin2_id = admin2_resp.json()["user"]["id"]
+
+        op_resp = self.client.post(
+            f"/api/hub/orgs/{org_id}/users",
+            json={"username": "bcast1_op1", "password": "Op1Password!", "role": "group_operator"},
+            headers=sa_headers,
+        )
+        self.assertEqual(op_resp.status_code, 200)
+        op_id = op_resp.json()["user"]["id"]
+
+        # Login as admin1
+        a1_login = self.client.post(
+            "/api/hub/auth/login",
+            json={"username": "bcast1_admin1", "password": "Admin1Password!"},
+        )
+        self.assertEqual(a1_login.status_code, 200)
+        a1_headers = {"Authorization": f"Bearer {a1_login.json()['token']}"}
+
+        # 1. org_admin CANNOT reset or delete another org_admin -> 403
+        deny_reset = self.client.put(
+            f"/api/hub/users/{admin2_id}",
+            json={"password": "HijackPassword!"},
+            headers=a1_headers,
+        )
+        self.assertEqual(deny_reset.status_code, 403)
+
+        deny_delete = self.client.delete(f"/api/hub/users/{admin2_id}", headers=a1_headers)
+        self.assertEqual(deny_delete.status_code, 403)
+
+        # 2. org_admin CAN reset a group_operator's password -> 200 + AuditLog RESET_USER_PASSWORD
+        ok_reset = self.client.put(
+            f"/api/hub/users/{op_id}",
+            json={"password": "Op1TempPassword!"},
+            headers=a1_headers,
+        )
+        self.assertEqual(ok_reset.status_code, 200)
+
+        # 3. superadmin CAN reset admin2's password -> 200 + AuditLog RESET_USER_PASSWORD
+        sa_reset = self.client.put(
+            f"/api/hub/users/{admin2_id}",
+            json={"password": "Admin2NewPassword!"},
+            headers=sa_headers,
+        )
+        self.assertEqual(sa_reset.status_code, 200)
+
+        # 4. Operator logs in with temp password and changes own password -> cookie refreshed + CHANGE_OWN_PASSWORD
+        op_login = self.client.post(
+            "/api/hub/auth/login",
+            json={"username": "bcast1_op1", "password": "Op1TempPassword!"},
+        )
+        self.assertEqual(op_login.status_code, 200)
+        op_headers = {"Authorization": f"Bearer {op_login.json()['token']}"}
+
+        ch_resp = self.client.post(
+            "/api/hub/auth/change-password",
+            json={"old_password": "Op1TempPassword!", "new_password": "Op1OwnSecretPassword!"},
+            headers=op_headers,
+        )
+        self.assertEqual(ch_resp.status_code, 200)
+        self.assertIn("ch_session", ch_resp.cookies)
+
+        with self.SessionFactory() as db:
+            actions = [row.action for row in db.query(AuditLog).all()]
+            self.assertGreaterEqual(actions.count("RESET_USER_PASSWORD"), 2)
+            self.assertIn("CHANGE_OWN_PASSWORD", actions)
+
 
 if __name__ == "__main__":
     unittest.main()

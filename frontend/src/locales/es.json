@@ -210,6 +210,17 @@
       "passwordMismatch": "Las contraseñas no coinciden",
       "currentPasswordRequired": "La contraseña actual es obligatoria para actualizar credenciales",
       "credentialsUpdated": "Credenciales del propietario actualizadas correctamente",
+      "accountUsername": "Usuario de la Cuenta",
+      "userPasswordDescription": "Actualiza tu contraseña personal de acceso. Al cambiarla se invalidan el resto de sesiones activas.",
+      "passwordUpdated": "Contraseña cambiada correctamente.",
+      "newPasswordRequired": "La nueva contraseña es obligatoria",
+      "updatePasswordBtn": "Actualizar Contraseña",
+      "tenantBrandingTitle": "Identidad Visual del Tenant",
+      "tenantBrandingDescription": "Personaliza el nombre visible y el logo/monograma que ven los usuarios de tu organización. El slug del tenant solo puede modificarlo el propietario de la plataforma.",
+      "tenantDisplayName": "Nombre Visible de la Organización",
+      "tenantSlugReadonly": "Slug del Tenant (Solo Lectura)",
+      "saveTenantBranding": "Guardar Identidad del Tenant",
+      "tenantBrandingSaved": "Identidad del tenant actualizada correctamente.",
       "description": "Gestiona las credenciales del usuario propietario principal y el acceso administrativo."
     },
     "branding": {
@@ -248,6 +259,7 @@
     },
     "tabs": {
       "general": "General e Identidad",
+      "generalSimple": "General",
       "network_ssl": "Red y SSL/TLS",
       "tenants": "Tenants y Orgs",
       "groups": "Grupos de Dispositivos",

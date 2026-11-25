@@ -5,6 +5,21 @@ All notable changes to `ffmpeg-gui-cloudhub` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-11-25
+
+### Added
+- **Unified Settings Experience Across All Roles (`App.tsx`, `Sidebar.tsx`, `SettingsView.tsx`, `GeneralSettingsTab.tsx`)**:
+  - Exposed the **Settings** view consistently to all authenticated roles (`superadmin`, `org_admin`, `group_operator`), adapting visible tabs and cards by role.
+  - Enabled interface language, 5-theme selection, and self-service password change (`POST /api/hub/auth/change-password`) for both `org_admin` and `group_operator` accounts without logging out.
+  - Added **Tenant Branding & Identity** card for `org_admin` (display name and logo/monogram upload with read-only tenant slug).
+- **Password Change & Reset Auditability (`backend/routers/auth_routes.py`, `backend/routers/tenant_routes.py`, `AuditLogsView.tsx`, `UsersTab.tsx`)**:
+  - Logged `CHANGE_OWN_PASSWORD` events on self-service password changes and refreshed the `ch_session` HttpOnly cookie alongside the returned token.
+  - Logged `RESET_USER_PASSWORD` events whenever a superior resets a subordinate's password, and added a visibility toggle (`👁️`) on the Edit User password reset input.
+
+### Fixed
+- **Hierarchical Tenant Admin Protection (`backend/routers/tenant_routes.py`, `UsersTab.tsx`)**:
+  - Prevented `org_admin` accounts from modifying, resetting passwords of, or deleting other `org_admin` accounts within the same tenant (`HTTP 403`), restricting Tenant Admin management strictly to `superadmin`.
+
 ## [1.5.0] - 2026-11-25
 
 ### Added

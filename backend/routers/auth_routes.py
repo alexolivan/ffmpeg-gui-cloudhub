@@ -227,6 +227,8 @@ def get_me(user: User = Depends(get_current_user)):
 @router.post("/change-password")
 def change_password(
     req: ChangePasswordRequest,
+    request: Request,
+    response: Response,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -239,8 +241,30 @@ def change_password(
     user.password_hash = AuthManager.hash_password(req.new_password)
     db.commit()
 
-    # Issuing new session token since old one was invalidated
+    # Issuing new session token and refreshing HttpOnly cookie since old one was invalidated
     new_token = AuthManager.create_session(user.id, user.password_hash)
+    response.set_cookie(
+        key="ch_session",
+        value=new_token,
+        httponly=True,
+        samesite="lax",
+        secure=request.url.scheme == "https",
+        max_age=604800,
+    )
+
+    db.add(
+        AuditLog(
+            username=user.username,
+            org_id=user.org_id,
+            action="CHANGE_OWN_PASSWORD",
+            target_type="auth",
+            target_id=str(user.id),
+            ip_address=get_client_ip(request),
+            details=f"User '{user.username}' changed their own password",
+        )
+    )
+    db.commit()
+
     return {
         "status": "ok",
         "message": "Password changed successfully. All previous sessions invalidated.",

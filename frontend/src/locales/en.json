@@ -210,6 +210,17 @@
       "passwordMismatch": "New passwords do not match",
       "currentPasswordRequired": "Current password is required to update credentials",
       "credentialsUpdated": "Owner credentials updated successfully",
+      "accountUsername": "Account Username",
+      "userPasswordDescription": "Update your personal login password. Changing your password invalidates other active sessions.",
+      "passwordUpdated": "Password changed successfully.",
+      "newPasswordRequired": "New password is required",
+      "updatePasswordBtn": "Update Password",
+      "tenantBrandingTitle": "Tenant Branding & Identity",
+      "tenantBrandingDescription": "Customize the display name and logo/monogram shown to your organization's users. The tenant slug is managed by the platform owner.",
+      "tenantDisplayName": "Organization Display Name",
+      "tenantSlugReadonly": "Tenant Slug (Read-Only)",
+      "saveTenantBranding": "Save Tenant Branding",
+      "tenantBrandingSaved": "Tenant branding updated successfully.",
       "description": "Manage master platform owner credentials and administrative access."
     },
     "branding": {
@@ -248,6 +259,7 @@
     },
     "tabs": {
       "general": "General & Branding",
+      "generalSimple": "General",
       "network_ssl": "Network & SSL/TLS",
       "tenants": "Tenants & Orgs",
       "groups": "Appliance Groups",

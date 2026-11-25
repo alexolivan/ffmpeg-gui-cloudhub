@@ -210,6 +210,17 @@
       "passwordMismatch": "Les contrasenyes no coincideixen",
       "currentPasswordRequired": "La contrasenya actual és obligatòria per actualitzar credencials",
       "credentialsUpdated": "Credencials del propietari actualitzades correctament",
+      "accountUsername": "Usuari del Compte",
+      "userPasswordDescription": "Actualitza la teva contrasenya personal d'accés. En canviar-la s'invaliden la resta de sessions actives.",
+      "passwordUpdated": "Contrasenya canviada correctament.",
+      "newPasswordRequired": "La nova contrasenya és obligatòria",
+      "updatePasswordBtn": "Actualitzar Contrasenya",
+      "tenantBrandingTitle": "Identitat Visual del Tenant",
+      "tenantBrandingDescription": "Personalitza el nom visible i el logo/monograma que veuen els usuaris de la teva organització. El slug del tenant només el pot modificar el propietari de la plataforma.",
+      "tenantDisplayName": "Nom Visible de l'Organització",
+      "tenantSlugReadonly": "Slug del Tenant (Només Lectura)",
+      "saveTenantBranding": "Desar Identitat del Tenant",
+      "tenantBrandingSaved": "Identitat del tenant actualitzada correctament.",
       "description": "Gestiona les credencials de l'usuari propietari principal i l'accés administratiu."
     },
     "branding": {
@@ -248,6 +259,7 @@
     },
     "tabs": {
       "general": "General i Identitat",
+      "generalSimple": "General",
       "network_ssl": "Xarxa i SSL/TLS",
       "tenants": "Tenants i Orgs",
       "groups": "Grups de Dispositius",

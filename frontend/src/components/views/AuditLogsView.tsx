@@ -250,7 +250,13 @@ export const AuditLogsView: React.FC<AuditLogsViewProps> = ({ currentUser, selec
     ) {
       return 'bg-brand-lime/15 text-brand-lime border-brand-lime/30';
     }
-    if (action.includes('RESTART') || action.includes('UPDATE') || action.includes('RENEW')) {
+    if (
+      action.includes('RESTART') ||
+      action.includes('UPDATE') ||
+      action.includes('RENEW') ||
+      action.includes('RESET') ||
+      action.includes('PASSWORD')
+    ) {
       return 'bg-amber-500/15 text-amber-400 border-amber-500/30';
     }
     return 'bg-blue-500/15 text-blue-400 border-blue-500/30';

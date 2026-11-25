@@ -352,8 +352,8 @@ class TestTeamsAndClaims(unittest.TestCase):
     def test_update_user_enrolls_default_team_and_cleans_on_admin_promotion(self):
         from backend.database.models import Team, TeamMember
 
-        headers = {"Authorization": f"Bearer {self.admin1_token}"}
-        # Create an org_admin in org1, then demote to group_operator via PUT /users/{id}
+        headers = {"Authorization": f"Bearer {self.super_token}"}
+        # Create an org_admin in org1 as superadmin, then demote to group_operator via PUT /users/{id}
         create_res = self.client.post(
             f"/api/hub/orgs/{self.org1_id}/users",
             headers=headers,

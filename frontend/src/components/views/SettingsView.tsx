@@ -29,27 +29,35 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 }) => {
   const { t } = useTranslation();
   const isSuperadmin = currentUser.role === 'superadmin';
-  const isOrgAdmin = currentUser.role === 'org_admin';
+  const isOrgAdmin = currentUser.role === 'org_admin' || currentUser.role === 'tenant_admin';
 
-  const [activeTab, setActiveTab] = useState<string>(isSuperadmin ? 'general' : 'groups');
+  const [activeTab, setActiveTab] = useState<string>('general');
 
-  const tabs = [];
+  const tabs = [
+    {
+      id: 'general',
+      label:
+        isSuperadmin || isOrgAdmin
+          ? t('settings.tabs.general', 'General & Branding')
+          : t('settings.tabs.generalSimple', 'General'),
+      icon: <GearIcon size={16} />,
+    },
+  ];
   if (isSuperadmin) {
     tabs.push(
-      { id: 'general', label: t('settings.tabs.general', 'General & Branding'), icon: <GearIcon size={16} /> },
       { id: 'network_ssl', label: t('settings.tabs.network_ssl', 'Network & SSL/TLS'), icon: <ShieldIcon size={16} /> },
       { id: 'tenants', label: t('settings.tabs.tenants', 'Tenants & Orgs'), icon: <span className="text-sm">🏢</span> }
     );
   }
 
-  tabs.push(
-    { id: 'groups', label: t('settings.tabs.groups', 'Appliance Groups'), icon: <LayersIcon size={16} /> },
-    { id: 'users', label: t('settings.tabs.users', 'Users & RBAC'), icon: <UsersIcon size={16} /> },
-    ...(isSuperadmin || isOrgAdmin
-      ? [{ id: 'teams', label: t('settings.tabs.teams', 'Teams & Permissions'), icon: <ShieldIcon size={16} /> }]
-      : []),
-    { id: 'backup', label: t('settings.tabs.backup', 'Backup & Restore'), icon: <ExportIcon size={16} /> }
-  );
+  if (isSuperadmin || isOrgAdmin) {
+    tabs.push(
+      { id: 'groups', label: t('settings.tabs.groups', 'Appliance Groups'), icon: <LayersIcon size={16} /> },
+      { id: 'users', label: t('settings.tabs.users', 'Users & RBAC'), icon: <UsersIcon size={16} /> },
+      { id: 'teams', label: t('settings.tabs.teams', 'Teams & Permissions'), icon: <ShieldIcon size={16} /> },
+      { id: 'backup', label: t('settings.tabs.backup', 'Backup & Restore'), icon: <ExportIcon size={16} /> }
+    );
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -93,7 +101,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {/* ── Tab Content ── */}
       <div>
-        {activeTab === 'general' && isSuperadmin && (
+        {activeTab === 'general' && (
           <GeneralSettingsTab
             currentUser={currentUser}
             currentTheme={currentTheme}
@@ -106,12 +114,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {activeTab === 'tenants' && isSuperadmin && (
           <TenantsTab onTenantsUpdated={onSettingsUpdated} />
         )}
-        {activeTab === 'groups' && <GroupsTab currentUser={currentUser} selectedOrgId={selectedOrgId} />}
-        {activeTab === 'users' && <UsersTab currentUser={currentUser} selectedOrgId={selectedOrgId} />}
+        {activeTab === 'groups' && (isSuperadmin || isOrgAdmin) && (
+          <GroupsTab currentUser={currentUser} selectedOrgId={selectedOrgId} />
+        )}
+        {activeTab === 'users' && (isSuperadmin || isOrgAdmin) && (
+          <UsersTab currentUser={currentUser} selectedOrgId={selectedOrgId} />
+        )}
         {activeTab === 'teams' && (isSuperadmin || isOrgAdmin) && (
           <TeamsTab currentUser={currentUser} selectedOrgId={selectedOrgId} />
         )}
-        {activeTab === 'backup' && (
+        {activeTab === 'backup' && (isSuperadmin || isOrgAdmin) && (
           <BackupRestoreTab
             currentUser={currentUser}
             selectedOrgId={selectedOrgId}

@@ -67,8 +67,10 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
   onUserUpdated,
 }) => {
   const { t, i18n } = useTranslation();
+  const isSuperadmin = currentUser?.role === 'superadmin';
+  const isOrgAdmin = currentUser?.role === 'org_admin' || currentUser?.role === 'tenant_admin';
 
-  // Platform general settings
+  // Platform general settings (superadmin)
   const [settings, setSettings] = useState<Record<string, any>>({
     hub_name: 'ffmpeg-gui CloudHub',
     login_logo_text: 'CH',
@@ -82,6 +84,15 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
     logging_rotation_max_bytes: 10485760,
     logging_rotation_backup_count: 5,
   });
+
+  // Tenant branding state (org_admin)
+  const [tenantOrgId, setTenantOrgId] = useState<number | null>(currentUser?.org_id ?? null);
+  const [tenantName, setTenantName] = useState<string>('');
+  const [tenantSlug, setTenantSlug] = useState<string>('');
+  const [tenantMonogram, setTenantMonogram] = useState<string>('');
+  const [tenantIconData, setTenantIconData] = useState<string | null>(null);
+  const [isSavingTenantBranding, setIsSavingTenantBranding] = useState(false);
+  const [tenantBrandingFeedback, setTenantBrandingFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -130,12 +141,33 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
   }, [currentUser]);
 
   useEffect(() => {
-    const fetchSettings = async () => {
+    const loadRoleData = async () => {
       try {
-        const res = await fetch('/api/hub/settings', { credentials: 'include' });
-        if (res.ok) {
-          const data = await res.json();
-          setSettings((prev) => ({ ...prev, ...data }));
+        if (isSuperadmin) {
+          const res = await fetch('/api/hub/settings', { credentials: 'include' });
+          if (res.ok) {
+            const data = await res.json();
+            setSettings((prev) => ({ ...prev, ...data }));
+          }
+        } else if (isOrgAdmin) {
+          const res = await fetch('/api/hub/orgs', { credentials: 'include' });
+          if (res.ok) {
+            const orgs = await res.json();
+            const myOrg = orgs.find((o: any) => o.id === currentUser?.org_id) || orgs[0];
+            if (myOrg) {
+              setTenantOrgId(myOrg.id);
+              setTenantName(myOrg.name || '');
+              setTenantSlug(myOrg.slug || '');
+              const icon = myOrg.icon_data || '';
+              if (icon.startsWith('data:image') || icon.startsWith('http') || icon.startsWith('/')) {
+                setTenantIconData(icon);
+                setTenantMonogram('');
+              } else {
+                setTenantIconData(null);
+                setTenantMonogram(icon || (myOrg.name || '').slice(0, 3).toUpperCase());
+              }
+            }
+          }
         }
       } catch (err) {
         console.error('Failed to load settings:', err);
@@ -143,8 +175,71 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
         setIsLoading(false);
       }
     };
-    fetchSettings();
-  }, []);
+    loadRoleData();
+  }, [isSuperadmin, isOrgAdmin, currentUser?.org_id]);
+
+  const handleTenantLogoUpload = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setTenantBrandingFeedback({
+        type: 'error',
+        text: t('settings.invalidImageType', 'Please choose a valid image file (PNG, SVG, JPG, WebP).'),
+      });
+      return;
+    }
+    if (file.size > 1024 * 1024) {
+      setTenantBrandingFeedback({
+        type: 'error',
+        text: t('settings.imageTooLarge', 'Image file is too large (maximum 1 MB).'),
+      });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setTenantIconData(ev.target?.result as string);
+      setTenantBrandingFeedback(null);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveTenantBranding = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tenantOrgId || !tenantName.trim()) return;
+    setIsSavingTenantBranding(true);
+    setTenantBrandingFeedback(null);
+    try {
+      const iconToSave = tenantIconData || tenantMonogram.trim().toUpperCase() || '';
+      const res = await fetch(`/api/hub/orgs/${tenantOrgId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: tenantName.trim(),
+          icon_data: iconToSave,
+        }),
+      });
+      if (res.ok) {
+        setTenantBrandingFeedback({
+          type: 'success',
+          text: t('settings.security.tenantBrandingSaved', 'Tenant branding updated successfully.'),
+        });
+        onSettingsUpdated?.();
+        setTimeout(() => setTenantBrandingFeedback(null), 4000);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setTenantBrandingFeedback({
+          type: 'error',
+          text: data.detail || 'Failed to update tenant branding.',
+        });
+      }
+    } catch (err: any) {
+      setTenantBrandingFeedback({
+        type: 'error',
+        text: err.message || 'Network error updating tenant branding.',
+      });
+    } finally {
+      setIsSavingTenantBranding(false);
+    }
+  };
 
   // Handler: Save general configuration (Branding names, logging, policies)
   const handleSaveGeneral = async (e: React.FormEvent) => {
@@ -173,7 +268,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
     }
   };
 
-  // Handler: Update Owner Credentials
+  // Handler: Update Credentials (owner-profile for superadmin, change-password for org_admin/group_operator)
   const handleUpdateCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
     setCredentialFeedback(null);
@@ -182,6 +277,14 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
       setCredentialFeedback({
         type: 'error',
         text: t('settings.security.currentPasswordRequired', 'Current password is required to update credentials.'),
+      });
+      return;
+    }
+
+    if (!isSuperadmin && !newPassword.trim()) {
+      setCredentialFeedback({
+        type: 'error',
+        text: t('settings.security.newPasswordRequired', 'New password is required.'),
       });
       return;
     }
@@ -205,22 +308,37 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
 
     setIsUpdatingCredentials(true);
     try {
-      const res = await fetch('/api/hub/auth/owner-profile', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          current_password: currentPassword,
-          new_username: ownerUsername.trim() || undefined,
-          new_password: newPassword.trim() || undefined,
-        }),
-      });
+      const res = isSuperadmin
+        ? await fetch('/api/hub/auth/owner-profile', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              current_password: currentPassword,
+              new_username: ownerUsername.trim() || undefined,
+              new_password: newPassword.trim() || undefined,
+            }),
+          })
+        : await fetch('/api/hub/auth/change-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              old_password: currentPassword,
+              new_password: newPassword.trim(),
+            }),
+          });
 
       const data = await res.json();
       if (res.ok) {
+        if (data.token) {
+          localStorage.setItem('cloudhub_token', data.token);
+        }
         setCredentialFeedback({
           type: 'success',
-          text: t('settings.security.credentialsUpdated', 'Owner credentials updated successfully.'),
+          text: isSuperadmin
+            ? t('settings.security.credentialsUpdated', 'Owner credentials updated successfully.')
+            : t('settings.security.passwordUpdated', 'Password changed successfully.'),
         });
         setCurrentPassword('');
         setNewPassword('');
@@ -493,21 +611,32 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
 
         <form onSubmit={handleUpdateCredentials} className="max-w-2xl space-y-4">
           <p className="text-xs text-[var(--text-secondary)]">
-            {t('settings.security.description', 'Manage master platform owner credentials and administrative access.')}
+            {isSuperadmin
+              ? t('settings.security.description', 'Manage master platform owner credentials and administrative access.')
+              : t(
+                  'settings.security.userPasswordDescription',
+                  'Update your personal login password. Changing your password invalidates other active sessions.'
+                )}
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="text-[10px] uppercase font-bold text-[var(--text-secondary)] tracking-wider block">
-                {t('settings.security.ownerUsername', 'Owner Username')}
+                {isSuperadmin
+                  ? t('settings.security.ownerUsername', 'Owner Username')
+                  : t('settings.security.accountUsername', 'Account Username')}
               </label>
               <input
                 type="text"
-                className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-lg p-2.5 text-xs outline-none focus:border-red-500 text-[var(--text-primary)] font-mono transition-all"
+                className={`w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-lg p-2.5 text-xs outline-none focus:border-red-500 text-[var(--text-primary)] font-mono transition-all ${
+                  !isSuperadmin ? 'opacity-60 cursor-not-allowed' : ''
+                }`}
                 value={ownerUsername}
-                onChange={(e) => setOwnerUsername(e.target.value)}
+                onChange={(e) => isSuperadmin && setOwnerUsername(e.target.value)}
+                readOnly={!isSuperadmin}
+                disabled={!isSuperadmin}
                 placeholder={t('settings.security.ownerUsernamePlaceholder', 'Enter owner username')}
-                required
+                required={isSuperadmin}
               />
             </div>
 
@@ -575,12 +704,142 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
             >
               {isUpdatingCredentials
                 ? t('settings.security.updatingCredentials', 'Updating...')
-                : t('settings.security.updateCredentialsBtn', 'Update Credentials')}
+                : isSuperadmin
+                ? t('settings.security.updateCredentialsBtn', 'Update Credentials')
+                : t('settings.security.updatePasswordBtn', 'Update Password')}
             </button>
           </div>
         </form>
       </div>
 
+      {/* ── Tenant Branding Card (org_admin only, slug strictly read-only) ── */}
+      {isOrgAdmin && tenantOrgId && (
+        <div className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl p-5 shadow-sm space-y-4">
+          <div className="flex items-center gap-2 border-b border-[var(--glass-border)] pb-2 mb-2">
+            <span className="w-2 h-2 rounded-full bg-brand-lime" />
+            <h4 className="text-brand-lime font-bold text-xs uppercase tracking-wider">
+              {t('settings.security.tenantBrandingTitle', 'Tenant Branding & Identity')}
+            </h4>
+          </div>
+
+          <form onSubmit={handleSaveTenantBranding} className="space-y-4">
+            <p className="text-xs text-[var(--text-secondary)]">
+              {t(
+                'settings.security.tenantBrandingDescription',
+                "Customize the display name and logo/monogram shown to your organization's users. The tenant slug is managed by the platform owner."
+              )}
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-[var(--text-secondary)] tracking-wider block">
+                    {t('settings.security.tenantDisplayName', 'Organization Display Name')}
+                  </label>
+                  <input
+                    type="text"
+                    value={tenantName}
+                    onChange={(e) => setTenantName(e.target.value)}
+                    required
+                    className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] text-[var(--text-primary)] rounded-lg p-2.5 text-xs outline-none focus:border-brand-lime transition-all"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-[var(--text-secondary)] tracking-wider block">
+                    {t('settings.security.tenantSlugReadonly', 'Tenant Slug (Read-Only)')}
+                  </label>
+                  <input
+                    type="text"
+                    value={tenantSlug}
+                    readOnly
+                    disabled
+                    className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] text-[var(--text-secondary)] rounded-lg p-2.5 text-xs font-mono opacity-60 cursor-not-allowed"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-[var(--text-secondary)] tracking-wider block">
+                    {t('settings.branding.logoAbbr', 'Logo Monogram Text')}
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={4}
+                    value={tenantMonogram}
+                    onChange={(e) => {
+                      setTenantMonogram(e.target.value.toUpperCase());
+                      if (e.target.value.trim()) setTenantIconData(null);
+                    }}
+                    className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-lg p-2.5 text-xs outline-none focus:border-brand-lime transition-all uppercase font-mono font-bold tracking-widest text-brand-lime"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col items-center justify-center p-4 rounded-xl border border-dashed border-[var(--glass-border)] bg-[var(--input-bg)]/50 space-y-3">
+                <div className="w-16 h-16 rounded-2xl border border-[var(--glass-border)] bg-[var(--bg-card)] flex items-center justify-center overflow-hidden">
+                  {tenantIconData ? (
+                    <img src={tenantIconData} alt={tenantName} className="w-full h-full object-contain p-1.5" />
+                  ) : (
+                    <span className="text-brand-lime font-mono font-black text-lg uppercase">
+                      {tenantMonogram || tenantName.slice(0, 2).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="px-3 py-1.5 rounded-lg bg-brand-lime/10 text-brand-lime border border-brand-lime/30 hover:bg-brand-lime/20 text-xs font-semibold cursor-pointer transition-all">
+                    {t('settings.branding.uploadLogo', 'Upload Logo')}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleTenantLogoUpload(f);
+                      }}
+                    />
+                  </label>
+                  {tenantIconData && (
+                    <button
+                      type="button"
+                      onClick={() => setTenantIconData(null)}
+                      className="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 text-xs font-semibold cursor-pointer transition-all"
+                    >
+                      {t('common.delete', 'Remove')}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {tenantBrandingFeedback && (
+              <div
+                className={`p-3 rounded-xl border text-xs font-medium ${
+                  tenantBrandingFeedback.type === 'success'
+                    ? 'bg-brand-lime/10 border-brand-lime/30 text-brand-lime'
+                    : 'bg-red-500/10 border-red-500/30 text-red-400'
+                }`}
+              >
+                {tenantBrandingFeedback.text}
+              </div>
+            )}
+
+            <div className="flex justify-start">
+              <button
+                type="submit"
+                disabled={isSavingTenantBranding}
+                className="px-4 py-2 rounded-xl bg-brand-lime text-black font-bold text-xs tracking-wide hover:bg-brand-lime/90 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isSavingTenantBranding
+                  ? t('common.saving', 'Saving...')
+                  : t('settings.security.saveTenantBranding', 'Save Tenant Branding')}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {isSuperadmin && (
+      <>
       {/* ── CARD 4: Branding & Platform Identity (Ported 1:1 from ffmpeg-gui) ── */}
       <div className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-2xl p-5 shadow-sm space-y-4">
         <div className="flex items-center gap-2 border-b border-[var(--glass-border)] pb-2 mb-2">
@@ -932,6 +1191,8 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
           {isSaving ? t('common.saving', 'Saving...') : t('common.saveChanges', 'Save Changes')}
         </button>
       </div>
+      </>
+      )}
     </div>
   );
 };

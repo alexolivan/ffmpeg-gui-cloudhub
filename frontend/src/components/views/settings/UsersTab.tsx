@@ -48,6 +48,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
   const [editUsePrefix, setEditUsePrefix] = useState(true);
   const [editRole, setEditRole] = useState<UserRole>('group_operator');
   const [editPassword, setEditPassword] = useState('');
+  const [showEditPassword, setShowEditPassword] = useState(false);
   const [editOrgId, setEditOrgId] = useState<number>(0);
   const [editSelectedGroupIds, setEditSelectedGroupIds] = useState<number[]>([]);
   const [editAllGroupsAccess, setEditAllGroupsAccess] = useState(false);
@@ -172,6 +173,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
     setEditingUser(user);
     setEditRole(user.role);
     setEditPassword('');
+    setShowEditPassword(false);
     const targetOrgId = user.org_id && user.org_id !== defaultOrgId ? user.org_id : (realOrgs[0]?.id ?? 0);
     setEditOrgId(targetOrgId);
     setEditSelectedGroupIds(user.group_ids || []);
@@ -415,7 +417,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
             </div>
           </div>
 
-          {u.id !== currentUser.id && (
+          {u.id !== currentUser.id && (isSuperadmin || u.role === 'group_operator') && (
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 onClick={() => openEditUserModal(u)}
@@ -907,15 +909,25 @@ export const UsersTab: React.FC<UsersTabProps> = ({ currentUser, selectedOrgId }
                 <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                   {t('settings.newPasswordOptional', 'New Password (leave blank to keep current)')}
                 </label>
-                <input
-                  type="password"
-                  name="edit_user_pwd"
-                  autoComplete="new-password"
-                  value={editPassword}
-                  onChange={(e) => setEditPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime font-mono"
-                />
+                <div className="relative">
+                  <input
+                    type={showEditPassword ? 'text' : 'password'}
+                    name="edit_user_pwd"
+                    autoComplete="new-password"
+                    value={editPassword}
+                    onChange={(e) => setEditPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-xl px-3 py-2 pr-10 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-brand-lime font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowEditPassword((v) => !v)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+                    title={showEditPassword ? t('common.hide', 'Hide') : t('common.show', 'Show')}
+                  >
+                    {showEditPassword ? '🙈' : '👁️'}
+                  </button>
+                </div>
               </div>
 
               {editRole === 'group_operator' &&
